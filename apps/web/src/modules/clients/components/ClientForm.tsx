@@ -14,9 +14,11 @@ import {
   TextField,
   Typography,
   alpha,
+  Snackbar,
+  Alert,
 } from '@mui/material';
-import NoteAltRoundedIcon from '@mui/icons-material/NoteAltRounded';
-import { useEffect, useMemo, useState } from 'react';
+// import NoteAltRoundedIcon from '@mui/icons-material/NoteAltRounded';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { clientSchema, ClientFormValues } from '@/modules/clients/schemas/client.schema';
@@ -46,6 +48,9 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
     [defaultValues],
   );
 
+  // Ajout d'une prop pour différencier ajout/modification
+  const isEditMode = Boolean(defaultValues && (defaultValues as any).id);
+
   const {
     control,
     handleSubmit,
@@ -61,7 +66,14 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
   const clientType = watch('type');
   const fullName = watch('fullName');
   const selectedAccountIds = watch('accountIds') ?? [];
+  const codeValue = watch('code');
   const generatedCode = useMemo(() => generateClientCode(fullName), [fullName]);
+
+  const fullNameRef = useRef<HTMLInputElement | null>(null);
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const phoneRef = useRef<HTMLInputElement | null>(null);
+  const [localAccounts, setLocalAccounts] = useState<BankAccount[]>(availableAccounts);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     reset(resolvedDefaultValues);
@@ -71,24 +83,84 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
     setValue('code', generatedCode, { shouldDirty: false, shouldValidate: false });
   }, [generatedCode, setValue]);
 
+  // Only set generated code automatically when creating a new client or when code is empty
+  useEffect(() => {
+    if (!isEditMode || !codeValue) {
+      setValue('code', generatedCode, { shouldDirty: false, shouldValidate: false });
+    }
+  }, [generatedCode, isEditMode, codeValue, setValue]);
+
+  // Focus the fullName or phone field when validation error occurs
+  useEffect(() => {
+    if (errors.fullName) {
+      setTimeout(() => fullNameRef.current?.focus(), 50);
+    } else if (errors.phone) {
+      setTimeout(() => phoneRef.current?.focus(), 50);
+    }
+  }, [errors.fullName, errors.phone]);
+
   const selectedAccounts = useMemo(
-    () => availableAccounts.filter((account) => selectedAccountIds.includes(account.id)),
-    [availableAccounts, selectedAccountIds],
+    () => localAccounts.filter((account) => selectedAccountIds.includes(account.id)),
+    [localAccounts, selectedAccountIds],
   );
 
   const handleQuickCreate = async (values: any) => {
     if (!onQuickCreateAccount) return;
     setQuickCreateLoading(true);
     try {
-      const createdAccount = await onQuickCreateAccount(values);
-      if (createdAccount?.id) {
+      const raw = await onQuickCreateAccount(values);
+
+      // Normalize response: accept both domain BankAccount and { data: { id, attributes: { ... } } }
+      let createdAccount: BankAccount | null | undefined = undefined;
+      if (!raw) createdAccount = undefined;
+      else if ((raw as any).data && (raw as any).data.id) {
+        const d = (raw as any).data;
+        const attrs = d.attributes || {};
+        createdAccount = {
+          id: Number(d.id),
+          label: attrs.label || attrs.name || `Compte ${d.id}`,
+          accountNumber: attrs.accountNumber || attrs.number || '',
+          rib: attrs.rib || attrs.RIB || undefined,
+          iban: attrs.iban || undefined,
+          currency: attrs.currency || attrs.devise || '',
+          isActive: attrs.isActive !== undefined ? attrs.isActive : true,
+          bank: attrs.bank || undefined,
+        } as BankAccount;
+      } else {
+        createdAccount = raw as BankAccount;
+      }
+
+      if (createdAccount && createdAccount.id) {
+        // Add to local options if not already present
+        setLocalAccounts((prev) => {
+          if (prev.some((a) => a.id === createdAccount!.id)) return prev;
+          return [...prev, createdAccount!];
+        });
+
+        // Preserve existing selections and add the new account id
         setValue('accountIds', [...selectedAccountIds, createdAccount.id], { shouldDirty: true });
+
+        setSuccessMessage('Compte créé et ajouté à la sélection');
         setQuickCreateOpen(false);
       }
     } finally {
       setQuickCreateLoading(false);
     }
   };
+
+  // Keep localAccounts in sync with incoming prop changes, but don't drop local additions
+  useEffect(() => {
+    setLocalAccounts((prev) => {
+      const map = new Map<number, BankAccount>();
+      // incoming accounts have priority (fresh from server)
+      availableAccounts.forEach((a) => map.set(a.id, a));
+      // keep any locally added accounts that are missing in availableAccounts
+      prev.forEach((a) => {
+        if (!map.has(a.id)) map.set(a.id, a);
+      });
+      return Array.from(map.values());
+    });
+  }, [availableAccounts]);
 
   const sectionSx = {
     borderRadius: 3,
@@ -105,12 +177,48 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
     letterSpacing: '-0.01em',
   } as const;
 
-  // Ajout d'une prop pour différencier ajout/modification
-  const isEditMode = !!defaultValues && !!defaultValues.id;
+
+  const handleLocalSubmit = async (values: ClientFormValues) => {
+    // Construction métier stricte du payload
+    // - téléphone toujours présent, trim
+    // - email ajouté uniquement s'il est non vide, trim, format validé par zod
+    // - email totalement absent si vide
+
+    const data: any = {
+      code: values.code,
+      type: values.type,
+      fullName: values.fullName,
+      companyName: values.companyName,
+      phone: values.phone.trim(),
+      address: values.address,
+      identityNumber: values.identityNumber,
+      taxNumber: values.taxNumber,
+      notes: values.notes,
+      isActive: values.isActive,
+      accountIds: values.accountIds,
+    };
+
+    // Ajout conditionnel de l'email
+    const emailValue = (values.email ?? '').trim();
+    if (emailValue !== '') {
+      data.email = emailValue;
+    }
+
+    // Nettoyage des champs vides (optionnel, pour éviter null/undefined)
+    Object.keys(data).forEach((key) => {
+      if (data[key] === undefined || data[key] === null) delete data[key];
+    });
+
+    const payload = { data };
+    // Pour debug/QA :
+    // console.log('Payload envoyé:', payload);
+
+    await onSubmit(payload);
+  };
 
   return (
     <>
-      <form onSubmit={handleSubmit((values: ClientFormValues) => onSubmit(values))}>
+      <form onSubmit={handleSubmit(handleLocalSubmit)}>
         <Stack spacing={2.25} sx={{ mt: 0.5 }}>
           {/* ── Informations générales ───────────────────────────── */}
           <Box sx={{ ...sectionSx, backgroundColor: alpha(brandColors.slate[50], 0.6), p: { xs: 1.5, md: 2 } }}>
@@ -125,18 +233,6 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
               <Grid container spacing={1.5} columns={12}>
                 <Grid item xs={12} md={6}>
                   <Controller
-                    name="type"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} select fullWidth label="Type" error={!!errors.type} helperText={errors.type?.message} size="small">
-                        <MenuItem value="INDIVIDUAL">Particulier</MenuItem>
-                        <MenuItem value="COMPANY">Société</MenuItem>
-                      </TextField>
-                    )}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Controller
                     name="fullName"
                     control={control}
                     render={({ field }) => (
@@ -148,6 +244,16 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         error={!!errors.fullName}
                         helperText={errors.fullName?.message || 'Utilisé pour générer automatiquement le code client'}
                         size="small"
+                        InputLabelProps={{ required: true }}
+                        inputProps={{ 'aria-required': true }}
+                        inputRef={(el) => {
+                          // forward the ref to react-hook-form and keep our local ref for autofocus on error
+                          if (field.ref) {
+                            if (typeof field.ref === 'function') field.ref(el);
+                            else (field.ref as any).current = el;
+                          }
+                          fullNameRef.current = el;
+                        }}
                       />
                     )}
                   />
@@ -166,6 +272,18 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         helperText={errors.companyName?.message || (clientType === 'COMPANY' ? 'Champ recommandé pour une société' : 'Optionnel pour un particulier')}
                         size="small"
                       />
+                    )}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Controller
+                    name="type"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField {...field} select fullWidth label="Type" error={!!errors.type} helperText={errors.type?.message} size="small">
+                        <MenuItem value="INDIVIDUAL">Particulier</MenuItem>
+                        <MenuItem value="COMPANY">Société</MenuItem>
+                      </TextField>
                     )}
                   />
                 </Grid>
@@ -196,8 +314,10 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         placeholder="12345678"
                         error={!!errors.phone}
                         helperText={errors.phone?.message}
-                        inputProps={{ inputMode: 'numeric', maxLength: 8 }}
+                        inputProps={{ inputMode: 'numeric', maxLength: 8, 'aria-required': true }}
+                        InputLabelProps={{ required: true }}
                         size="small"
+                        inputRef={(el) => (phoneRef.current = el)}
                       />
                     )}
                   />
@@ -215,6 +335,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         error={!!errors.email}
                         helperText={errors.email?.message}
                         size="small"
+                        inputRef={(el) => (emailRef.current = el)}
                       />
                     )}
                   />
@@ -461,6 +582,12 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
           </Stack>
         </Stack>
       </form>
+
+      <Snackbar open={Boolean(successMessage)} autoHideDuration={3000} onClose={() => setSuccessMessage(null)}>
+        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ width: '100%' }}>
+          {successMessage}
+        </Alert>
+      </Snackbar>
 
       {/* Quick-create dialog */}
       <AccountQuickCreateDialog

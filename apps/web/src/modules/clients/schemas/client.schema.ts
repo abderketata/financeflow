@@ -7,8 +7,11 @@ export const clientSchema = z.object({
   type: z.enum(['INDIVIDUAL', 'COMPANY'], { required_error: 'Le type est requis' }),
   fullName: optionalText,
   companyName: optionalText,
-  phone: z.string().trim().regex(/^\d{8}$/, 'Le numéro de téléphone doit contenir exactement 8 chiffres'),
-  email: z.union([z.string().trim().email('Adresse email invalide'), z.literal('')]).optional().transform((value) => value ?? ''),
+  phone: z.string().trim().min(1, "Le téléphone est obligatoire").regex(/^\d{8}$/, 'Le numéro de téléphone doit contenir exactement 8 chiffres'),
+  email: z.string().trim().optional().refine(
+    (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
+    { message: 'Adresse email invalide' }
+  ),
   address: optionalText,
   identityNumber: optionalText,
   taxNumber: optionalText,
@@ -20,7 +23,7 @@ export const clientSchema = z.object({
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['fullName'],
-      message: 'Le nom complet est requis',
+      message: 'Le nom complet est obligatoire',
     });
   }
 
