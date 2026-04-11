@@ -1,0 +1,22 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="markBg" x1="0" y1="0" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="50" y1="110" x2="110" y2="50" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#DBEAFE" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="8" y="8" width="144" height="144" rx="36" fill="url(#markBg)"/>
+  <!-- Subtle inner glow -->
+  <rect x="8" y="8" width="144" height="144" rx="36" fill="white" fill-opacity="0.06"/>
+  <!-- Arrow up-right (growth / flux) -->
+  <path d="M48 112L80 72L100 88L120 52" stroke="url(#arrowGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Arrow head -->
+  <path d="M108 50L122 48L120 62" stroke="white" stroke-opacity="0.9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Bottom bar (representing balance / stability) -->
+  <rect x="44" y="124" width="72" height="5" rx="2.5" fill="white" fill-opacity="0.35"/>
+</svg>

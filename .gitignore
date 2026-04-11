@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.expo/
+.vite/
+coverage/
+.env
+apps/web/.env
+apps/mobile/.env
+*.log
+.DS_Store
+

@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Flux Financier",
+    "slug": "financeflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.financeflow.app"
+    },
+    "extra": {
+      "apiBaseUrl": "http://51.75.24.113:1334"
+    }
+  }
+}
+
