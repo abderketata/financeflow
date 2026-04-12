@@ -7,7 +7,6 @@ export const routeRefreshQueries: Record<string, readonly unknown[][]> = {
   '/clients': [['clients'], ['accounts', 'available']],
   '/accounts': [['accounts']],
   '/payment-items': [['payment-items']],
-  '/transactions': [['transactions']],
   '/alerts': [['alerts']],
   '/settings': [['settings']],
 };

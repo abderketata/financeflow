@@ -18,7 +18,7 @@ import { useClients } from '@/modules/clients/hooks/useClients';
 import { useAccounts } from '@/modules/accounts/hooks/useAccounts';
 import { PaymentItem } from '@/types/domain';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
-import { actionIconButton, brandColors, numericFont } from '@/app/theme';
+import { brandColors, numericFont } from '@/app/theme';
 
 export default function PaymentItemsPage() {
   const [search, setSearch] = useState('');
@@ -80,19 +80,61 @@ export default function PaymentItemsPage() {
     { field: 'accountName', headerName: 'Compte', flex: 1, valueGetter: ({ row }) => row.bankAccount?.label || '—' },
     {
       field: 'actions',
-      headerName: '',
-      width: 100,
+      headerName: 'Actions',
+      width: 110,
       sortable: false,
+      filterable: false,
+      align: 'right',
+      headerAlign: 'right',
       renderCell: ({ row }) => (
-        <Stack direction="row" spacing={0.5}>
-          <Tooltip title="Modifier">
-            <IconButton size="small" onClick={() => { setEditing(row); setOpenForm(true); }} sx={actionIconButton(brandColors.blue[600])}>
-              <EditRoundedIcon fontSize="small" />
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center" sx={{ width: '100%' }}>
+          <Tooltip title="Modifier le paiement" arrow>
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                setEditing(row);
+                setOpenForm(true);
+              }}
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: '8px',
+                backgroundColor: alpha('#f59e0b', 0.1),
+                color: '#b45309',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: alpha('#f59e0b', 0.22),
+                  color: '#92400e',
+                  transform: 'scale(1.1)',
+                },
+              }}
+            >
+              <EditRoundedIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Supprimer">
-            <IconButton size="small" onClick={() => setDeleting(row)} sx={actionIconButton(brandColors.debit)}>
-              <DeleteOutlineRoundedIcon fontSize="small" />
+          <Tooltip title="Supprimer le paiement" arrow>
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                setDeleting(row);
+              }}
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: '8px',
+                backgroundColor: alpha('#ef5350', 0.08),
+                color: '#c62828',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: alpha('#ef5350', 0.18),
+                  color: '#b71c1c',
+                  transform: 'scale(1.1)',
+                },
+              }}
+            >
+              <DeleteOutlineRoundedIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
         </Stack>

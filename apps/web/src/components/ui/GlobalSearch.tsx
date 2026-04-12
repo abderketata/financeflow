@@ -1,9 +1,7 @@
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import { Autocomplete, Box, InputAdornment, TextField, Typography, alpha } from '@mui/material';
 import { useQueries } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -12,7 +10,6 @@ import { accountService } from '@/modules/accounts/services/account.service';
 // import { bankService } from '@/modules/banks/services/bank.service';
 import { clientService } from '@/modules/clients/services/client.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
-import { transactionService } from '@/modules/transactions/services/transaction.service';
 import { normalizeText } from '@/utils/format';
 import { brandColors, headingFont } from '@/app/theme';
 
@@ -25,10 +22,8 @@ interface SearchOption {
 
 const groupIcons: Record<string, React.ReactNode> = {
   'Clients': <PeopleAltRoundedIcon sx={{ fontSize: 16 }} />,
-  'Banques': <AccountBalanceRoundedIcon sx={{ fontSize: 16 }} />,
   'Comptes': <AccountBalanceWalletRoundedIcon sx={{ fontSize: 16 }} />,
   'Chèques / Traites': <ReceiptLongRoundedIcon sx={{ fontSize: 16 }} />,
-  'Débits / Crédits': <SwapHorizRoundedIcon sx={{ fontSize: 16 }} />,
 };
 
 export function GlobalSearch() {
@@ -55,15 +50,14 @@ export function GlobalSearch() {
       { queryKey: ['global-search', 'clients'], queryFn: () => clientService.list(), enabled },
       // { queryKey: ['global-search', 'banks'], queryFn: () => bankService.list(), enabled },
       { queryKey: ['global-search', 'accounts'], queryFn: () => accountService.list(), enabled },
-      { queryKey: ['global-search', 'payment-items'], queryFn: () => paymentItemService.list({ populate: '*' }), enabled },
-      { queryKey: ['global-search', 'transactions'], queryFn: () => transactionService.list({ populate: '*' }), enabled }
+      { queryKey: ['global-search', 'payment-items'], queryFn: () => paymentItemService.list({ populate: '*' }), enabled }
     ]
   });
 
   const options = useMemo<SearchOption[]>(() => {
     if (!enabled) return [];
     const term = normalizeText(value);
-    const [clients, accounts, paymentItems, transactions] = queries.map((query) => (query.data as any[]) || []);
+    const [clients, accounts, paymentItems] = queries.map((query) => (query.data as any[]) || []);
 
     const results: SearchOption[] = [];
 
@@ -91,11 +85,6 @@ export function GlobalSearch() {
       }
     });
 
-    transactions.forEach((item) => {
-      if (`${item.label} ${item.operationType || ''}`.toLowerCase().includes(term)) {
-        results.push({ id: `transaction-${item.id}`, label: item.label, route: '/transactions', group: 'Débits / Crédits' });
-      }
-    });
 
     return results.slice(0, 12);
   }, [enabled, queries, value]);

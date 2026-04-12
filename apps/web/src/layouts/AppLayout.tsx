@@ -3,7 +3,6 @@ import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded';
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
@@ -69,7 +68,6 @@ const menuGroups = [
     label: 'Opérations',
     items: [
       { label: 'Chèques / Traites', path: '/payment-items', icon: <ReceiptLongRoundedIcon fontSize="small" /> },
-      { label: 'Débits / Crédits', path: '/transactions', icon: <SwapHorizRoundedIcon fontSize="small" /> },
     ],
   },
   {
@@ -125,7 +123,7 @@ export function AppLayout() {
     const segments = location.pathname.split('/').filter(Boolean);
     const labels: Record<string, string> = {
       dashboard: 'Dashboard', clients: 'Clients', banks: 'Banques', accounts: 'Comptes',
-      'payment-items': 'Chèques / Traites', transactions: 'Débits / Crédits',
+      'payment-items': 'Chèques / Traites',
       alerts: 'Alertes', settings: 'Paramètres',
     };
     return segments.map((s) => labels[s] || s);
