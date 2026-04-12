@@ -54,7 +54,7 @@ export function GlobalSearch() {
     queries: [
       { queryKey: ['global-search', 'clients'], queryFn: () => clientService.list(), enabled },
       // { queryKey: ['global-search', 'banks'], queryFn: () => bankService.list(), enabled },
-      { queryKey: ['global-search', 'accounts'], queryFn: () => accountService.list({ populate: '*' }), enabled },
+      { queryKey: ['global-search', 'accounts'], queryFn: () => accountService.list(), enabled },
       { queryKey: ['global-search', 'payment-items'], queryFn: () => paymentItemService.list({ populate: '*' }), enabled },
       { queryKey: ['global-search', 'transactions'], queryFn: () => transactionService.list({ populate: '*' }), enabled }
     ]

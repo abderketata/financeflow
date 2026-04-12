@@ -21,12 +21,6 @@ import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
 import { actionIconButton, brandColors, numericFont } from '@/app/theme';
 
 export default function PaymentItemsPage() {
-  const { data = [], isLoading, isError, refetch } = usePaymentItems();
-  const { data: clients = [] } = useClients();
-  const { data: accounts = [] } = useAccounts();
-  const createMutation = useCreatePaymentItem();
-  const updateMutation = useUpdatePaymentItem();
-  const deleteMutation = useDeletePaymentItem();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -37,6 +31,22 @@ export default function PaymentItemsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
+  const { data = [], isLoading, isError, refetch } = usePaymentItems();
+  const { data: clients = [], isLoading: isClientsLoading } = useClients({ enabled: openForm });
+  const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts({ enabled: openForm });
+  const createMutation = useCreatePaymentItem();
+  const updateMutation = useUpdatePaymentItem();
+  const deleteMutation = useDeletePaymentItem();
+
+  const availableClients = useMemo(
+    () => Array.from(new Map(data.filter((item) => item.client?.id).map((item) => [item.client!.id, item.client!])).values()),
+    [data],
+  );
+
+  const availableAccounts = useMemo(
+    () => Array.from(new Map(data.filter((item) => item.bankAccount?.id).map((item) => [item.bankAccount!.id, item.bankAccount!])).values()),
+    [data],
+  );
 
   const filteredRows = useMemo(() => data.filter((item) => {
     const searchOk = [item.reference, item.type, item.status, item.client?.name, item.bankAccount?.label].map(normalizeText).join(' ').includes(normalizeText(search));
@@ -107,8 +117,8 @@ export default function PaymentItemsPage() {
             <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche globale..." /></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem><MenuItem value="CHEQUE">Chèque</MenuItem><MenuItem value="TRAITE">Traite</MenuItem></TextField></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="small" /></Grid>
-            <Grid item xs={12} md={2}><TextField fullWidth select label="Client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{clients.map((client) => <MenuItem key={client.id} value={String(client.id)}>{client.name}</MenuItem>)}</TextField></Grid>
-            <Grid item xs={12} md={2}><TextField fullWidth select label="Compte" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{accounts.map((account) => <MenuItem key={account.id} value={String(account.id)}>{account.label}</MenuItem>)}</TextField></Grid>
+            <Grid item xs={12} md={2}><TextField fullWidth select label="Client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{availableClients.map((client) => <MenuItem key={client.id} value={String(client.id)}>{client.name}</MenuItem>)}</TextField></Grid>
+            <Grid item xs={12} md={2}><TextField fullWidth select label="Compte" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{availableAccounts.map((account) => <MenuItem key={account.id} value={String(account.id)}>{account.label}</MenuItem>)}</TextField></Grid>
             <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date min" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
             <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date max" value={dateTo} onChange={(e) => setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
           </Grid>
@@ -131,6 +141,8 @@ export default function PaymentItemsPage() {
           defaultValues={editing ? { ...editing, client: editing.client?.id, bankAccount: editing.bankAccount?.id } as any : undefined}
           clients={clients}
           accounts={accounts}
+          clientsLoading={isClientsLoading}
+          accountsLoading={isAccountsLoading}
           loading={createMutation.isPending || updateMutation.isPending}
           onSubmit={async (values) => {
             if (editing) {

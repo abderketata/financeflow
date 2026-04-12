@@ -9,11 +9,14 @@ interface TransactionFormProps {
   clients: Client[];
   accounts: BankAccount[];
   paymentItems: PaymentItem[];
+  clientsLoading?: boolean;
+  accountsLoading?: boolean;
+  paymentItemsLoading?: boolean;
   loading?: boolean;
   onSubmit: (values: TransactionFormValues) => void | Promise<void>;
 }
 
-export function TransactionForm({ defaultValues, clients, accounts, paymentItems, loading, onSubmit }: TransactionFormProps) {
+export function TransactionForm({ defaultValues, clients, accounts, paymentItems, clientsLoading, accountsLoading, paymentItemsLoading, loading, onSubmit }: TransactionFormProps) {
   const { control, handleSubmit, formState: { errors } } = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
@@ -57,7 +60,7 @@ export function TransactionForm({ defaultValues, clients, accounts, paymentItems
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="client" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)}>
+            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={clientsLoading} helperText={clientsLoading ? 'Chargement des clients...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
               {clients.map((client) => <MenuItem key={client.id} value={client.id}>{client.name}</MenuItem>)}
             </TextField>
@@ -65,7 +68,7 @@ export function TransactionForm({ defaultValues, clients, accounts, paymentItems
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="bankAccount" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Compte bancaire" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)}>
+            <TextField {...field} fullWidth select label="Compte bancaire" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
               {accounts.map((account) => <MenuItem key={account.id} value={account.id}>{account.label}</MenuItem>)}
             </TextField>
@@ -73,7 +76,7 @@ export function TransactionForm({ defaultValues, clients, accounts, paymentItems
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="paymentItem" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Chèque / Traite lié" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)}>
+            <TextField {...field} fullWidth select label="Chèque / Traite lié" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={paymentItemsLoading} helperText={paymentItemsLoading ? 'Chargement des paiements...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
               {paymentItems.map((paymentItem) => <MenuItem key={paymentItem.id} value={paymentItem.id}>{paymentItem.reference}</MenuItem>)}
             </TextField>

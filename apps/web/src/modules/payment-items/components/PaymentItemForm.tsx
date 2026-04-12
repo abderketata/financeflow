@@ -8,11 +8,13 @@ interface PaymentItemFormProps {
   defaultValues?: Partial<PaymentItemFormValues>;
   clients: Client[];
   accounts: BankAccount[];
+  clientsLoading?: boolean;
+  accountsLoading?: boolean;
   loading?: boolean;
   onSubmit: (values: PaymentItemFormValues) => void | Promise<void>;
 }
 
-export function PaymentItemForm({ defaultValues, clients, accounts, loading, onSubmit }: PaymentItemFormProps) {
+export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoading, accountsLoading, loading, onSubmit }: PaymentItemFormProps) {
   const { control, handleSubmit, formState: { errors } } = useForm<PaymentItemFormValues>({
     resolver: zodResolver(paymentItemSchema),
     defaultValues: {
@@ -76,7 +78,7 @@ export function PaymentItemForm({ defaultValues, clients, accounts, loading, onS
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="client" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)}>
+            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={clientsLoading} helperText={clientsLoading ? 'Chargement des clients...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
               {clients.map((client) => <MenuItem key={client.id} value={client.id}>{client.name}</MenuItem>)}
             </TextField>
@@ -84,7 +86,7 @@ export function PaymentItemForm({ defaultValues, clients, accounts, loading, onS
         </Grid>
         <Grid item xs={12}>
           <Controller name="bankAccount" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Compte bancaire" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)}>
+            <TextField {...field} fullWidth select label="Compte bancaire" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
               {accounts.map((account) => <MenuItem key={account.id} value={account.id}>{account.label}</MenuItem>)}
             </TextField>

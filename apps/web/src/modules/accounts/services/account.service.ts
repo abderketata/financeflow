@@ -3,8 +3,31 @@ import { api } from '@/services/api/client';
 import { unwrapCollection } from '@/utils/strapi';
 import { BankAccount } from '@/types/domain';
 
+export const bankAccountsListParams = {
+  fields: ['label', 'accountNumber', 'rib', 'iban', 'currency', 'openingBalance', 'currentBalance', 'isActive'],
+  populate: {
+    bank: {
+      fields: ['code', 'name'],
+    },
+    client: {
+      fields: ['code', 'fullName', 'companyName'],
+    },
+  },
+} as const;
+
 export const accountService = {
   ...createCrudService<BankAccount>('/bank-accounts'),
+
+  async list(params?: Record<string, unknown>): Promise<BankAccount[]> {
+    const { data } = await api.get('/bank-accounts', {
+      params: {
+        ...bankAccountsListParams,
+        ...params,
+      },
+    });
+
+    return unwrapCollection<BankAccount>(data);
+  },
 
   /**
    * Récupère les comptes bancaires sélectionnables pour un formulaire client :

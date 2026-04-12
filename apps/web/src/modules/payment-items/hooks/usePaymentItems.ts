@@ -4,9 +4,10 @@ import { paymentItemService } from '@/modules/payment-items/services/paymentItem
 
 const queryKey = ['payment-items'];
 
-export const usePaymentItems = () =>
+export const usePaymentItems = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey,
+    enabled: options?.enabled,
     queryFn: () => paymentItemService.list({ populate: '*' })
   });
 

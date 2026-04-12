@@ -5,9 +5,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export const routeRefreshQueries: Record<string, readonly unknown[][]> = {
   '/dashboard': [['dashboard-summary']],
   '/clients': [['clients'], ['accounts', 'available']],
-  '/accounts': [['accounts'], ['clients']],
-  '/payment-items': [['payment-items'], ['clients'], ['accounts']],
-  '/transactions': [['transactions'], ['clients'], ['accounts'], ['payment-items']],
+  '/accounts': [['accounts']],
+  '/payment-items': [['payment-items']],
+  '/transactions': [['transactions']],
   '/alerts': [['alerts']],
   '/settings': [['settings']],
 };
