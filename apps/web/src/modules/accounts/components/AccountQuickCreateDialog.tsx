@@ -44,6 +44,7 @@ import {
   normalizeIban,
   normalizeRib,
 } from '@/modules/accounts/utils/accountFields';
+import { getStrapiFieldError } from '@/utils/strapi';
 
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
 
@@ -101,6 +102,8 @@ export function AccountQuickCreateDialog({
     control,
     handleSubmit,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<QuickAccountFormValues>({
     resolver: zodResolver(quickAccountSchema),
@@ -123,8 +126,27 @@ export function AccountQuickCreateDialog({
   };
 
   const handleFormSubmit = async (values: QuickAccountFormValues) => {
-    await onSubmit(values);
-    reset();
+    try {
+      await onSubmit(values);
+      reset();
+    } catch (error) {
+      const accountNumberError = getStrapiFieldError(error, 'accountNumber');
+      if (accountNumberError) {
+        const message = accountNumberError.message === 'This attribute must be unique'
+          ? 'Ce numéro de compte existe déjà.'
+          : accountNumberError.message || 'Numéro de compte invalide.';
+        setError('accountNumber', { type: 'server', message });
+        setValidationAlert(message);
+        const el = document.querySelector<HTMLInputElement>('[name="accountNumber"]');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => el.focus(), 300);
+        }
+        return;
+      }
+
+      throw error;
+    }
   };
 
   return (
@@ -215,7 +237,10 @@ export function AccountQuickCreateDialog({
                   <TextField
                     {...field}
                     value={formatAccountNumber(field.value)}
-                    onChange={(e) => field.onChange(formatAccountNumber(e.target.value))}
+                    onChange={(e) => {
+                      clearErrors('accountNumber');
+                      field.onChange(formatAccountNumber(e.target.value));
+                    }}
                     fullWidth
                     label="Numéro de compte *"
                     placeholder="Ex. 0012 3456 789"

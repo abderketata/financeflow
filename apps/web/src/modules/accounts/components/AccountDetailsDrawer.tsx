@@ -246,6 +246,10 @@ export function AccountDetailsDrawer({ account, open, onClose, onEdit }: Account
   const openingBalance = getAccountOpeningBalanceValue(account);
   const accountStatus = getAccountStatusKey(account);
   const currency = account.currency || 'TND';
+  const traceabilityRows = [
+    account.createdAt ? { label: 'Créé le', value: formatDate(account.createdAt) } : null,
+    account.updatedAt ? { label: 'Mis à jour le', value: formatDate(account.updatedAt) } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <Dialog
@@ -417,10 +421,12 @@ export function AccountDetailsDrawer({ account, open, onClose, onEdit }: Account
         <SectionTitle>Traçabilité</SectionTitle>
         <SectionBlock last>
           <InfoRow label="Statut" value={accountStatus === 'ACTIVE' ? 'Actif' : 'Inactif'} />
-          <Divider />
-          <InfoRow label="Créé le" value={account.createdAt ? formatDate(account.createdAt) : '—'} />
-          <Divider />
-          <InfoRow label="Mis à jour le" value={account.updatedAt ? formatDate(account.updatedAt) : '—'} />
+          {traceabilityRows.map((row) => (
+            <Box key={row.label}>
+              <Divider />
+              <InfoRow label={row.label} value={row.value} />
+            </Box>
+          ))}
         </SectionBlock>
       </Box>
 
@@ -452,7 +458,18 @@ export function AccountDetailsDrawer({ account, open, onClose, onEdit }: Account
           size="small"
           startIcon={<EditRoundedIcon sx={{ fontSize: 15 }} />}
           onClick={() => onEdit(account)}
-          sx={{ fontSize: '0.8rem', px: 2 }}
+          sx={{
+            fontSize: '0.8rem',
+            px: 2,
+            background: 'linear-gradient(135deg, #f59e0b 0%, #eab308 100%)',
+            color: '#1f2937',
+            boxShadow: `0 1px 2px ${alpha('#d97706', 0.25)}`,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #d97706 0%, #ca8a04 100%)',
+              color: '#111827',
+              boxShadow: `0 4px 12px ${alpha('#d97706', 0.3)}`,
+            },
+          }}
         >
           Modifier
         </Button>

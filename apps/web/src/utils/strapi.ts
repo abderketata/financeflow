@@ -35,3 +35,20 @@ export const unwrapSingle = <T>(response: { data?: any }): T | null => {
   return normalizeValue(response.data) as T;
 };
 
+export interface StrapiValidationIssue {
+  path?: string[];
+  message?: string;
+  name?: string;
+}
+
+export const getStrapiValidationIssues = (error: unknown): StrapiValidationIssue[] => {
+  if (!isObject(error) || !isObject(error.details) || !Array.isArray(error.details.errors)) {
+    return [];
+  }
+
+  return error.details.errors.filter((entry): entry is StrapiValidationIssue => isObject(entry));
+};
+
+export const getStrapiFieldError = (error: unknown, field: string) =>
+  getStrapiValidationIssues(error).find((issue) => Array.isArray(issue.path) && issue.path.includes(field));
+

@@ -45,7 +45,8 @@ import { AccountForm } from '@/modules/accounts/components/AccountForm';
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from '@/modules/accounts/hooks/useAccounts';
 import { useBanks } from '@/modules/banks/hooks/useBanks';
 import { clientService } from '@/modules/clients/services/client.service';
-import { useClients } from '@/modules/clients/hooks/useClients';
+import { useCreateClient } from '@/modules/clients/hooks/useClients';
+import { buildClientMutationPayload } from '@/modules/clients/utils/clientPresentation';
 import { Bank, BankAccount, Client } from '@/types/domain';
 import { formatCurrency } from '@/utils/format';
 import { actionIconButton, brandColors, numericFont } from '@/app/theme';
@@ -110,7 +111,6 @@ export default function AccountsPage() {
   }, [searchQuery, selectedBank?.id, selectedClient?.id, statusFilter]);
   const { data = [], isLoading, isError, refetch, isFetching } = useAccounts({ params: accountsQueryParams });
   const { data: banks = [] } = useBanks();
-  const { data: clients = [], isLoading: isClientsLoading } = useClients({ enabled: openForm });
   const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
     queryKey: ['clients', 'lookup', debouncedClientSearchInput],
     queryFn: () => clientService.lookup(debouncedClientSearchInput, 50),
@@ -119,6 +119,15 @@ export default function AccountsPage() {
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
   const deleteMutation = useDeleteAccount();
+  const createClientMutation = useCreateClient();
+  const [clientFormSearchInput, setClientFormSearchInput] = useState('');
+  const debouncedClientFormSearch = useDebouncedValue(clientFormSearchInput, 350);
+  const { data: formClients = [], isLoading: isFormClientsLoading } = useQuery({
+    queryKey: ['clients', 'form-lookup', debouncedClientFormSearch],
+    queryFn: () => clientService.lookup(debouncedClientFormSearch, 50),
+    enabled: openForm,
+    staleTime: 30_000,
+  });
   const accountFormDefaults = useMemo(() => getAccountFormDefaults(editing), [editing]);
 
   useEffect(() => {
@@ -626,10 +635,20 @@ export default function AccountsPage() {
         <AccountForm
           defaultValues={accountFormDefaults}
           banks={banks}
-          clients={clients}
-          clientsLoading={isClientsLoading}
+          clients={formClients}
+          initialClient={editing?.client ?? null}
+          clientsLoading={isFormClientsLoading}
           loading={createMutation.isPending || updateMutation.isPending}
           onCancel={() => { setOpenForm(false); setEditing(null); }}
+          onClientSearch={(q) => setClientFormSearchInput(q)}
+          onQuickCreateClient={async (values) => {
+            const payload = buildClientMutationPayload({
+              ...values,
+              isActive: true,
+            });
+            const created = await createClientMutation.mutateAsync(payload);
+            return created as Client | null;
+          }}
           onSubmit={async (values) => {
             if (editing) {
               await updateMutation.mutateAsync({ id: editing.id, payload: values as any });

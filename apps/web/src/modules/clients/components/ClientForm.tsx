@@ -186,7 +186,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         fullWidth
                         required
                         label="Nom complet"
-                        placeholder="Ex. Fekra Ben Ayed"
+                        placeholder="Ex. Foulen Ben Foulen"
                         error={!!errors.fullName}
                         helperText={errors.fullName?.message || 'Utilisé pour générer automatiquement le code client'}
                         size="small"
