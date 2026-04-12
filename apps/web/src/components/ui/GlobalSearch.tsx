@@ -7,7 +7,7 @@ import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import { Autocomplete, Box, InputAdornment, TextField, Typography, alpha } from '@mui/material';
 import { useQueries } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useBusinessNavigate } from '@/app/businessNavigation';
 import { accountService } from '@/modules/accounts/services/account.service';
 // import { bankService } from '@/modules/banks/services/bank.service';
 import { clientService } from '@/modules/clients/services/client.service';
@@ -33,7 +33,7 @@ const groupIcons: Record<string, React.ReactNode> = {
 
 export function GlobalSearch() {
   const [value, setValue] = useState('');
-  const navigate = useNavigate();
+  const navigateWithRefresh = useBusinessNavigate();
   const enabled = value.trim().length >= 2;
 
   // Ctrl+K shortcut
@@ -111,7 +111,7 @@ export function GlobalSearch() {
       onInputChange={(_, nextValue) => setValue(nextValue)}
       onChange={(_, option) => {
         if (option && typeof option !== 'string') {
-          navigate(option.route);
+          navigateWithRefresh(option.route);
           setValue('');
         }
       }}

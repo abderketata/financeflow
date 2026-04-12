@@ -37,8 +37,9 @@ import {
   alpha,
   useMediaQuery
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { getBusinessRefreshKey, useBusinessNavigate } from '@/app/businessNavigation';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { GlobalSearch } from '@/components/ui/GlobalSearch';
 import { useAlerts } from '@/modules/alerts/hooks/useAlerts';
@@ -83,6 +84,7 @@ const menuGroups = [
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const businessNavigate = useBusinessNavigate();
   const isMobile = useMediaQuery('(max-width:900px)');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
@@ -95,6 +97,15 @@ export function AppLayout() {
 
   const unreadAlerts = alerts.filter((alert) => !alert.isRead).length;
   const drawerWidth = collapsed && !isMobile ? DRAWER_COLLAPSED : DRAWER_FULL;
+  const menuRefreshKey = getBusinessRefreshKey(location.state);
+
+  const navigateWithRefresh = useCallback((path: string) => {
+    businessNavigate(path);
+
+    setMobileOpen(false);
+    setNotifAnchor(null);
+    setUserAnchor(null);
+  }, [businessNavigate]);
 
   const toggleCollapse = () => {
     const next = !collapsed;
@@ -186,8 +197,7 @@ export function AppLayout() {
                       key={item.path}
                       selected={isActive}
                       onClick={() => {
-                        navigate(item.path);
-                        setMobileOpen(false);
+                        navigateWithRefresh(item.path);
                       }}
                       sx={{
                         borderRadius: '10px',
@@ -347,7 +357,7 @@ export function AppLayout() {
         </Box>
       </Box>
     ),
-    [location.pathname, navigate, user, logout, isCollapsed, isMobile, unreadAlerts, toggleCollapse]
+    [location.pathname, navigateWithRefresh, user, logout, isCollapsed, isMobile, unreadAlerts, toggleCollapse]
   );
 
   return (
@@ -504,7 +514,7 @@ export function AppLayout() {
             {alerts.slice(0, 6).map((alert) => (
               <MenuItem
                 key={alert.id}
-                onClick={() => { setNotifAnchor(null); navigate('/alerts'); }}
+                onClick={() => navigateWithRefresh('/alerts')}
                 sx={{
                   py: 1.5,
                   px: 2.5,
@@ -543,7 +553,7 @@ export function AppLayout() {
               <Box sx={{ borderTop: '1px solid', borderColor: 'divider', px: 2.5, py: 1.2, textAlign: 'center' }}>
                 <Button
                   size="small"
-                  onClick={() => { setNotifAnchor(null); navigate('/alerts'); }}
+                  onClick={() => navigateWithRefresh('/alerts')}
                   sx={{ fontSize: '0.82rem', fontWeight: 600 }}
                 >
                   Voir toutes les alertes
@@ -561,7 +571,7 @@ export function AppLayout() {
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
           >
-            <MenuItem onClick={() => { setUserAnchor(null); navigate('/settings'); }}>
+            <MenuItem onClick={() => navigateWithRefresh('/settings')}>
               <ListItemIcon><SettingsRoundedIcon fontSize="small" /></ListItemIcon>
               <ListItemText primaryTypographyProps={{ fontSize: '0.88rem' }}>Paramètres</ListItemText>
             </MenuItem>
@@ -614,7 +624,7 @@ export function AppLayout() {
           transition: 'max-width 0.25s ease',
         }}
       >
-        <Outlet />
+        <Outlet key={`${location.pathname}:${menuRefreshKey}`} />
       </Box>
     </Box>
   );

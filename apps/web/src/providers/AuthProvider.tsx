@@ -1,4 +1,6 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { banksQueryOptions, banksQueryKey } from '@/modules/banks/hooks/useBanks';
 import { authService } from '@/services/api/auth';
 import { AuthUser } from '@/types/domain';
 
@@ -13,19 +15,30 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(authService.getUser());
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!authService.getToken()) {
+      return;
+    }
+
+    void queryClient.ensureQueryData(banksQueryOptions);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,
     isAuthenticated: Boolean(authService.getToken()),
     async login(identifier: string, password: string) {
       const response = await authService.login({ identifier, password });
+      await queryClient.ensureQueryData(banksQueryOptions);
       setUser(response.user);
     },
     logout() {
       authService.logout();
+      queryClient.removeQueries({ queryKey: banksQueryKey });
       setUser(null);
     }
-  }), [user]);
+  }), [queryClient, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
