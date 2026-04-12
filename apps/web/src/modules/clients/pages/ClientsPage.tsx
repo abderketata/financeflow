@@ -1,9 +1,8 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import FilterAltOffRoundedIcon from '@mui/icons-material/FilterAltOffRounded';
-import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
-import ToggleOffRoundedIcon from '@mui/icons-material/ToggleOffRounded';
-import ToggleOnRoundedIcon from '@mui/icons-material/ToggleOnRounded';
+import PowerSettingsNewRoundedIcon from '@mui/icons-material/PowerSettingsNewRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import {
   Avatar,
@@ -14,17 +13,15 @@ import {
   Chip,
   Grid,
   IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   alpha,
 } from '@mui/material';
 import { GridColDef, DataGrid } from '@mui/x-data-grid';
-import { MouseEvent as ReactMouseEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchField } from '@/components/ui/SearchField';
@@ -32,6 +29,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ClientDetailsDrawer } from '@/modules/clients/components/ClientDetailsDrawer';
 import { ClientForm } from '@/modules/clients/components/ClientForm';
@@ -39,7 +37,7 @@ import { useClients, useCreateClient, useUpdateClient } from '@/modules/clients/
 import { useAvailableAccounts, useCreateAccount } from '@/modules/accounts/hooks/useAccounts';
 import { useBanks } from '@/modules/banks/hooks/useBanks';
 import { Client, BankAccount } from '@/types/domain';
-import { actionIconButton, brandColors } from '@/app/theme';
+import { brandColors } from '@/app/theme';
 import {
   buildClientMutationPayload,
   getClientActivitySummary,
@@ -64,8 +62,7 @@ export default function ClientsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
-  const [menuClient, setMenuClient] = useState<Client | null>(null);
+  const [pendingToggleClient, setPendingToggleClient] = useState<Client | null>(null);
   const debouncedSearchInput = useDebouncedValue(searchInput, 400);
   const clientsQueryParams = useMemo(() => {
     if (!searchQuery) {
@@ -142,18 +139,13 @@ export default function ClientsPage() {
     setSelectedClient(client);
   };
 
-  const handleMenuOpen = (event: ReactMouseEvent<HTMLElement>, client: Client) => {
-    event.stopPropagation();
-    setMenuAnchorEl(event.currentTarget);
-    setMenuClient(client);
+  const requestToggleStatus = (client: Client) => {
+    setPendingToggleClient(client);
   };
 
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setMenuClient(null);
-  };
-
-  const handleToggleStatus = async (client: Client) => {
+  const confirmToggleStatus = async () => {
+    if (!pendingToggleClient) return;
+    const client = pendingToggleClient;
     await updateMutation.mutateAsync({
       id: client.id,
       payload: buildClientMutationPayload({ ...client, isActive: client.isActive === false }),
@@ -162,6 +154,7 @@ export default function ClientsPage() {
     if (selectedClient?.id === client.id) {
       setSelectedClient({ ...selectedClient, isActive: client.isActive === false });
     }
+    setPendingToggleClient(null);
   };
 
   const handleQuickCreateAccount = async (values: any): Promise<BankAccount | null | undefined> => {
@@ -271,29 +264,87 @@ export default function ClientsPage() {
       filterable: false,
       align: 'right',
       headerAlign: 'right',
-      renderCell: ({ row }: { row: Client }) => (
-        <Stack direction="row" spacing={0.75} justifyContent="flex-end" alignItems="center" sx={{ width: '100%' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<VisibilityRoundedIcon />}
-            onClick={(event) => {
-              event.stopPropagation();
-              handleOpenDetails(row);
-            }}
-            sx={{ minWidth: 0, px: 1.15 }}
-          >
-            Voir
-          </Button>
-          <IconButton
-            size="small"
-            onClick={(event) => handleMenuOpen(event, row)}
-            sx={actionIconButton(brandColors.slate[600])}
-          >
-            <MoreHorizRoundedIcon fontSize="small" />
-          </IconButton>
-        </Stack>
-      ),
+      renderCell: ({ row }: { row: Client }) => {
+        const isInactive = row.isActive === false;
+        return (
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center" sx={{ width: '100%' }}>
+            <Tooltip title={isInactive ? 'Activer le client' : 'Désactiver le client'} arrow>
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  requestToggleStatus(row);
+                }}
+                sx={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '8px',
+                  backgroundColor: isInactive ? alpha('#4caf50', 0.1) : alpha('#ef5350', 0.08),
+                  color: isInactive ? '#388e3c' : '#c62828',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: isInactive ? alpha('#4caf50', 0.22) : alpha('#ef5350', 0.18),
+                    color: isInactive ? '#2e7d32' : '#b71c1c',
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                {isInactive
+                  ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: 16 }} />
+                  : <PowerSettingsNewRoundedIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Modifier la fiche" arrow>
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenForm(row);
+                }}
+                sx={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '8px',
+                  backgroundColor: alpha('#f59e0b', 0.1),
+                  color: '#b45309',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: alpha('#f59e0b', 0.22),
+                    color: '#92400e',
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                <EditRoundedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Voir le détail" arrow>
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenDetails(row);
+                }}
+                sx={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: '8px',
+                  backgroundColor: alpha('#2196f3', 0.1),
+                  color: '#1565c0',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: alpha('#2196f3', 0.22),
+                    color: '#0d47a1',
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        );
+      },
     },
   ];
 
@@ -428,43 +479,6 @@ export default function ClientsPage() {
         </CardContent>
       </Card>
 
-      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
-        <MenuItem
-          onClick={() => {
-            if (menuClient) {
-              handleOpenDetails(menuClient);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon><VisibilityRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Voir le détail</ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (menuClient) {
-              handleOpenForm(menuClient);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon><EditRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Modifier la fiche</ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={async () => {
-            if (menuClient) {
-              await handleToggleStatus(menuClient);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            {menuClient?.isActive === false ? <ToggleOnRoundedIcon fontSize="small" /> : <ToggleOffRoundedIcon fontSize="small" />}
-          </ListItemIcon>
-          <ListItemText>{menuClient?.isActive === false ? 'Activer le client' : 'Désactiver le client'}</ListItemText>
-        </MenuItem>
-      </Menu>
 
       <ClientDetailsDrawer
         client={selectedClient}
@@ -474,6 +488,33 @@ export default function ClientsPage() {
           setSelectedClient(null);
           handleOpenForm(client);
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingToggleClient)}
+        title={
+          pendingToggleClient && pendingToggleClient.isActive !== false
+            ? 'Désactiver ce client'
+            : 'Activer ce client'
+        }
+        description={
+          pendingToggleClient && pendingToggleClient.isActive !== false
+            ? `Voulez-vous vraiment désactiver le client '${getClientDisplayName(pendingToggleClient)}' ? Il ne sera plus visible dans les opérations courantes.`
+            : `Voulez-vous vraiment activer le client '${pendingToggleClient ? getClientDisplayName(pendingToggleClient) : ''}' ? Il redeviendra disponible pour les opérations.`
+        }
+        confirmLabel={
+          pendingToggleClient && pendingToggleClient.isActive !== false
+            ? 'Désactiver'
+            : 'Activer'
+        }
+        confirmColor={
+          pendingToggleClient && pendingToggleClient.isActive !== false
+            ? 'error'
+            : 'success'
+        }
+        loading={updateMutation.isPending}
+        onClose={() => setPendingToggleClient(null)}
+        onConfirm={confirmToggleStatus}
       />
 
       <FormDialog open={openForm} title={editing ? 'Modifier le client' : 'Nouveau client'} onClose={() => setOpenForm(false)}>

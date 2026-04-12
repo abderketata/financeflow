@@ -3,9 +3,8 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import FilterAltOffRoundedIcon from '@mui/icons-material/FilterAltOffRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
-import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
-import ToggleOffRoundedIcon from '@mui/icons-material/ToggleOffRounded';
-import ToggleOnRoundedIcon from '@mui/icons-material/ToggleOnRounded';
+import PowerSettingsNewRoundedIcon from '@mui/icons-material/PowerSettingsNewRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import {
   Autocomplete,
@@ -18,9 +17,6 @@ import {
   CircularProgress,
   Grid,
   IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
   MenuItem,
   Stack,
   TextField,
@@ -29,7 +25,7 @@ import {
   alpha,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { MouseEvent as ReactMouseEvent, SyntheticEvent, useEffect, useMemo, useState } from 'react';
+import { SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchField } from '@/components/ui/SearchField';
@@ -37,6 +33,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormDialog } from '@/components/ui/FormDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { AccountDetailsDrawer } from '@/modules/accounts/components/AccountDetailsDrawer';
 import { AccountForm } from '@/modules/accounts/components/AccountForm';
@@ -65,9 +62,8 @@ export default function AccountsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
-  const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
-  const [menuAccount, setMenuAccount] = useState<BankAccount | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [pendingToggleAccount, setPendingToggleAccount] = useState<BankAccount | null>(null);
   const debouncedSearchInput = useDebouncedValue(searchInput, 400);
   const debouncedClientSearchInput = useDebouncedValue(clientSearchInput, 350);
   const accountsQueryParams = useMemo(() => {
@@ -174,18 +170,14 @@ export default function AccountsPage() {
     setSelectedAccount(account);
   };
 
-  const handleMenuOpen = (event: ReactMouseEvent<HTMLElement>, account: BankAccount) => {
-    event.stopPropagation();
-    setMenuAnchorEl(event.currentTarget);
-    setMenuAccount(account);
+
+  const requestToggleStatus = (account: BankAccount) => {
+    setPendingToggleAccount(account);
   };
 
-  const handleMenuClose = () => {
-    setMenuAnchorEl(null);
-    setMenuAccount(null);
-  };
-
-  const handleToggleStatus = async (account: BankAccount) => {
+  const confirmToggleStatus = async () => {
+    if (!pendingToggleAccount) return;
+    const account = pendingToggleAccount;
     const nextActive = getAccountStatusKey(account) !== 'ACTIVE';
     await updateMutation.mutateAsync({
       id: account.id,
@@ -195,6 +187,7 @@ export default function AccountsPage() {
     if (selectedAccount?.id === account.id) {
       setSelectedAccount({ ...selectedAccount, isActive: nextActive, status: nextActive ? 'ACTIVE' : 'INACTIVE' });
     }
+    setPendingToggleAccount(null);
   };
 
   const groupedAccounts = useMemo(() => {
@@ -262,8 +255,8 @@ export default function AccountsPage() {
         key={account.id}
         onClick={() => handleOpenDetails(account)}
         sx={{
-          p: 1.5,
-          borderRadius: 3,
+          p: 0.85,
+          borderRadius: 2,
           border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
           backgroundColor: '#FFFFFF',
           cursor: 'pointer',
@@ -275,9 +268,9 @@ export default function AccountsPage() {
           },
         }}
       >
-        <Grid container spacing={1.25} alignItems="center">
+        <Grid container spacing={1} alignItems="center">
           <Grid item xs={12} md={1.55}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Banque</Typography>
               <Typography sx={{ fontWeight: 800, color: bankCode === '—' ? 'text.secondary' : brandColors.blue[700], fontSize: '0.9rem' }} noWrap title={bankCode}>
                 {bankCode}
@@ -285,7 +278,7 @@ export default function AccountsPage() {
             </Stack>
           </Grid>
           <Grid item xs={12} md={3.6}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Numéro</Typography>
               <Tooltip title={account.accountNumber}>
                 <Typography sx={{ fontFamily: numericFont, fontWeight: 700, color: 'text.primary', fontSize: '0.88rem', ...ellipsisValueSx }}>
@@ -300,13 +293,13 @@ export default function AccountsPage() {
             </Stack>
           </Grid>
           <Grid item xs={6} md={1.2}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Devise</Typography>
               <Box><StatusChip status={account.currency || 'TND'} /></Box>
             </Stack>
           </Grid>
           <Grid item xs={6} md={2.05}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Solde</Typography>
               <Typography sx={{ fontFamily: numericFont, fontWeight: 800, color: getAccountBalanceValue(account) >= 0 ? brandColors.credit : brandColors.debit, fontSize: '0.9rem', ...ellipsisValueSx }} title={formatCurrency(getAccountBalanceValue(account), account.currency || 'TND')}>
                 {formatCurrency(getAccountBalanceValue(account), account.currency || 'TND')}
@@ -314,34 +307,89 @@ export default function AccountsPage() {
             </Stack>
           </Grid>
           <Grid item xs={7} md={1.5}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }}>
+            <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Statut</Typography>
               <Box><StatusChip status={getAccountStatusKey(account)} /></Box>
             </Stack>
           </Grid>
           <Grid item xs={5} md={2.1}>
-            <Stack spacing={0.35} sx={{ minWidth: 0 }} alignItems="flex-end">
+            <Stack spacing={0.15} sx={{ minWidth: 0 }} alignItems="flex-end">
               <Typography sx={accountMetaLabelSx}>Actions</Typography>
-              <Stack direction="row" spacing={0.75} justifyContent="flex-end" alignItems="center" sx={{ width: '100%' }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<VisibilityRoundedIcon />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleOpenDetails(account);
-                  }}
-                  sx={{ minWidth: 0, px: 1.15 }}
-                >
-                  Voir
-                </Button>
-                <IconButton
-                  size="small"
-                  onClick={(event) => handleMenuOpen(event, account)}
-                  sx={actionIconButton(brandColors.slate[600])}
-                >
-                  <MoreHorizRoundedIcon fontSize="small" />
-                </IconButton>
+              <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                <Tooltip title={getAccountStatusKey(account) === 'INACTIVE' ? 'Activer le compte' : 'Désactiver le compte'} arrow>
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      requestToggleStatus(account);
+                    }}
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: '8px',
+                      backgroundColor: getAccountStatusKey(account) === 'INACTIVE' ? alpha('#4caf50', 0.1) : alpha('#ef5350', 0.08),
+                      color: getAccountStatusKey(account) === 'INACTIVE' ? '#388e3c' : '#c62828',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: getAccountStatusKey(account) === 'INACTIVE' ? alpha('#4caf50', 0.22) : alpha('#ef5350', 0.18),
+                        color: getAccountStatusKey(account) === 'INACTIVE' ? '#2e7d32' : '#b71c1c',
+                        transform: 'scale(1.1)',
+                      },
+                    }}
+                  >
+                    {getAccountStatusKey(account) === 'INACTIVE'
+                      ? <CheckCircleOutlineRoundedIcon sx={{ fontSize: 16 }} />
+                      : <PowerSettingsNewRoundedIcon sx={{ fontSize: 16 }} />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Modifier le compte" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenForm(account);
+                    }}
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: '8px',
+                      backgroundColor: alpha('#f59e0b', 0.1),
+                      color: '#b45309',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha('#f59e0b', 0.22),
+                        color: '#92400e',
+                        transform: 'scale(1.1)',
+                      },
+                    }}
+                  >
+                    <EditRoundedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Voir le détail" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenDetails(account);
+                    }}
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: '8px',
+                      backgroundColor: alpha('#2196f3', 0.1),
+                      color: '#1565c0',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha('#2196f3', 0.22),
+                        color: '#0d47a1',
+                        transform: 'scale(1.1)',
+                      },
+                    }}
+                  >
+                    <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
               </Stack>
             </Stack>
           </Grid>
@@ -361,15 +409,15 @@ export default function AccountsPage() {
         count={filteredRows.length}
         action={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => handleOpenForm(null)}>Ajouter un compte</Button>}
       />
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.25 }}>
         <Chip label={`Comptes (${stats.total})`} color="info" variant="filled" sx={{ fontWeight: 700 }} />
         <Chip label={`Actifs (${stats.active})`} color="success" variant="filled" sx={{ fontWeight: 700 }} />
         <Chip label={`Inactifs (${stats.inactive})`} variant="outlined" sx={{ fontWeight: 700, color: brandColors.slate[600] }} />
         <Chip label={`Liés à un client (${stats.linkedClients})`} variant="outlined" sx={{ fontWeight: 700, color: brandColors.blue[700] }} />
       </Stack>
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ p: { xs: 2, md: 2.25 }, '&:last-child': { pb: { xs: 2, md: 2.25 } } }}>
+      <Card sx={{ mb: 1.25 }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 1.75 }, '&:last-child': { pb: { xs: 1.5, md: 1.75 } } }}>
           <Box
             sx={{
               display: 'grid',
@@ -497,30 +545,30 @@ export default function AccountsPage() {
       </Card>
 
       <Card>
-        <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+        <CardContent sx={{ p: { xs: 1, md: 1.5 }, '&:last-child': { pb: { xs: 1, md: 1.5 } } }}>
           {filteredRows.length ? (
-            <Stack spacing={1.6}>
+            <Stack spacing={0.75}>
               {groupedAccounts.clientGroups.map((group) => {
                 const groupKey = `client-${group.clientId}`;
                 const expanded = isGroupExpanded(groupKey);
 
                 return (
-                  <Card key={groupKey} sx={{ borderRadius: 3.5, border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`, boxShadow: '0 6px 20px rgba(15, 23, 42, 0.04)' }}>
-                    <CardContent sx={{ p: { xs: 1.75, md: 2 } }}>
-                      <Stack spacing={1.5}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+                  <Card key={groupKey} sx={{ borderRadius: 2.5, border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`, boxShadow: '0 6px 20px rgba(15, 23, 42, 0.04)' }}>
+                    <CardContent sx={{ p: { xs: 1.25, md: 1.5 }, '&:last-child': { pb: { xs: 1.25, md: 1.5 } } }}>
+                      <Stack spacing={0.75}>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={0.75} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
                           <Box sx={{ minWidth: 0 }}>
-                            <Typography sx={{ fontWeight: 800, color: 'text.primary', fontSize: '1rem', lineHeight: 1.3 }}>
+                            <Typography sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.93rem', lineHeight: 1.25 }}>
                               {group.primary}
                             </Typography>
                             {group.secondary ? (
-                              <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem', mt: 0.2 }}>
+                              <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', mt: 0.1 }}>
                                 {group.secondary}
                               </Typography>
                             ) : null}
                           </Box>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Chip label={`${group.accounts.length} compte${group.accounts.length > 1 ? 's' : ''}`} color="info" variant="filled" sx={{ fontWeight: 700 }} />
+                          <Stack direction="row" spacing={0.75} alignItems="center">
+                            <Chip label={`${group.accounts.length} compte${group.accounts.length > 1 ? 's' : ''}`} color="info" variant="filled" size="small" sx={{ fontWeight: 700, height: 22, fontSize: '0.75rem' }} />
                             <IconButton size="small" onClick={() => toggleGroup(groupKey)} sx={actionIconButton(brandColors.slate[600])}>
                               {expanded ? <KeyboardArrowUpRoundedIcon fontSize="small" /> : <KeyboardArrowDownRoundedIcon fontSize="small" />}
                             </IconButton>
@@ -528,7 +576,7 @@ export default function AccountsPage() {
                         </Stack>
 
                         <Collapse in={expanded} timeout="auto" unmountOnExit>
-                          <Stack spacing={1.1}>
+                          <Stack spacing={0.5}>
                             {group.accounts.map((account) => renderAccountLine(account))}
                           </Stack>
                         </Collapse>
@@ -539,22 +587,22 @@ export default function AccountsPage() {
               })}
 
               {groupedAccounts.unassigned.length ? (
-                <Card sx={{ borderRadius: 3.5, border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`, boxShadow: '0 6px 20px rgba(15, 23, 42, 0.04)' }}>
-                  <CardContent sx={{ p: { xs: 1.75, md: 2 } }}>
-                    <Stack spacing={1.4}>
-                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+                <Card sx={{ borderRadius: 2.5, border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`, boxShadow: '0 6px 20px rgba(15, 23, 42, 0.04)' }}>
+                  <CardContent sx={{ p: { xs: 1.25, md: 1.5 }, '&:last-child': { pb: { xs: 1.25, md: 1.5 } } }}>
+                    <Stack spacing={0.75}>
+                      <Stack direction={{ xs: 'column', md: 'row' }} spacing={0.75} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography sx={{ fontWeight: 800, color: 'text.primary', fontSize: '1rem', lineHeight: 1.3 }}>
+                          <Typography sx={{ fontWeight: 800, color: 'text.primary', fontSize: '0.93rem', lineHeight: 1.25 }}>
                             Comptes sans client
                           </Typography>
-                          <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem', mt: 0.2 }}>
+                          <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem', mt: 0.1 }}>
                             Comptes non rattachés, affichés individuellement.
                           </Typography>
                         </Box>
-                        <Chip label={`${groupedAccounts.unassigned.length} compte${groupedAccounts.unassigned.length > 1 ? 's' : ''}`} variant="outlined" sx={{ fontWeight: 700, color: brandColors.slate[600] }} />
+                        <Chip label={`${groupedAccounts.unassigned.length} compte${groupedAccounts.unassigned.length > 1 ? 's' : ''}`} variant="outlined" size="small" sx={{ fontWeight: 700, color: brandColors.slate[600], height: 22, fontSize: '0.75rem' }} />
                       </Stack>
 
-                      <Stack spacing={1.1}>
+                      <Stack spacing={0.5}>
                         {groupedAccounts.unassigned.map((account) => renderAccountLine(account))}
                       </Stack>
                     </Stack>
@@ -568,43 +616,6 @@ export default function AccountsPage() {
         </CardContent>
       </Card>
 
-      <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
-        <MenuItem
-          onClick={() => {
-            if (menuAccount) {
-              handleOpenDetails(menuAccount);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon><VisibilityRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Voir le détail</ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (menuAccount) {
-              handleOpenForm(menuAccount);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon><EditRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Modifier le compte</ListItemText>
-        </MenuItem>
-        <MenuItem
-          onClick={async () => {
-            if (menuAccount) {
-              await handleToggleStatus(menuAccount);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon>
-            {getAccountStatusKey(menuAccount) === 'INACTIVE' ? <ToggleOnRoundedIcon fontSize="small" /> : <ToggleOffRoundedIcon fontSize="small" />}
-          </ListItemIcon>
-          <ListItemText>{getAccountStatusKey(menuAccount) === 'INACTIVE' ? 'Activer le compte' : 'Désactiver le compte'}</ListItemText>
-        </MenuItem>
-      </Menu>
 
       <AccountDetailsDrawer
         account={selectedAccount}
@@ -614,6 +625,39 @@ export default function AccountsPage() {
           setSelectedAccount(null);
           handleOpenForm(account);
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingToggleAccount)}
+        title={
+          pendingToggleAccount && getAccountStatusKey(pendingToggleAccount) === 'ACTIVE'
+            ? 'Désactiver ce compte'
+            : 'Activer ce compte'
+        }
+        description={(() => {
+          if (!pendingToggleAccount) return '';
+          const clientName = pendingToggleAccount.client?.companyName?.trim()
+            || pendingToggleAccount.client?.fullName?.trim()
+            || 'Client inconnu';
+          const rib = pendingToggleAccount.rib?.trim() || pendingToggleAccount.accountNumber || '—';
+          const label = `${clientName} : ${rib}`;
+          return getAccountStatusKey(pendingToggleAccount) === 'ACTIVE'
+            ? `Voulez-vous vraiment désactiver le compte pour '${label}' ? Il ne sera plus utilisable pour les opérations.`
+            : `Voulez-vous vraiment activer le compte pour '${label}' ? Il redeviendra disponible pour les opérations.`;
+        })()}
+        confirmLabel={
+          pendingToggleAccount && getAccountStatusKey(pendingToggleAccount) === 'ACTIVE'
+            ? 'Désactiver'
+            : 'Activer'
+        }
+        confirmColor={
+          pendingToggleAccount && getAccountStatusKey(pendingToggleAccount) === 'ACTIVE'
+            ? 'error'
+            : 'success'
+        }
+        loading={updateMutation.isPending}
+        onClose={() => setPendingToggleAccount(null)}
+        onConfirm={confirmToggleStatus}
       />
 
       <FormDialog open={openForm} title={editing ? 'Modifier le compte' : 'Nouveau compte'} onClose={() => { setOpenForm(false); setEditing(null); }}>

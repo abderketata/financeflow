@@ -1,3 +1,4 @@
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography, alpha } from '@mui/material';
 import { brandColors, headingFont } from '@/app/theme';
@@ -7,6 +8,7 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel?: string;
+  confirmColor?: 'error' | 'success';
   loading?: boolean;
   onClose: () => void;
   onConfirm: () => void;
@@ -17,10 +19,13 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Confirmer',
+  confirmColor = 'error',
   loading,
   onClose,
   onConfirm
 }: ConfirmDialogProps) {
+  const accentColor = confirmColor === 'success' ? '#388e3c' : brandColors.debit;
+
   return (
     <Dialog
       open={open}
@@ -33,7 +38,7 @@ export function ConfirmDialog({
       <Box
         sx={{
           height: 3,
-          background: `linear-gradient(90deg, ${brandColors.debit}, ${alpha(brandColors.debit, 0.3)})`,
+          background: `linear-gradient(90deg, ${accentColor}, ${alpha(accentColor, 0.3)})`,
         }}
       />
       <DialogTitle sx={{ pb: 1.5, pt: 2.5 }}>
@@ -46,11 +51,11 @@ export function ConfirmDialog({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: alpha(brandColors.debit, 0.08),
-              color: brandColors.debit,
+              backgroundColor: alpha(accentColor, 0.08),
+              color: accentColor,
             }}
           >
-            <WarningAmberRoundedIcon />
+            {confirmColor === 'success' ? <CheckCircleOutlineRoundedIcon /> : <WarningAmberRoundedIcon />}
           </Box>
           <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '1.08rem', color: 'text.primary' }}>
             {title}
@@ -67,7 +72,7 @@ export function ConfirmDialog({
         <Button onClick={onClose} sx={{ color: 'text.secondary', fontWeight: 600 }}>
           Annuler
         </Button>
-        <Button color="error" variant="contained" onClick={onConfirm} disabled={loading}>
+        <Button color={confirmColor} variant="contained" onClick={onConfirm} disabled={loading}>
           {confirmLabel}
         </Button>
       </DialogActions>
