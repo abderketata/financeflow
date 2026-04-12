@@ -45,14 +45,4 @@ export const useUpdateAccount = () => {
   });
 };
 
-export const useDeleteAccount = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => accountService.remove(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-      queryClient.invalidateQueries({ queryKey: ['accounts', 'available'] });
-    }
-  });
-};
 

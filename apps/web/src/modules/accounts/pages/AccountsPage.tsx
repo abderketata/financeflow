@@ -1,5 +1,4 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import FilterAltOffRoundedIcon from '@mui/icons-material/FilterAltOffRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
@@ -37,12 +36,11 @@ import { SearchField } from '@/components/ui/SearchField';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { AccountDetailsDrawer } from '@/modules/accounts/components/AccountDetailsDrawer';
 import { AccountForm } from '@/modules/accounts/components/AccountForm';
-import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from '@/modules/accounts/hooks/useAccounts';
+import { useAccounts, useCreateAccount, useUpdateAccount } from '@/modules/accounts/hooks/useAccounts';
 import { useBanks } from '@/modules/banks/hooks/useBanks';
 import { clientService } from '@/modules/clients/services/client.service';
 import { useCreateClient } from '@/modules/clients/hooks/useClients';
@@ -67,7 +65,6 @@ export default function AccountsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<BankAccount | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
-  const [deleting, setDeleting] = useState<BankAccount | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [menuAccount, setMenuAccount] = useState<BankAccount | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -118,7 +115,6 @@ export default function AccountsPage() {
   });
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
-  const deleteMutation = useDeleteAccount();
   const createClientMutation = useCreateClient();
   const [clientFormSearchInput, setClientFormSearchInput] = useState('');
   const debouncedClientFormSearch = useDebouncedValue(clientFormSearchInput, 350);
@@ -608,17 +604,6 @@ export default function AccountsPage() {
           </ListItemIcon>
           <ListItemText>{getAccountStatusKey(menuAccount) === 'INACTIVE' ? 'Activer le compte' : 'Désactiver le compte'}</ListItemText>
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (menuAccount) {
-              setDeleting(menuAccount);
-            }
-            handleMenuClose();
-          }}
-        >
-          <ListItemIcon><DeleteOutlineRoundedIcon fontSize="small" /></ListItemIcon>
-          <ListItemText>Supprimer</ListItemText>
-        </MenuItem>
       </Menu>
 
       <AccountDetailsDrawer
@@ -660,19 +645,6 @@ export default function AccountsPage() {
           }}
         />
       </FormDialog>
-
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        title="Supprimer ce compte ?"
-        description="Cette action est irréversible."
-        loading={deleteMutation.isPending}
-        onClose={() => setDeleting(null)}
-        onConfirm={async () => {
-          if (!deleting) return;
-          await deleteMutation.mutateAsync(deleting.id);
-          setDeleting(null);
-        }}
-      />
     </>
   );
 }
