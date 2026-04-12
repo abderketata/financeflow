@@ -4,12 +4,12 @@ import { normalizeClientEntity } from '@/modules/clients/utils/clientPresentatio
 
 const queryKey = ['clients'];
 
-export const useClients = (options?: { enabled?: boolean }) =>
+export const useClients = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
   useQuery({
-    queryKey,
+    queryKey: [...queryKey, options?.params ?? null],
     enabled: options?.enabled,
     queryFn: async () => {
-      const clients = await clientService.list({ populate: '*' });
+      const clients = await clientService.list({ populate: '*', ...(options?.params ?? {}) });
       return clients.map(normalizeClientEntity);
     }
   });

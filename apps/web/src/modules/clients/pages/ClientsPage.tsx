@@ -24,7 +24,8 @@ import {
   alpha,
 } from '@mui/material';
 import { GridColDef, DataGrid } from '@mui/x-data-grid';
-import { MouseEvent as ReactMouseEvent, useMemo, useState } from 'react';
+import { MouseEvent as ReactMouseEvent, useEffect, useMemo, useState } from 'react';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchField } from '@/components/ui/SearchField';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -34,16 +35,13 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { ClientDetailsDrawer } from '@/modules/clients/components/ClientDetailsDrawer';
 import { ClientForm } from '@/modules/clients/components/ClientForm';
-import { ClientFormValues } from '@/modules/clients/schemas/client.schema';
 import { useClients, useCreateClient, useUpdateClient } from '@/modules/clients/hooks/useClients';
 import { useAvailableAccounts, useCreateAccount } from '@/modules/accounts/hooks/useAccounts';
 import { useBanks } from '@/modules/banks/hooks/useBanks';
 import { Client, BankAccount } from '@/types/domain';
-import { normalizeText } from '@/utils/format';
 import { actionIconButton, brandColors } from '@/app/theme';
 import {
   buildClientMutationPayload,
-  buildClientSearchHaystack,
   getClientActivitySummary,
   getClientDisplayName,
   getClientFormDefaults,
@@ -57,26 +55,51 @@ import {
 type PresenceFilter = '' | 'WITH' | 'WITHOUT';
 
 export default function ClientsPage() {
-  const { data = [], isLoading, isError, refetch } = useClients();
-  const [editing, setEditing] = useState<Client | null>(null);
-  const { data: availableAccounts = [], refetch: refetchAvailableAccounts } = useAvailableAccounts(editing?.id);
-  const { data: banks = [] } = useBanks();
-  const createMutation = useCreateClient();
-  const updateMutation = useUpdateClient();
-  const createAccountMutation = useCreateAccount();
-
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [accountsFilter, setAccountsFilter] = useState<PresenceFilter>('');
   const [transactionsFilter, setTransactionsFilter] = useState<PresenceFilter>('');
   const [openForm, setOpenForm] = useState(false);
+  const [editing, setEditing] = useState<Client | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [menuClient, setMenuClient] = useState<Client | null>(null);
+  const debouncedSearchInput = useDebouncedValue(searchInput, 400);
+  const clientsQueryParams = useMemo(() => {
+    if (!searchQuery) {
+      return undefined;
+    }
+
+    return {
+      filters: {
+        $or: [
+          { fullName: { $containsi: searchQuery } },
+          { companyName: { $containsi: searchQuery } },
+          { code: { $containsi: searchQuery } },
+          { phone: { $containsi: searchQuery } },
+          { email: { $containsi: searchQuery } },
+          { accounts: { accountNumber: { $containsi: searchQuery } } },
+          { accounts: { rib: { $containsi: searchQuery } } },
+          { accounts: { iban: { $containsi: searchQuery } } },
+          { transactions: { label: { $containsi: searchQuery } } },
+          { paymentItems: { referenceNumber: { $containsi: searchQuery } } },
+        ],
+      },
+    };
+  }, [searchQuery]);
+  const { data = [], isLoading, isError, isFetching, refetch } = useClients({ params: clientsQueryParams });
+  const { data: availableAccounts = [], refetch: refetchAvailableAccounts } = useAvailableAccounts(editing?.id);
+  const { data: banks = [] } = useBanks();
+  const createMutation = useCreateClient();
+  const updateMutation = useUpdateClient();
+  const createAccountMutation = useCreateAccount();
   const clientFormDefaults = useMemo(() => getClientFormDefaults(editing), [editing]);
 
-  const normalizedSearch = normalizeText(search);
+  useEffect(() => {
+    setSearchQuery(debouncedSearchInput.trim());
+  }, [debouncedSearchInput]);
 
   const stats = useMemo(
     () => ({
@@ -91,19 +114,19 @@ export default function ClientsPage() {
     () =>
       data.filter((client) => {
         const metrics = getClientMetrics(client);
-        const searchOk = !normalizedSearch || buildClientSearchHaystack(client).includes(normalizedSearch);
         const typeOk = !typeFilter || client.type === typeFilter;
         const statusOk = !statusFilter || getClientStatusKey(client.isActive) === statusFilter;
         const accountsOk = !accountsFilter || (accountsFilter === 'WITH' ? metrics.accountsCount > 0 : metrics.accountsCount === 0);
         const transactionsOk = !transactionsFilter || (transactionsFilter === 'WITH' ? metrics.transactionsCount > 0 : metrics.transactionsCount === 0);
 
-        return searchOk && typeOk && statusOk && accountsOk && transactionsOk;
+        return typeOk && statusOk && accountsOk && transactionsOk;
       }),
-    [accountsFilter, data, normalizedSearch, statusFilter, transactionsFilter, typeFilter],
+    [accountsFilter, data, statusFilter, transactionsFilter, typeFilter],
   );
 
   const resetFilters = () => {
-    setSearch('');
+    setSearchInput('');
+    setSearchQuery('');
     setTypeFilter('');
     setStatusFilter('');
     setAccountsFilter('');
@@ -300,7 +323,17 @@ export default function ClientsPage() {
         <CardContent sx={{ p: { xs: 2, md: 2.25 }, '&:last-child': { pb: { xs: 2, md: 2.25 } } }}>
           <Grid container spacing={1.5} alignItems="center">
             <Grid item xs={12} lg={4.2}>
-              <SearchField value={search} onChange={setSearch} placeholder="Rechercher par client, société, téléphone, email, compte ou transaction..." />
+              <SearchField
+                value={searchInput}
+                onChange={setSearchInput}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    setSearchQuery(searchInput.trim());
+                  }
+                }}
+                placeholder="Rechercher en base par client, société, téléphone, email, compte ou transaction..."
+              />
             </Grid>
             <Grid item xs={6} sm={3} lg={1.95}>
               <TextField select fullWidth label="Type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} size="small">
@@ -333,7 +366,7 @@ export default function ClientsPage() {
             <Grid item xs={12}>
               <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }}>
                 <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>
-                  {filteredRows.length} client(s) affiché(s). Cliquez sur "Voir" ou sur une ligne pour ouvrir la fiche complète.
+                  {filteredRows.length} client(s) affiché(s). {isFetching ? 'Mise à jour des résultats en cours…' : 'Cliquez sur "Voir" ou sur une ligne pour ouvrir la fiche complète.'}
                 </Typography>
                 <Button variant="text" size="small" startIcon={<FilterAltOffRoundedIcon />} onClick={resetFilters}>
                   Réinitialiser

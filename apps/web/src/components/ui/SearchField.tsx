@@ -7,14 +7,16 @@ interface SearchFieldProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
 }
 
-export function SearchField({ value, onChange, placeholder = 'Rechercher...' }: SearchFieldProps) {
+export function SearchField({ value, onChange, placeholder = 'Rechercher...', onKeyDown }: SearchFieldProps) {
   return (
     <TextField
       fullWidth
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       size="small"
       sx={{

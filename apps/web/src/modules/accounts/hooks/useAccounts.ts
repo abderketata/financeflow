@@ -4,11 +4,11 @@ import { accountService } from '@/modules/accounts/services/account.service';
 
 const queryKey = ['accounts'];
 
-export const useAccounts = (options?: { enabled?: boolean }) =>
+export const useAccounts = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
   useQuery({
-    queryKey,
+    queryKey: [...queryKey, options?.params ?? null],
     enabled: options?.enabled,
-    queryFn: () => accountService.list()
+    queryFn: () => accountService.list(options?.params)
   });
 
 /**

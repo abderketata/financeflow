@@ -1,31 +1,21 @@
+import { useState } from 'react';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
-import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded';
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
-import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
-import CallRoundedIcon from '@mui/icons-material/CallRounded';
-import EmailRoundedIcon from '@mui/icons-material/EmailRounded';
-import NotesRoundedIcon from '@mui/icons-material/NotesRounded';
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
-import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
-import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import {
   Avatar,
   Box,
   Button,
-  Card,
-  CardContent,
-  Drawer,
-  Grid,
+  Dialog,
+  Divider,
   IconButton,
   Stack,
+  Tooltip,
   Typography,
   alpha,
 } from '@mui/material';
-import { ReactNode } from 'react';
-import { brandColors, glassCard, headingFont, iconBox, numericFont } from '@/app/theme';
+import { brandColors, headingFont, numericFont, premiumShadows } from '@/app/theme';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { Client } from '@/types/domain';
 import { formatCurrency, formatDate } from '@/utils/format';
@@ -54,93 +44,70 @@ interface ClientDetailsDrawerProps {
   onEdit: (client: Client) => void;
 }
 
-interface SectionCardProps {
-  icon: ReactNode;
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
+function useCopyField() {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copy = (key: string, value: string) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1800);
+    });
+  };
+  return { copiedKey, copy };
 }
 
-interface InfoFieldProps {
-  icon: ReactNode;
-  label: string;
-  value: ReactNode;
-}
-
-function SectionCard({ icon, title, subtitle, children }: SectionCardProps) {
+function KpiTile({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <Card sx={{ ...glassCard(), overflow: 'hidden' }}>
-      <CardContent sx={{ p: { xs: 2.25, md: 2.75 }, '&:last-child': { pb: { xs: 2.25, md: 2.75 } } }}>
-        <Stack spacing={2}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box sx={iconBox(brandColors.blue[600], 40)}>{icon}</Box>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.98rem', color: 'text.primary' }}>
-                {title}
-              </Typography>
-              {subtitle && (
-                <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem', mt: 0.35 }}>
-                  {subtitle}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-          {children}
-        </Stack>
-      </CardContent>
-    </Card>
+    <Box sx={{ flex: 1, minWidth: 0, px: 1.5, py: 1, borderRadius: 1.5, backgroundColor: brandColors.slate[50], border: `1px solid ${brandColors.slate[200]}` }}>
+      <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: brandColors.slate[400], lineHeight: 1, mb: 0.5 }}>{label}</Typography>
+      <Typography sx={{ fontWeight: 700, fontSize: '0.92rem', color: 'text.primary', lineHeight: 1.2, fontFamily: mono ? numericFont : headingFont, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</Typography>
+    </Box>
   );
 }
 
-function InfoField({ icon, label, value }: InfoFieldProps) {
+function SectionTitle({ children }: { children: string }) {
   return (
-    <Stack
-      direction="row"
-      spacing={1.2}
-      alignItems="flex-start"
-      sx={{
-        height: '100%',
-        p: 1.4,
-        borderRadius: 2.5,
-        border: `1px solid ${alpha(brandColors.slate[200], 0.8)}`,
-        backgroundColor: alpha(brandColors.slate[50], 0.75),
-      }}
-    >
-      <Box sx={{ ...iconBox(brandColors.slate[500], 34), mt: 0.1 }}>{icon}</Box>
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary', mb: 0.45 }}>
-          {label}
-        </Typography>
-        <Box sx={{ fontSize: '0.9rem', color: 'text.primary', lineHeight: 1.6, wordBreak: 'break-word' }}>
-          {value}
-        </Box>
-      </Box>
-    </Stack>
+    <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.72rem', letterSpacing: '0.07em', textTransform: 'uppercase', color: brandColors.slate[400], mb: 1 }}>{children}</Typography>
   );
 }
 
-function InlineEmptyState({ title, description }: { title: string; description: string }) {
+function InfoRow({ label, value, mono, copyKey, copiedKey, onCopy }: { label: string; value: string; mono?: boolean; copyKey?: string; copiedKey?: string | null; onCopy?: (key: string, value: string) => void }) {
+  const isCopied = copiedKey === copyKey;
   return (
-    <Box
-      sx={{
-        borderRadius: 3,
-        border: `1px dashed ${alpha(brandColors.slate[300], 0.9)}`,
-        backgroundColor: alpha(brandColors.slate[100], 0.5),
-        px: 2.5,
-        py: 3,
-        textAlign: 'center',
-      }}
-    >
-      <Typography sx={{ fontWeight: 700, color: 'text.primary', mb: 0.6 }}>{title}</Typography>
-      <Typography sx={{ color: 'text.secondary', fontSize: '0.84rem' }}>{description}</Typography>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.85, minHeight: 34, gap: 1.5 }}>
+      <Typography sx={{ fontSize: '0.8rem', color: brandColors.slate[500], flexShrink: 0, minWidth: 120 }}>{label}</Typography>
+      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0, justifyContent: 'flex-end' }}>
+        <Tooltip title={value} arrow placement="top-start" disableHoverListener={!mono}>
+          <Typography sx={{ fontSize: '0.84rem', fontWeight: 600, color: 'text.primary', fontFamily: mono ? numericFont : undefined, letterSpacing: mono ? '0.03em' : undefined, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: mono ? 240 : 320, userSelect: 'all' }}>{value}</Typography>
+        </Tooltip>
+        {copyKey && onCopy && (
+          <Tooltip title={isCopied ? 'Copié !' : 'Copier'} arrow>
+            <IconButton size="small" onClick={() => onCopy(copyKey, value)} sx={{ width: 24, height: 24, borderRadius: '5px', color: isCopied ? brandColors.credit : brandColors.slate[400], backgroundColor: isCopied ? alpha(brandColors.credit, 0.08) : 'transparent', '&:hover': { backgroundColor: alpha(brandColors.blue[500], 0.08), color: brandColors.blue[600] }, transition: 'all 0.15s ease' }}>
+              {isCopied ? <CheckRoundedIcon sx={{ fontSize: 13 }} /> : <ContentCopyRoundedIcon sx={{ fontSize: 13 }} />}
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+function SectionBlock({ children, last }: { children: React.ReactNode; last?: boolean }) {
+  return (
+    <Box sx={{ backgroundColor: '#FFFFFF', border: `1px solid ${brandColors.slate[200]}`, borderRadius: 2, px: 2, py: 0.25, mb: last ? 0 : 2.5, boxShadow: premiumShadows.xs }}>{children}</Box>
+  );
+}
+
+function InlineEmptyState({ message }: { message: string }) {
+  return (
+    <Box sx={{ borderRadius: 2, border: `1px dashed ${brandColors.slate[300]}`, backgroundColor: alpha(brandColors.slate[100], 0.5), px: 2, py: 2.5, textAlign: 'center', mb: 2.5 }}>
+      <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>{message}</Typography>
     </Box>
   );
 }
 
 export function ClientDetailsDrawer({ client, open, onClose, onEdit }: ClientDetailsDrawerProps) {
-  if (!client) {
-    return null;
-  }
+  const { copiedKey, copy } = useCopyField();
+  if (!client) return null;
 
   const accounts = getClientAccounts(client);
   const paymentItems = getClientPaymentItems(client);
@@ -148,410 +115,222 @@ export function ClientDetailsDrawer({ client, open, onClose, onEdit }: ClientDet
   const metrics = getClientMetrics(client);
   const displayName = getClientDisplayName(client);
   const secondaryName = getClientSecondaryName(client);
+  const statusKey = getClientStatusKey(client.isActive);
 
   return (
-    <Drawer
-      anchor="right"
+    <Dialog
       open={open}
       onClose={onClose}
-      PaperProps={{
-        sx: {
-          width: { xs: '100%', md: 760 },
-          backgroundColor: '#F8FAFC',
-        },
-      }}
+      maxWidth={false}
+      scroll="paper"
+      slotProps={{ backdrop: { sx: { backgroundColor: alpha(brandColors.slate[900], 0.45), backdropFilter: 'blur(4px)' } } }}
+      PaperProps={{ elevation: 0, sx: { width: { xs: '95vw', sm: 640, md: 700 }, maxWidth: 700, maxHeight: '90vh', borderRadius: 3, border: `1px solid ${brandColors.slate[200]}`, boxShadow: premiumShadows.dialog, display: 'flex', flexDirection: 'column', overflow: 'hidden', m: 2 } }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <Box
-          sx={{
-            px: { xs: 2.25, md: 3.25 },
-            pt: { xs: 2.25, md: 3 },
-            pb: 2.5,
-            borderBottom: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
-            background: `linear-gradient(180deg, ${alpha(brandColors.blue[50], 0.9)} 0%, #FFFFFF 100%)`,
-            position: 'sticky',
-            top: 0,
-            zIndex: 2,
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          <Stack spacing={2.25}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-start' }}>
-              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0, flex: 1 }}>
-                <Avatar
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    background: `linear-gradient(135deg, ${brandColors.blue[600]}, ${brandColors.blue[400]})`,
-                    boxShadow: `0 10px 20px ${alpha(brandColors.blue[600], 0.18)}`,
-                  }}
-                >
-                  {getClientInitials(client)}
-                </Avatar>
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ mb: 0.65 }}>
-                    <Typography
-                      sx={{
-                        fontFamily: headingFont,
-                        fontWeight: 800,
-                        fontSize: { xs: '1.15rem', md: '1.35rem' },
-                        color: 'text.primary',
-                        letterSpacing: '-0.02em',
-                      }}
-                    >
-                      {displayName}
-                    </Typography>
-                    <StatusChip status={client.type} />
-                    <StatusChip status={getClientStatusKey(client.isActive)} />
-                  </Stack>
-                  {secondaryName && (
-                    <Typography sx={{ color: 'text.secondary', fontSize: '0.88rem', mb: 0.6 }}>
-                      {secondaryName}
-                    </Typography>
-                  )}
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                    <Typography
-                      sx={{
-                        px: 1,
-                        py: 0.4,
-                        borderRadius: '999px',
-                        border: `1px solid ${alpha(brandColors.blue[500], 0.15)}`,
-                        backgroundColor: alpha(brandColors.blue[500], 0.08),
-                        color: brandColors.blue[700],
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        fontFamily: numericFont,
-                      }}
-                    >
-                      {getDisplayValue(client.code, 'Code non défini')}
-                    </Typography>
-                    <Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>
-                      {getClientTypeLabel(client.type)} · {client.isActive === false ? 'Compte relationnel inactif' : 'Client actif'}
-                    </Typography>
-                  </Stack>
-                </Box>
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'flex-end', md: 'flex-start' }}>
-                <Button variant="outlined" size="small" startIcon={<EditRoundedIcon />} onClick={() => onEdit(client)}>
-                  Modifier
-                </Button>
-                <IconButton onClick={onClose} sx={{ border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`, backgroundColor: '#FFFFFF' }}>
-                  <CloseRoundedIcon />
-                </IconButton>
-              </Stack>
+      {/* HEADER */}
+      <Box sx={{ flexShrink: 0, px: { xs: 2, md: 2.75 }, pt: { xs: 2, md: 2.25 }, pb: 1.75, borderBottom: `1px solid ${brandColors.slate[200]}`, backgroundColor: '#FFFFFF' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+          <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.68rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: brandColors.slate[400] }}>Fiche client</Typography>
+          <IconButton onClick={onClose} size="small" sx={{ width: 30, height: 30, borderRadius: '7px', border: `1px solid ${brandColors.slate[200]}`, color: brandColors.slate[500], '&:hover': { backgroundColor: brandColors.slate[50] } }}>
+            <CloseRoundedIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Stack>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ width: 42, height: 42, background: `linear-gradient(135deg, ${brandColors.blue[600]}, ${brandColors.blue[400]})`, boxShadow: premiumShadows.xs, fontSize: '0.95rem', fontFamily: headingFont, fontWeight: 800 }}>{getClientInitials(client)}</Avatar>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.2 }}>
+              <Typography sx={{ fontFamily: headingFont, fontWeight: 800, fontSize: '1.08rem', color: 'text.primary', letterSpacing: '-0.01em', lineHeight: 1.3 }}>{displayName}</Typography>
+              <StatusChip status={client.type} />
+              <StatusChip status={statusKey} />
             </Stack>
-
-            <Grid container spacing={1.5}>
-              {[
-                { label: 'Comptes', value: metrics.accountsCount, helper: 'relations bancaires' },
-                { label: 'Paiements', value: metrics.paymentItemsCount, helper: 'chèques & traites' },
-                { label: 'Transactions', value: metrics.transactionsCount, helper: 'débits & crédits' },
-                { label: 'Volume', value: formatCurrency(metrics.transactionVolume), helper: 'mouvements cumulés' },
-              ].map((item) => (
-                <Grid key={item.label} item xs={6} md={3}>
-                  <Box
-                    sx={{
-                      p: 1.4,
-                      borderRadius: 3,
-                      backgroundColor: '#FFFFFF',
-                      border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
-                    }}
-                  >
-                    <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'text.secondary' }}>
-                      {item.label}
-                    </Typography>
-                    <Typography sx={{ mt: 0.5, fontSize: '1rem', fontWeight: 800, color: 'text.primary', fontFamily: typeof item.value === 'string' && item.value.includes('TND') ? numericFont : undefined }}>
-                      {item.value}
-                    </Typography>
-                    <Typography sx={{ mt: 0.35, color: 'text.secondary', fontSize: '0.75rem' }}>{item.helper}</Typography>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
-          </Stack>
-        </Box>
-
-        <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2.25, md: 3.25 }, py: 2.5 }}>
-          <Stack spacing={2.25}>
-            <SectionCard icon={<PersonRoundedIcon fontSize="small" />} title="Informations générales" subtitle="Identité, contact, fiscalité et statut du client">
-              <Grid container spacing={1.5}>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<PersonRoundedIcon sx={{ fontSize: 18 }} />} label="Nom complet" value={getDisplayValue(client.fullName, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<ApartmentRoundedIcon sx={{ fontSize: 18 }} />} label="Société" value={getDisplayValue(client.companyName, 'Non renseignée')} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<BadgeRoundedIcon sx={{ fontSize: 18 }} />} label="Code client" value={getDisplayValue(client.code, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<VerifiedRoundedIcon sx={{ fontSize: 18 }} />} label="Type & statut" value={<Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><StatusChip status={client.type} /><StatusChip status={getClientStatusKey(client.isActive)} /></Stack>} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<CallRoundedIcon sx={{ fontSize: 18 }} />} label="Téléphone" value={getDisplayValue(client.phone, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<EmailRoundedIcon sx={{ fontSize: 18 }} />} label="Email" value={getDisplayValue(client.email, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12}>
-                  <InfoField icon={<PlaceRoundedIcon sx={{ fontSize: 18 }} />} label="Adresse" value={getAddressValue(client.address)} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<BadgeRoundedIcon sx={{ fontSize: 18 }} />} label="CIN / Identifiant" value={getDisplayValue(client.identityNumber, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <InfoField icon={<BadgeRoundedIcon sx={{ fontSize: 18 }} />} label="Matricule fiscal" value={getDisplayValue(client.taxNumber, 'Non renseigné')} />
-                </Grid>
-                <Grid item xs={12}>
-                  <InfoField icon={<NotesRoundedIcon sx={{ fontSize: 18 }} />} label="Notes" value={getDisplayValue(client.notes, 'Aucune note')} />
-                </Grid>
-              </Grid>
-            </SectionCard>
-
-            <SectionCard icon={<AccountBalanceRoundedIcon fontSize="small" />} title="Comptes bancaires" subtitle="Vision consolidée des comptes rattachés au client">
-              {accounts.length ? (
-                <Grid container spacing={1.75}>
-                  {accounts.map((account) => {
-                    const currentBalance = getBankAccountCurrentBalance(account);
-                    const openingBalance = getBankAccountOpeningBalance(account);
-                    return (
-                      <Grid key={account.id} item xs={12} md={6}>
-                        <Box
-                          sx={{
-                            height: '100%',
-                            borderRadius: 3,
-                            border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
-                            backgroundColor: '#FFFFFF',
-                            p: 2,
-                          }}
-                        >
-                          <Stack spacing={1.5}>
-                            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography sx={{ fontWeight: 700, color: 'text.primary' }} noWrap>
-                                  {getDisplayValue(account.label, 'Compte sans libellé')}
-                                </Typography>
-                                <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', mt: 0.35 }} noWrap>
-                                  {getDisplayValue(account.accountNumber, 'Numéro non renseigné')}
-                                </Typography>
-                              </Box>
-                              <StatusChip status={account.status || (account.isActive === false ? 'INACTIVE' : 'ACTIVE')} />
-                            </Stack>
-
-                            <Box
-                              sx={{
-                                p: 1.5,
-                                borderRadius: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(brandColors.blue[500], 0.08)}, ${alpha(brandColors.blue[500], 0.03)})`,
-                                border: `1px solid ${alpha(brandColors.blue[500], 0.12)}`,
-                              }}
-                            >
-                              <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'text.secondary', mb: 0.5 }}>
-                                Solde courant
-                              </Typography>
-                              <Typography sx={{ fontFamily: numericFont, fontWeight: 800, fontSize: '1.18rem', color: brandColors.blue[700] }}>
-                                {formatCurrency(currentBalance, account.currency || 'TND')}
-                              </Typography>
-                              <Typography sx={{ color: 'text.secondary', fontSize: '0.76rem', mt: 0.45 }}>
-                                Solde initial : {formatCurrency(openingBalance, account.currency || 'TND')}
-                              </Typography>
-                            </Box>
-
-                            <Stack spacing={0.9}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>IBAN :</strong> {getDisplayValue(account.iban, 'Non renseigné')}</Typography>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>RIB :</strong> {getDisplayValue(account.rib, 'Non renseigné')}</Typography>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Devise :</strong> {getDisplayValue(account.currency, 'TND')}</Typography>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Banque :</strong> {getDisplayValue(account.bank?.name, 'Non renseignée')}</Typography>
-                            </Stack>
-                          </Stack>
-                        </Box>
-                      </Grid>
-                    );
-                  })}
-                </Grid>
-              ) : (
-                <InlineEmptyState title="Aucun compte" description="Ce client ne possède encore aucun compte bancaire rattaché." />
-              )}
-            </SectionCard>
-
-            <SectionCard icon={<ReceiptLongRoundedIcon fontSize="small" />} title="Paiements / chèques / traites" subtitle="Effets, échéances, alertes et informations instrumentales">
-              {paymentItems.length ? (
-                <Stack spacing={1.5}>
-                  {paymentItems.map((paymentItem) => (
-                    <Box
-                      key={paymentItem.id}
-                      sx={{
-                        borderRadius: 3,
-                        border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
-                        backgroundColor: '#FFFFFF',
-                        p: 2,
-                      }}
-                    >
-                      <Stack spacing={1.3}>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
-                          <Box>
-                            <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>
-                              {getDisplayValue(paymentItem.reference, 'Référence non renseignée')}
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', mt: 0.35 }}>
-                              {formatDate(paymentItem.issueDate)} · Échéance {formatDate(paymentItem.dueDate)}
-                            </Typography>
-                          </Box>
-                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                            <StatusChip status={paymentItem.type} />
-                            <StatusChip status={paymentItem.direction} />
-                            <StatusChip status={paymentItem.status} />
-                          </Stack>
-                        </Stack>
-
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', md: 'center' }} justifyContent="space-between">
-                          <Box
-                            sx={{
-                              px: 1.5,
-                              py: 1,
-                              borderRadius: 2,
-                              backgroundColor: alpha(paymentItem.direction === 'IN' ? brandColors.credit : brandColors.debit, 0.08),
-                              border: `1px solid ${alpha(paymentItem.direction === 'IN' ? brandColors.credit : brandColors.debit, 0.14)}`,
-                            }}
-                          >
-                            <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>
-                              Montant
-                            </Typography>
-                            <Typography sx={{ fontFamily: numericFont, fontWeight: 800, fontSize: '1.05rem', color: paymentItem.direction === 'IN' ? brandColors.credit : brandColors.debit }}>
-                              {paymentItem.direction === 'IN' ? '+' : '-'}{formatCurrency(paymentItem.amount, getPaymentItemCurrency(paymentItem))}
-                            </Typography>
-                          </Box>
-                          <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
-                            <Typography sx={{ px: 1, py: 0.45, borderRadius: 2, backgroundColor: alpha(brandColors.slate[200], 0.45), fontSize: '0.78rem', color: 'text.secondary' }}>
-                              Réception : {formatDate(paymentItem.receptionDate)}
-                            </Typography>
-                            <Typography sx={{ px: 1, py: 0.45, borderRadius: 2, backgroundColor: alpha(brandColors.slate[200], 0.45), fontSize: '0.78rem', color: 'text.secondary' }}>
-                              Paiement : {formatDate(paymentItem.paymentDate)}
-                            </Typography>
-                          </Stack>
-                        </Stack>
-
-                        <Grid container spacing={1.2}>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Tireur :</strong> {getDisplayValue(paymentItem.drawer, 'Non renseigné')}</Typography>
-                          </Grid>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Tiré :</strong> {getDisplayValue(paymentItem.drawee, 'Non renseigné')}</Typography>
-                          </Grid>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Banque :</strong> {getDisplayValue(paymentItem.bankName || paymentItem.bankAccount?.bank?.name, 'Non renseignée')}</Typography>
-                          </Grid>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>N° compte instrument :</strong> {getDisplayValue(paymentItem.instrumentAccountNumber, 'Non renseigné')}</Typography>
-                          </Grid>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Alerte :</strong> {paymentItem.alertEnabled ? 'Activée' : 'Désactivée'}</Typography>
-                          </Grid>
-                          <Grid item xs={12} md={6}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Compte lié :</strong> {getDisplayValue(paymentItem.bankAccount?.label, 'Non renseigné')}</Typography>
-                          </Grid>
-                          <Grid item xs={12}>
-                            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary', lineHeight: 1.6 }}><strong>Notes :</strong> {getDisplayValue(paymentItem.notes, 'Aucune note')}</Typography>
-                          </Grid>
-                        </Grid>
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
-              ) : (
-                <InlineEmptyState title="Aucun paiement" description="Aucun chèque, traite ou instrument financier n’est associé à ce client." />
-              )}
-            </SectionCard>
-
-            <SectionCard icon={<SwapHorizRoundedIcon fontSize="small" />} title="Transactions" subtitle="Historique des opérations, statuts et rapprochements">
-              {transactions.length ? (
-                <Stack spacing={1.5}>
-                  {transactions.map((transaction) => {
-                    const isCredit = transaction.operationType === 'CREDIT';
-                    return (
-                      <Box
-                        key={transaction.id}
-                        sx={{
-                          borderRadius: 3,
-                          border: `1px solid ${alpha(brandColors.slate[200], 0.9)}`,
-                          backgroundColor: '#FFFFFF',
-                          p: 2,
-                        }}
-                      >
-                        <Stack spacing={1.3}>
-                          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
-                            <Box>
-                              <Typography sx={{ fontWeight: 700, color: 'text.primary' }}>
-                                {getDisplayValue(transaction.label, 'Libellé non renseigné')}
-                              </Typography>
-                              <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', mt: 0.35 }}>
-                                {getDisplayValue(transaction.category, 'Catégorie non renseignée')} · {getDisplayValue(transaction.paymentMethod, 'Mode non renseigné')}
-                              </Typography>
-                            </Box>
-                            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                              <StatusChip status={transaction.operationType} />
-                              {transaction.status && <StatusChip status={transaction.status} />}
-                              <StatusChip status={transaction.isReconciled ? 'RECONCILED' : 'UNRECONCILED'} />
-                            </Stack>
-                          </Stack>
-
-                          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
-                            <Box
-                              sx={{
-                                px: 1.5,
-                                py: 1,
-                                borderRadius: 2,
-                                backgroundColor: alpha(isCredit ? brandColors.info : brandColors.debit, 0.08),
-                                border: `1px solid ${alpha(isCredit ? brandColors.info : brandColors.debit, 0.14)}`,
-                              }}
-                            >
-                              <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>
-                                Montant
-                              </Typography>
-                              <Typography sx={{ fontFamily: numericFont, fontWeight: 800, fontSize: '1.05rem', color: isCredit ? brandColors.info : brandColors.debit }}>
-                                {isCredit ? '+' : '-'}{formatCurrency(transaction.amount, getTransactionCurrency(transaction))}
-                              </Typography>
-                            </Box>
-                            <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
-                              <Typography sx={{ px: 1, py: 0.45, borderRadius: 2, backgroundColor: alpha(brandColors.slate[200], 0.45), fontSize: '0.78rem', color: 'text.secondary' }}>
-                                Opération : {formatDate(transaction.operationDate)}
-                              </Typography>
-                              <Typography sx={{ px: 1, py: 0.45, borderRadius: 2, backgroundColor: alpha(brandColors.slate[200], 0.45), fontSize: '0.78rem', color: 'text.secondary' }}>
-                                Valeur : {formatDate(transaction.valueDate)}
-                              </Typography>
-                            </Stack>
-                          </Stack>
-
-                          <Grid container spacing={1.2}>
-                            <Grid item xs={12} md={6}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Compte :</strong> {getDisplayValue(transaction.bankAccount?.label, 'Non renseigné')}</Typography>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Paiement lié :</strong> {getDisplayValue(transaction.paymentItem?.reference, 'Non renseigné')}</Typography>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Devise :</strong> {getDisplayValue(getTransactionCurrency(transaction), 'TND')}</Typography>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}><strong>Rapprochement :</strong> {transaction.isReconciled ? 'Effectué' : 'Non effectué'}</Typography>
-                            </Grid>
-                            <Grid item xs={12}>
-                              <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary', lineHeight: 1.6 }}><strong>Notes :</strong> {getDisplayValue(transaction.notes, 'Aucune note')}</Typography>
-                            </Grid>
-                          </Grid>
-                        </Stack>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              ) : (
-                <InlineEmptyState title="Aucune transaction" description="Ce client n’a encore aucune opération financière enregistrée." />
-              )}
-            </SectionCard>
-          </Stack>
-        </Box>
+            <Typography sx={{ color: brandColors.slate[500], fontSize: '0.78rem', lineHeight: 1.3 }}>
+              {secondaryName ? `${secondaryName} \u00b7 ` : ''}{getDisplayValue(client.code, 'Code non d\u00e9fini')} \u00b7 {getClientTypeLabel(client.type)}
+            </Typography>
+          </Box>
+        </Stack>
+        <Stack direction="row" spacing={0.75} sx={{ mt: 1.75 }}>
+          <KpiTile label="Comptes" value={String(metrics.accountsCount)} />
+          <KpiTile label="Paiements" value={String(metrics.paymentItemsCount)} />
+          <KpiTile label="Transactions" value={String(metrics.transactionsCount)} />
+          <KpiTile label="Volume" value={formatCurrency(metrics.transactionVolume)} mono />
+        </Stack>
       </Box>
-    </Drawer>
+
+      {/* BODY */}
+      <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, md: 2.75 }, py: 2.25, backgroundColor: brandColors.slate[50] }}>
+        <SectionTitle>Informations générales</SectionTitle>
+        <SectionBlock>
+          <InfoRow label="Nom complet" value={getDisplayValue(client.fullName, 'Non renseigné')} />
+          <Divider />
+          <InfoRow label="Société" value={getDisplayValue(client.companyName, 'Non renseignée')} />
+          <Divider />
+          <InfoRow label="Code client" value={getDisplayValue(client.code, 'Non renseigné')} mono copyKey="code" copiedKey={copiedKey} onCopy={copy} />
+          <Divider />
+          <InfoRow label="Type" value={getClientTypeLabel(client.type)} />
+          <Divider />
+          <InfoRow label="Statut" value={statusKey === 'ACTIVE' ? 'Actif' : 'Inactif'} />
+        </SectionBlock>
+
+        <SectionTitle>Contact</SectionTitle>
+        <SectionBlock>
+          <InfoRow label="Téléphone" value={getDisplayValue(client.phone, 'Non renseigné')} copyKey={client.phone ? 'phone' : undefined} copiedKey={copiedKey} onCopy={copy} />
+          <Divider />
+          <InfoRow label="Email" value={getDisplayValue(client.email, 'Non renseigné')} copyKey={client.email ? 'email' : undefined} copiedKey={copiedKey} onCopy={copy} />
+          <Divider />
+          <InfoRow label="Adresse" value={getAddressValue(client.address)} />
+        </SectionBlock>
+
+        <SectionTitle>Fiscalité & identité</SectionTitle>
+        <SectionBlock>
+          <InfoRow label="CIN / Identifiant" value={getDisplayValue(client.identityNumber, 'Non renseigné')} mono copyKey={client.identityNumber ? 'identity' : undefined} copiedKey={copiedKey} onCopy={copy} />
+          <Divider />
+          <InfoRow label="Matricule fiscal" value={getDisplayValue(client.taxNumber, 'Non renseigné')} mono copyKey={client.taxNumber ? 'tax' : undefined} copiedKey={copiedKey} onCopy={copy} />
+        </SectionBlock>
+
+        {client.notes && (
+          <>
+            <SectionTitle>Notes</SectionTitle>
+            <SectionBlock>
+              <Box sx={{ py: 0.85 }}>
+                <Typography sx={{ fontSize: '0.84rem', color: 'text.primary', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{client.notes}</Typography>
+              </Box>
+            </SectionBlock>
+          </>
+        )}
+
+        <SectionTitle>{`Comptes bancaires (${accounts.length})`}</SectionTitle>
+        {accounts.length > 0 ? (
+          <SectionBlock>
+            {accounts.map((account, idx) => {
+              const bal = getBankAccountCurrentBalance(account);
+              const openBal = getBankAccountOpeningBalance(account);
+              const cur = account.currency || 'TND';
+              return (
+                <Box key={account.id}>
+                  {idx > 0 && <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />}
+                  <Box sx={{ py: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                      <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.88rem', color: 'text.primary' }}>{getDisplayValue(account.label, 'Compte sans libellé')}</Typography>
+                      <StatusChip status={account.status || (account.isActive === false ? 'INACTIVE' : 'ACTIVE')} />
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }}>
+                      <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+                        <Box component="span" sx={{ color: brandColors.slate[400], mr: 0.5 }}>N°</Box>
+                        <Box component="span" sx={{ fontFamily: numericFont, fontWeight: 600 }}>{getDisplayValue(account.accountNumber, '\u2014')}</Box>
+                      </Typography>
+                      {account.bank?.name && <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}><Box component="span" sx={{ color: brandColors.slate[400], mr: 0.5 }}>Banque</Box>{account.bank.name}</Typography>}
+                      <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}><Box component="span" sx={{ color: brandColors.slate[400], mr: 0.5 }}>Devise</Box>{cur}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                      <Typography sx={{ fontSize: '0.82rem', color: 'text.primary' }}>
+                        <Box component="span" sx={{ color: brandColors.slate[400], fontSize: '0.75rem', mr: 0.5 }}>Solde courant</Box>
+                        <Box component="span" sx={{ fontFamily: numericFont, fontWeight: 700, color: brandColors.blue[700] }}>{formatCurrency(bal, cur)}</Box>
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>
+                        <Box component="span" sx={{ color: brandColors.slate[400], fontSize: '0.75rem', mr: 0.5 }}>Initial</Box>
+                        <Box component="span" sx={{ fontFamily: numericFont }}>{formatCurrency(openBal, cur)}</Box>
+                      </Typography>
+                    </Stack>
+                    {(account.iban || account.rib) && (
+                      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                        {account.iban && <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}><Box component="span" sx={{ color: brandColors.slate[400], mr: 0.5 }}>IBAN</Box><Box component="span" sx={{ fontFamily: numericFont, fontSize: '0.76rem' }}>{account.iban}</Box></Typography>}
+                        {account.rib && <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}><Box component="span" sx={{ color: brandColors.slate[400], mr: 0.5 }}>RIB</Box><Box component="span" sx={{ fontFamily: numericFont, fontSize: '0.76rem' }}>{account.rib}</Box></Typography>}
+                      </Stack>
+                    )}
+                  </Box>
+                </Box>
+              );
+            })}
+          </SectionBlock>
+        ) : (
+          <InlineEmptyState message="Aucun compte bancaire rattaché à ce client." />
+        )}
+
+        <SectionTitle>{`Paiements (${paymentItems.length})`}</SectionTitle>
+        {paymentItems.length > 0 ? (
+          <SectionBlock>
+            {paymentItems.map((pi, idx) => {
+              const isIn = pi.direction === 'IN';
+              const amtColor = isIn ? brandColors.credit : brandColors.debit;
+              return (
+                <Box key={pi.id}>
+                  {idx > 0 && <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />}
+                  <Box sx={{ py: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                      <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.86rem', color: 'text.primary' }}>{getDisplayValue(pi.reference, 'Réf. non renseignée')}</Typography>
+                      <Stack direction="row" spacing={0.5}><StatusChip status={pi.type} /><StatusChip status={pi.direction} /><StatusChip status={pi.status} /></Stack>
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 0.3 }}>
+                      <Typography sx={{ fontFamily: numericFont, fontWeight: 700, fontSize: '0.95rem', color: amtColor }}>{isIn ? '+' : '-'}{formatCurrency(pi.amount, getPaymentItemCurrency(pi))}</Typography>
+                      <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>\u00c9mission {formatDate(pi.issueDate)} \u00b7 \u00c9ch\u00e9ance {formatDate(pi.dueDate)}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>
+                      {pi.drawer && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Tireur : {pi.drawer}</Typography>}
+                      {pi.drawee && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Tiré : {pi.drawee}</Typography>}
+                      {(pi.bankName || pi.bankAccount?.bank?.name) && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Banque : {getDisplayValue(pi.bankName || pi.bankAccount?.bank?.name)}</Typography>}
+                      {pi.bankAccount?.label && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Compte : {pi.bankAccount.label}</Typography>}
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mt: 0.3, fontSize: '0.76rem', color: 'text.secondary' }}>
+                      <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Réception : {formatDate(pi.receptionDate)}</Typography>
+                      <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Paiement : {formatDate(pi.paymentDate)}</Typography>
+                      <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Alerte : {pi.alertEnabled ? 'Activée' : 'Désactivée'}</Typography>
+                    </Stack>
+                    {pi.notes && <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mt: 0.4, fontStyle: 'italic' }}>{pi.notes}</Typography>}
+                  </Box>
+                </Box>
+              );
+            })}
+          </SectionBlock>
+        ) : (
+          <InlineEmptyState message="Aucun chèque, traite ou instrument financier associé." />
+        )}
+
+        <SectionTitle>{`Transactions (${transactions.length})`}</SectionTitle>
+        {transactions.length > 0 ? (
+          <SectionBlock>
+            {transactions.map((tx, idx) => {
+              const isCredit = tx.operationType === 'CREDIT';
+              const amtColor = isCredit ? brandColors.credit : brandColors.debit;
+              return (
+                <Box key={tx.id}>
+                  {idx > 0 && <Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />}
+                  <Box sx={{ py: 1 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.3 }}>
+                      <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.86rem', color: 'text.primary' }}>{getDisplayValue(tx.label, 'Libellé non renseigné')}</Typography>
+                      <Stack direction="row" spacing={0.5}><StatusChip status={tx.operationType} />{tx.status && <StatusChip status={tx.status} />}<StatusChip status={tx.isReconciled ? 'RECONCILED' : 'UNRECONCILED'} /></Stack>
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mb: 0.3 }}>
+                      <Typography sx={{ fontFamily: numericFont, fontWeight: 700, fontSize: '0.95rem', color: amtColor }}>{isCredit ? '+' : '-'}{formatCurrency(tx.amount, getTransactionCurrency(tx))}</Typography>
+                      <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>Opération {formatDate(tx.operationDate)} \u00b7 Valeur {formatDate(tx.valueDate)}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>
+                      {tx.category && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Catégorie : {tx.category}</Typography>}
+                      {tx.paymentMethod && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Mode : {tx.paymentMethod}</Typography>}
+                      {tx.bankAccount?.label && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Compte : {tx.bankAccount.label}</Typography>}
+                      {tx.paymentItem?.reference && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Paiement : {tx.paymentItem.reference}</Typography>}
+                    </Stack>
+                    {tx.notes && <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mt: 0.4, fontStyle: 'italic' }}>{tx.notes}</Typography>}
+                  </Box>
+                </Box>
+              );
+            })}
+          </SectionBlock>
+        ) : (
+          <InlineEmptyState message="Aucune opération financière enregistrée pour ce client." />
+        )}
+
+        <SectionTitle>Traçabilité</SectionTitle>
+        <SectionBlock last>
+          <InfoRow label="Créé le" value={client.createdAt ? formatDate(client.createdAt) : '\u2014'} />
+          <Divider />
+          <InfoRow label="Mis à jour le" value={client.updatedAt ? formatDate(client.updatedAt) : '\u2014'} />
+        </SectionBlock>
+      </Box>
+
+      {/* FOOTER */}
+      <Box sx={{ flexShrink: 0, px: { xs: 2, md: 2.75 }, py: 1.5, borderTop: `1px solid ${brandColors.slate[200]}`, backgroundColor: '#FFFFFF', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <Button variant="outlined" size="small" onClick={onClose} sx={{ fontSize: '0.8rem', px: 2 }}>Fermer</Button>
+        <Button variant="contained" size="small" startIcon={<EditRoundedIcon sx={{ fontSize: 15 }} />} onClick={() => onEdit(client)} sx={{ fontSize: '0.8rem', px: 2 }}>Modifier</Button>
+      </Box>
+    </Dialog>
   );
 }
-
