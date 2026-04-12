@@ -33,10 +33,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { clientSchema, ClientFormValues } from '@/modules/clients/schemas/client.schema';
 import { brandColors, headingFont, iconBox } from '@/app/theme';
 import { generateClientCode, getClientFormDefaults } from '@/modules/clients/utils/clientPresentation';
+import { normalizeClientIdentityNumber } from '@/modules/clients/utils/identityNumber';
+import { CLIENT_TAX_NUMBER_PLACEHOLDER, formatClientTaxNumber } from '@/modules/clients/utils/taxNumber';
 import { BankAccount, Bank } from '@/types/domain';
 import { AccountQuickCreateDialog } from '@/modules/accounts/components/AccountQuickCreateDialog';
 
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
+const CLIENT_PHONE_PLACEHOLDER = '99 999 999';
 
 interface ClientFormProps {
   defaultValues?: Partial<ClientFormValues>;
@@ -285,7 +288,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         fullWidth
                         required
                         label="Téléphone"
-                        placeholder="53 399 117"
+                        placeholder={CLIENT_PHONE_PLACEHOLDER}
                         error={!!errors.phone}
                         helperText={errors.phone?.message || 'Obligatoire — format : XX XXX XXX'}
                         inputProps={{ inputMode: 'numeric', maxLength: 10 }}
@@ -371,10 +374,15 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                     render={({ field }) => (
                       <TextField
                         {...field}
+                        value={field.value ?? ''}
+                        onChange={(event) => field.onChange(normalizeClientIdentityNumber(event.target.value))}
                         fullWidth
-                        label="Numéro identité"
-                        placeholder="Ex. AB123456"
+                        label="Numéro identifiant"
+                        placeholder="12345678"
+                        error={!!errors.identityNumber}
+                        helperText={errors.identityNumber?.message || 'Optionnel — 8 chiffres'}
                         size="small"
+                        inputProps={{ inputMode: 'numeric', maxLength: 8 }}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -393,10 +401,15 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                     render={({ field }) => (
                       <TextField
                         {...field}
+                        value={field.value ?? ''}
+                        onChange={(event) => field.onChange(formatClientTaxNumber(event.target.value))}
                         fullWidth
                         label="Matricule fiscal"
-                        placeholder="Ex. IF-245789"
+                        placeholder={CLIENT_TAX_NUMBER_PLACEHOLDER}
+                        error={!!errors.taxNumber}
+                        helperText={errors.taxNumber?.message || 'Format : 1234567A B000'}
                         size="small"
+                        inputProps={{ maxLength: 13 }}
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">

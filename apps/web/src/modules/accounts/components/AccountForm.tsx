@@ -2,6 +2,7 @@ import { Button, Grid, MenuItem, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AccountFormValues, accountSchema } from '@/modules/accounts/schemas/account.schema';
+import { formatAccountNumber, formatIban, normalizeRib } from '@/modules/accounts/utils/accountFields';
 import { Bank, Client } from '@/types/domain';
 
 interface AccountFormProps {
@@ -29,7 +30,18 @@ export function AccountForm({ defaultValues, banks, clients, loading, onSubmit }
   });
 
   return (
-    <form onSubmit={handleSubmit((values) => onSubmit(values))}>
+    <form onSubmit={handleSubmit(
+      (values) => onSubmit(values),
+      (validationErrors) => {
+        const firstKey = Object.keys(validationErrors)[0];
+        if (!firstKey) return;
+        const el = document.querySelector<HTMLInputElement>(`[name="${firstKey}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => el.focus(), 300);
+        }
+      },
+    )}>
       <Grid container spacing={2} sx={{ mt: 0.5 }}>
         <Grid item xs={12} md={6}>
           <Controller name="label" control={control} render={({ field }) => (
@@ -38,14 +50,45 @@ export function AccountForm({ defaultValues, banks, clients, loading, onSubmit }
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="accountNumber" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Numéro de compte" error={!!errors.accountNumber} helperText={errors.accountNumber?.message} />
+            <TextField
+              {...field}
+              value={formatAccountNumber(field.value)}
+              onChange={(event) => field.onChange(formatAccountNumber(event.target.value))}
+              fullWidth
+              label="Numéro de compte"
+              error={!!errors.accountNumber}
+              helperText={errors.accountNumber?.message || `${field.value?.replace(/\s/g, '').length || 0}/34`}
+              inputProps={{ inputMode: 'numeric', maxLength: 42 }}
+            />
           )} />
         </Grid>
         <Grid item xs={12} md={6}>
-          <Controller name="rib" control={control} render={({ field }) => <TextField {...field} fullWidth label="RIB" />} />
+          <Controller name="rib" control={control} render={({ field }) => (
+            <TextField
+              {...field}
+              value={field.value ?? ''}
+              onChange={(event) => field.onChange(normalizeRib(event.target.value))}
+              fullWidth
+              label="RIB"
+              error={!!errors.rib}
+              helperText={errors.rib?.message || `Optionnel — ${field.value?.length || 0}/8 chiffres`}
+              inputProps={{ inputMode: 'numeric', maxLength: 8 }}
+            />
+          )} />
         </Grid>
         <Grid item xs={12} md={6}>
-          <Controller name="iban" control={control} render={({ field }) => <TextField {...field} fullWidth label="IBAN" />} />
+          <Controller name="iban" control={control} render={({ field }) => (
+            <TextField
+              {...field}
+              value={formatIban(field.value)}
+              onChange={(event) => field.onChange(formatIban(event.target.value))}
+              fullWidth
+              label="IBAN"
+              error={!!errors.iban}
+              helperText={errors.iban?.message || `Optionnel — ${field.value?.replace(/\s/g, '').length || 0}/24`}
+              inputProps={{ maxLength: 29 }}
+            />
+          )} />
         </Grid>
         <Grid item xs={12} md={4}>
           <Controller name="balance" control={control} render={({ field }) => (

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Client } from '@/types/domain';
-import { clientService } from '@/modules/clients/services/client.service';
+import { clientService, ClientMutationPayload } from '@/modules/clients/services/client.service';
 import { normalizeClientEntity } from '@/modules/clients/utils/clientPresentation';
 
 const queryKey = ['clients'];
@@ -17,7 +16,7 @@ export const useClients = () =>
 export const useCreateClient = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Client>) => clientService.create(payload),
+    mutationFn: (payload: Partial<import('@/types/domain').Client> | ClientMutationPayload) => clientService.create(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey })
   });
 };
@@ -25,7 +24,7 @@ export const useCreateClient = () => {
 export const useUpdateClient = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Client> }) => clientService.update(id, payload),
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<import('@/types/domain').Client> | ClientMutationPayload }) => clientService.update(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey })
   });
 };

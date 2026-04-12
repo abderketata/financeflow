@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { isValidClientIdentityNumber, normalizeClientIdentityNumber } from '@/modules/clients/utils/identityNumber';
+import { isValidClientTaxNumber, normalizeClientTaxNumber } from '@/modules/clients/utils/taxNumber';
 
 const optionalText = z.string().trim().optional().default('');
 
@@ -20,8 +22,24 @@ export const clientSchema = z.object({
     .optional()
     .default(''),
   address: optionalText,
-  identityNumber: optionalText,
-  taxNumber: optionalText,
+  identityNumber: z
+    .string()
+    .optional()
+    .default('')
+    .transform((value) => normalizeClientIdentityNumber(value))
+    .refine(
+      (value) => value === '' || isValidClientIdentityNumber(value),
+      'Le numéro identifiant doit contenir exactement 8 chiffres',
+    ),
+  taxNumber: z
+    .string()
+    .optional()
+    .default('')
+    .transform((value) => normalizeClientTaxNumber(value))
+    .refine(
+      (value) => value === '' || isValidClientTaxNumber(value),
+      'Le matricule fiscal doit respecter le format 1234567A B000',
+    ),
   notes: optionalText,
   isActive: z.boolean().default(true),
   accountIds: z.array(z.number()).default([]),

@@ -34,6 +34,16 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Bank } from '@/types/domain';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
+import {
+  formatAccountNumber,
+  formatIban,
+  isValidAccountNumber,
+  isValidIban,
+  isValidRib,
+  normalizeAccountNumber,
+  normalizeIban,
+  normalizeRib,
+} from '@/modules/accounts/utils/accountFields';
 
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
 
@@ -42,32 +52,20 @@ const quickAccountSchema = z.object({
   accountNumber: z
     .string()
     .min(1, 'Le numéro de compte est requis')
-    .transform((v) => v.replace(/\s/g, ''))
-    .pipe(
-      z.string()
-        .regex(/^\d+$/, 'Le numéro de compte ne doit contenir que des chiffres')
-        .min(8, 'Le numéro de compte doit contenir au moins 8 caractères')
-        .max(34, 'Le numéro de compte ne doit pas dépasser 34 caractères'),
-    ),
+    .transform((v) => normalizeAccountNumber(v))
+    .refine((v) => isValidAccountNumber(v), 'Le numéro de compte doit contenir entre 8 et 34 chiffres'),
   iban: z
     .string()
     .optional()
     .default('')
-    .transform((v) => v.replace(/\s/g, '').toUpperCase())
-    .pipe(
-      z.string()
-        .refine((v) => v === '' || /^[A-Z0-9]+$/.test(v), 'L\'IBAN ne doit contenir que des lettres et chiffres')
-        .refine((v) => v === '' || !v.startsWith('TN') || v.length === 24, 'IBAN tunisien invalide : il doit contenir 24 caractères'),
-    ),
+    .transform((v) => normalizeIban(v))
+    .refine((v) => isValidIban(v), 'IBAN tunisien invalide : il doit contenir 24 caractères'),
   rib: z
     .string()
     .optional()
     .default('')
-    .transform((v) => v.replace(/\s/g, ''))
-    .pipe(
-      z.string()
-        .refine((v) => v === '' || /^\d{8}$/.test(v), 'RIB invalide : il doit contenir exactement 8 chiffres'),
-    ),
+    .transform((v) => normalizeRib(v))
+    .refine((v) => isValidRib(v), 'RIB invalide : il doit contenir exactement 8 chiffres'),
   currency: z.string().trim().min(1, 'La devise est requise'),
   openingBalance: z.coerce.number().min(0, 'Le solde initial doit être positif ou nul').default(0),
   currentBalance: z.coerce.number().min(0, 'Le solde courant doit être positif ou nul').default(0),
@@ -90,25 +88,6 @@ const bankFilterOptions = createFilterOptions<Bank>({
   ignoreCase: true,
   trim: true,
 });
-
-/** Formate une chaîne par groupes de 4 pour affichage bancaire */
-const formatByGroups = (raw: string, groupSize = 4) =>
-  raw.replace(new RegExp(`(.{${groupSize}})(?=.)`, 'g'), '$1 ');
-
-/** Handler générique : nettoie, tronque, formate, et met à jour le field */
-const handleBankFieldChange = (
-  rawValue: string,
-  maxLen: number,
-  allowedPattern: RegExp,
-  fieldOnChange: (v: string) => void,
-  uppercase = false,
-) => {
-  let cleaned = rawValue.replace(/\s/g, '');
-  if (uppercase) cleaned = cleaned.toUpperCase();
-  cleaned = cleaned.replace(allowedPattern, '');
-  cleaned = cleaned.slice(0, maxLen);
-  fieldOnChange(formatByGroups(cleaned));
-};
 
 export function AccountQuickCreateDialog({
   open,
@@ -235,7 +214,8 @@ export function AccountQuickCreateDialog({
                 render={({ field }) => (
                   <TextField
                     {...field}
-                    onChange={(e) => handleBankFieldChange(e.target.value, 34, /[^0-9]/g, field.onChange)}
+                    value={formatAccountNumber(field.value)}
+                    onChange={(e) => field.onChange(formatAccountNumber(e.target.value))}
                     fullWidth
                     label="Numéro de compte *"
                     placeholder="Ex. 0012 3456 789"
@@ -253,7 +233,8 @@ export function AccountQuickCreateDialog({
                 render={({ field }) => (
                   <TextField
                     {...field}
-                    onChange={(e) => handleBankFieldChange(e.target.value, 24, /[^A-Za-z0-9]/g, field.onChange, true)}
+                    value={formatIban(field.value)}
+                    onChange={(e) => field.onChange(formatIban(e.target.value))}
                     fullWidth
                     label="IBAN"
                     placeholder="Ex. TN59 4010 1234 5678 9000 0000"
@@ -272,8 +253,7 @@ export function AccountQuickCreateDialog({
                   <TextField
                     {...field}
                     onChange={(e) => {
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
-                      field.onChange(digits);
+                      field.onChange(normalizeRib(e.target.value));
                     }}
                     fullWidth
                     label="RIB"

@@ -1,5 +1,7 @@
 import { Client, BankAccount, PaymentItem, Transaction, RelationCollection, ClientType } from '@/types/domain';
+import { normalizeClientIdentityNumber } from '@/modules/clients/utils/identityNumber';
 import { normalizeText } from '@/utils/format';
+import { formatClientTaxNumber, normalizeClientTaxNumber } from '@/modules/clients/utils/taxNumber';
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
@@ -232,8 +234,8 @@ export const getClientFormDefaults = (
     phone: client.phone || '',
     email: client.email || '',
     address: client.address || '',
-    identityNumber: client.identityNumber || '',
-    taxNumber: client.taxNumber || '',
+    identityNumber: normalizeClientIdentityNumber(client.identityNumber),
+    taxNumber: formatClientTaxNumber(client.taxNumber),
     notes: client.notes || '',
     isActive: client.isActive ?? true,
     accountIds: getClientAccounts(client as Client).map((account) => account.id),
@@ -281,12 +283,12 @@ export const buildClientMutationPayload = (values: Partial<Client>): Partial<Cli
     payload.address = trimmedAddress;
   }
 
-  const trimmedIdentityNumber = identityNumber?.trim() || '';
+  const trimmedIdentityNumber = normalizeClientIdentityNumber(identityNumber);
   if (trimmedIdentityNumber !== '') {
     payload.identityNumber = trimmedIdentityNumber;
   }
 
-  const trimmedTaxNumber = taxNumber?.trim() || '';
+  const trimmedTaxNumber = normalizeClientTaxNumber(taxNumber);
   if (trimmedTaxNumber !== '') {
     payload.taxNumber = trimmedTaxNumber;
   }
