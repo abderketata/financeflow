@@ -74,6 +74,7 @@ export default function ClientsPage() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [menuClient, setMenuClient] = useState<Client | null>(null);
+  const clientFormDefaults = useMemo(() => getClientFormDefaults(editing), [editing]);
 
   const normalizedSearch = normalizeText(search);
 
@@ -444,25 +445,35 @@ export default function ClientsPage() {
 
       <FormDialog open={openForm} title={editing ? 'Modifier le client' : 'Nouveau client'} onClose={() => setOpenForm(false)}>
         <ClientForm
-          defaultValues={getClientFormDefaults(editing)}
+          defaultValues={clientFormDefaults}
           availableAccounts={availableAccounts}
           banks={banks}
+          mode={editing ? 'edit' : 'create'}
           loading={createMutation.isPending || updateMutation.isPending || createAccountMutation.isPending}
           onQuickCreateAccount={handleQuickCreateAccount}
+          onCancel={() => { setOpenForm(false); setEditing(null); }}
           onSubmit={async (values) => {
             const { accountIds, ...clientValues } = values;
             const payload = {
               ...buildClientMutationPayload(clientValues),
               accounts: accountIds,
             };
-            if (editing) {
-              await updateMutation.mutateAsync({ id: editing.id, payload });
-            } else {
-              await createMutation.mutateAsync(payload);
+            console.log('[ClientsPage] mode:', editing ? 'edit' : 'create');
+            console.log('[ClientsPage] clientId:', editing?.id);
+            console.log('[ClientsPage] payload:', payload);
+            console.log('[ClientsPage] accounts:', accountIds);
+            try {
+              if (editing) {
+                await updateMutation.mutateAsync({ id: editing.id, payload });
+              } else {
+                await createMutation.mutateAsync(payload);
+              }
+              await refetch();
+              setOpenForm(false);
+              setEditing(null);
+            } catch (error) {
+              console.error('[ClientsPage] submit error:', error);
             }
-            await refetch();
-            setOpenForm(false);
-            setEditing(null);
           }}
         />
       </FormDialog>

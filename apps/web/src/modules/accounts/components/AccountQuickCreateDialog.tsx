@@ -1,10 +1,18 @@
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import LabelRoundedIcon from '@mui/icons-material/LabelRounded';
+import TagRoundedIcon from '@mui/icons-material/TagRounded';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
+import CurrencyExchangeRoundedIcon from '@mui/icons-material/CurrencyExchangeRounded';
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
+import SavingsRoundedIcon from '@mui/icons-material/SavingsRounded';
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
+  createFilterOptions,
   Dialog,
   DialogActions,
   DialogContent,
@@ -12,6 +20,8 @@ import {
   Divider,
   Grid,
   IconButton,
+  InputAdornment,
+  Snackbar,
   Stack,
   Switch,
   TextField,
@@ -19,21 +29,50 @@ import {
   alpha,
 } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Bank } from '@/types/domain';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
+const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
+
 const quickAccountSchema = z.object({
-  label: z.string().trim().min(1, 'Le libellé du compte est requis'),
-  accountNumber: z.string().trim().min(1, 'Le numéro de compte est requis'),
-  iban: z.string().optional().default(''),
-  rib: z.string().optional().default(''),
+  label: z.string().trim().min(3, 'Le libellé doit contenir au moins 3 caractères').max(100, 'Le libellé ne doit pas dépasser 100 caractères'),
+  accountNumber: z
+    .string()
+    .min(1, 'Le numéro de compte est requis')
+    .transform((v) => v.replace(/\s/g, ''))
+    .pipe(
+      z.string()
+        .regex(/^\d+$/, 'Le numéro de compte ne doit contenir que des chiffres')
+        .min(8, 'Le numéro de compte doit contenir au moins 8 caractères')
+        .max(34, 'Le numéro de compte ne doit pas dépasser 34 caractères'),
+    ),
+  iban: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => v.replace(/\s/g, '').toUpperCase())
+    .pipe(
+      z.string()
+        .refine((v) => v === '' || /^[A-Z0-9]+$/.test(v), 'L\'IBAN ne doit contenir que des lettres et chiffres')
+        .refine((v) => v === '' || !v.startsWith('TN') || v.length === 24, 'IBAN tunisien invalide : il doit contenir 24 caractères'),
+    ),
+  rib: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => v.replace(/\s/g, ''))
+    .pipe(
+      z.string()
+        .refine((v) => v === '' || /^\d{8}$/.test(v), 'RIB invalide : il doit contenir exactement 8 chiffres'),
+    ),
   currency: z.string().trim().min(1, 'La devise est requise'),
-  openingBalance: z.coerce.number().default(0),
-  currentBalance: z.coerce.number().default(0),
+  openingBalance: z.coerce.number().min(0, 'Le solde initial doit être positif ou nul').default(0),
+  currentBalance: z.coerce.number().min(0, 'Le solde courant doit être positif ou nul').default(0),
   isActive: z.boolean().default(true),
-  bank: z.coerce.number({ required_error: 'La banque est requise' }).min(1, 'La banque est requise'),
+  bank: z.coerce.number({ required_error: 'Veuillez sélectionner une banque' }).min(1, 'Veuillez sélectionner une banque'),
 });
 
 type QuickAccountFormValues = z.infer<typeof quickAccountSchema>;
@@ -46,6 +85,31 @@ interface AccountQuickCreateDialogProps {
   onSubmit: (values: QuickAccountFormValues) => void | Promise<void>;
 }
 
+const bankFilterOptions = createFilterOptions<Bank>({
+  stringify: (option) => `${option.code ?? ''} ${option.name ?? ''}`,
+  ignoreCase: true,
+  trim: true,
+});
+
+/** Formate une chaîne par groupes de 4 pour affichage bancaire */
+const formatByGroups = (raw: string, groupSize = 4) =>
+  raw.replace(new RegExp(`(.{${groupSize}})(?=.)`, 'g'), '$1 ');
+
+/** Handler générique : nettoie, tronque, formate, et met à jour le field */
+const handleBankFieldChange = (
+  rawValue: string,
+  maxLen: number,
+  allowedPattern: RegExp,
+  fieldOnChange: (v: string) => void,
+  uppercase = false,
+) => {
+  let cleaned = rawValue.replace(/\s/g, '');
+  if (uppercase) cleaned = cleaned.toUpperCase();
+  cleaned = cleaned.replace(allowedPattern, '');
+  cleaned = cleaned.slice(0, maxLen);
+  fieldOnChange(formatByGroups(cleaned));
+};
+
 export function AccountQuickCreateDialog({
   open,
   banks = [],
@@ -53,6 +117,7 @@ export function AccountQuickCreateDialog({
   onClose,
   onSubmit,
 }: AccountQuickCreateDialogProps) {
+  const [validationAlert, setValidationAlert] = useState('');
   const {
     control,
     handleSubmit,
@@ -84,7 +149,7 @@ export function AccountQuickCreateDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm" TransitionProps={{ timeout: 250 }}>
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" TransitionProps={{ timeout: 250 }}>
       <Box
         sx={{
           height: 3,
@@ -132,7 +197,18 @@ export function AccountQuickCreateDialog({
         </Stack>
       </DialogTitle>
       <Divider sx={{ mx: 3 }} />
-      <form onSubmit={handleSubmit(handleFormSubmit)}>
+      <form onSubmit={handleSubmit(handleFormSubmit, (validationErrors) => {
+        const firstKey = Object.keys(validationErrors)[0];
+        if (firstKey) {
+          const msg = (validationErrors as any)[firstKey]?.message || 'Champ invalide';
+          setValidationAlert(msg);
+          const el = document.querySelector<HTMLInputElement>(`[name="${firstKey}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.focus(), 300);
+          }
+        }
+      })} autoComplete="off">
         <DialogContent sx={{ pt: '20px !important', pb: '12px !important' }}>
           <Grid container spacing={2}>
             <Grid item xs={12} md={6}>
@@ -147,6 +223,7 @@ export function AccountQuickCreateDialog({
                     placeholder="Ex. Compte courant"
                     error={!!errors.label}
                     helperText={errors.label?.message}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><LabelRoundedIcon sx={inputIconSx} /></InputAdornment> }}
                   />
                 )}
               />
@@ -158,11 +235,13 @@ export function AccountQuickCreateDialog({
                 render={({ field }) => (
                   <TextField
                     {...field}
+                    onChange={(e) => handleBankFieldChange(e.target.value, 34, /[^0-9]/g, field.onChange)}
                     fullWidth
                     label="Numéro de compte *"
-                    placeholder="Ex. 001-234567-89"
+                    placeholder="Ex. 0012 3456 789"
                     error={!!errors.accountNumber}
-                    helperText={errors.accountNumber?.message}
+                    helperText={errors.accountNumber?.message || `${field.value?.replace(/\s/g, '').length || 0}/34`}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><TagRoundedIcon sx={inputIconSx} /></InputAdornment>, sx: { fontFamily: numericFont } }}
                   />
                 )}
               />
@@ -172,7 +251,16 @@ export function AccountQuickCreateDialog({
                 name="iban"
                 control={control}
                 render={({ field }) => (
-                  <TextField {...field} fullWidth label="IBAN" placeholder="Ex. MA76..." />
+                  <TextField
+                    {...field}
+                    onChange={(e) => handleBankFieldChange(e.target.value, 24, /[^A-Za-z0-9]/g, field.onChange, true)}
+                    fullWidth
+                    label="IBAN"
+                    placeholder="Ex. TN59 4010 1234 5678 9000 0000"
+                    error={!!errors.iban}
+                    helperText={errors.iban?.message || `Optionnel — ${field.value?.replace(/\s/g, '').length || 0}/24`}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><DescriptionRoundedIcon sx={inputIconSx} /></InputAdornment>, sx: { fontFamily: numericFont } }}
+                  />
                 )}
               />
             </Grid>
@@ -181,7 +269,20 @@ export function AccountQuickCreateDialog({
                 name="rib"
                 control={control}
                 render={({ field }) => (
-                  <TextField {...field} fullWidth label="RIB" placeholder="Ex. 007 780..." />
+                  <TextField
+                    {...field}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      field.onChange(digits);
+                    }}
+                    fullWidth
+                    label="RIB"
+                    placeholder="Ex. 00778012"
+                    error={!!errors.rib}
+                    helperText={errors.rib?.message || `Optionnel — ${field.value?.length || 0}/8 chiffres`}
+                    inputProps={{ inputMode: 'numeric', maxLength: 8 }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><DescriptionRoundedIcon sx={inputIconSx} /></InputAdornment>, sx: { fontFamily: numericFont } }}
+                  />
                 )}
               />
             </Grid>
@@ -197,6 +298,7 @@ export function AccountQuickCreateDialog({
                     placeholder="TND"
                     error={!!errors.currency}
                     helperText={errors.currency?.message}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><CurrencyExchangeRoundedIcon sx={inputIconSx} /></InputAdornment> }}
                   />
                 )}
               />
@@ -213,7 +315,9 @@ export function AccountQuickCreateDialog({
                     label="Solde initial"
                     value={field.value ?? 0}
                     onChange={(e) => field.onChange(e.target.value)}
-                    InputProps={{ sx: { fontFamily: numericFont } }}
+                    InputProps={{ sx: { fontFamily: numericFont }, startAdornment: <InputAdornment position="start"><AccountBalanceWalletRoundedIcon sx={inputIconSx} /></InputAdornment> }}
+                    error={!!errors.openingBalance}
+                    helperText={errors.openingBalance?.message}
                   />
                 )}
               />
@@ -230,7 +334,9 @@ export function AccountQuickCreateDialog({
                     label="Solde courant"
                     value={field.value ?? 0}
                     onChange={(e) => field.onChange(e.target.value)}
-                    InputProps={{ sx: { fontFamily: numericFont } }}
+                    InputProps={{ sx: { fontFamily: numericFont }, startAdornment: <InputAdornment position="start"><SavingsRoundedIcon sx={inputIconSx} /></InputAdornment> }}
+                    error={!!errors.currentBalance}
+                    helperText={errors.currentBalance?.message}
                   />
                 )}
               />
@@ -246,7 +352,10 @@ export function AccountQuickCreateDialog({
                       value={selectedBank}
                       onChange={(_, newValue) => field.onChange(newValue?.id ?? undefined)}
                       options={banks}
-                      getOptionLabel={(option) => option.name}
+                      filterOptions={bankFilterOptions}
+                      getOptionLabel={(option) =>
+                        option.code ? `${option.code} — ${option.name}` : option.name
+                      }
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       noOptionsText="Aucune banque trouvée"
                       openText="Ouvrir"
@@ -270,12 +379,12 @@ export function AccountQuickCreateDialog({
                               <AccountBalanceRoundedIcon sx={{ fontSize: 15 }} />
                             </Box>
                             <Box sx={{ minWidth: 0 }}>
-                              <Typography sx={{ fontSize: '0.88rem', fontWeight: 500, color: brandColors.slate[700] }} noWrap>
-                                {option.name}
+                              <Typography sx={{ fontSize: '0.88rem', fontWeight: 600, color: brandColors.slate[700] }} noWrap>
+                                {option.code ? `${option.code} — ${option.name}` : option.name}
                               </Typography>
-                              {option.code && (
+                              {option.swiftCode && (
                                 <Typography sx={{ fontSize: '0.73rem', color: brandColors.slate[400] }} noWrap>
-                                  {option.code}
+                                  SWIFT : {option.swiftCode}
                                 </Typography>
                               )}
                             </Box>
@@ -378,6 +487,16 @@ export function AccountQuickCreateDialog({
           </Button>
         </DialogActions>
       </form>
+      <Snackbar
+        open={!!validationAlert}
+        autoHideDuration={4000}
+        onClose={() => setValidationAlert('')}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="warning" variant="filled" onClose={() => setValidationAlert('')} sx={{ width: '100%' }}>
+          {validationAlert}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }

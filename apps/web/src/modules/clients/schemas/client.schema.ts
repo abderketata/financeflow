@@ -1,39 +1,36 @@
 import { z } from 'zod';
 
-const optionalText = z.string().optional().or(z.literal('')).transform((value) => value?.trim() ?? '');
+const optionalText = z.string().trim().optional().default('');
 
 export const clientSchema = z.object({
   code: optionalText,
   type: z.enum(['INDIVIDUAL', 'COMPANY'], { required_error: 'Le type est requis' }),
-  fullName: optionalText,
+  fullName: z.string().trim().min(1, 'Le nom complet est requis'),
   companyName: optionalText,
-  phone: z.string().trim().min(1, "Le téléphone est obligatoire").regex(/^\d{8}$/, 'Le numéro de téléphone doit contenir exactement 8 chiffres'),
-  email: z.string().trim().optional().refine(
-    (val) => !val || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val),
-    { message: 'Adresse email invalide' }
-  ),
+  phone: z
+    .string({ required_error: 'Le téléphone est obligatoire' })
+    .min(1, 'Le téléphone est obligatoire')
+    .transform((value) => value.replace(/\s/g, ''))
+    .pipe(z.string().regex(/^\d{8}$/, 'Le numéro doit contenir 8 chiffres')),
+  email: z
+    .union([
+      z.string().trim().email('Adresse email invalide'),
+      z.literal(''),
+    ])
+    .optional()
+    .default(''),
   address: optionalText,
   identityNumber: optionalText,
   taxNumber: optionalText,
   notes: optionalText,
   isActive: z.boolean().default(true),
   accountIds: z.array(z.number()).default([]),
-}).superRefine((values, ctx) => {
-  if (!values.fullName) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['fullName'],
-      message: 'Le nom complet est obligatoire',
-    });
-  }
-
-  if (values.type === 'COMPANY' && !values.companyName) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['companyName'],
-      message: 'La raison sociale est requise pour une société',
-    });
-  }
-});
+}).refine(
+  (values) => values.type !== 'COMPANY' || (values.companyName && values.companyName.length > 0),
+  {
+    message: 'La raison sociale est requise pour une société',
+    path: ['companyName'],
+  },
+);
 
 export type ClientFormValues = z.infer<typeof clientSchema>;

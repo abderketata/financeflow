@@ -1,5 +1,4 @@
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import { Box, Dialog, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography, alpha } from '@mui/material';
 import { brandColors, headingFont } from '@/app/theme';
 
@@ -28,14 +27,9 @@ export function FormDialog({ open, title, onClose, children }: FormDialogProps) 
       />
       <DialogTitle sx={{ pb: 1.5, pt: 2.5 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 1.25, backgroundColor: alpha('#000', 0), flexShrink: 0 }}>
-              <PersonRoundedIcon fontSize="small" sx={{ color: 'text.primary' }} />
-            </Box>
-            <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '1.12rem', color: 'text.primary', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {title}
-            </Typography>
-          </Stack>
+          <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '1.12rem', color: 'text.primary', letterSpacing: '-0.01em' }}>
+            {title}
+          </Typography>
           <IconButton
             onClick={onClose}
             size="small"

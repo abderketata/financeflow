@@ -1,6 +1,16 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
+import PhoneRoundedIcon from '@mui/icons-material/PhoneRounded';
+import EmailRoundedIcon from '@mui/icons-material/EmailRounded';
+import LocationOnRoundedIcon from '@mui/icons-material/LocationOnRounded';
+import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
+import NoteAltRoundedIcon from '@mui/icons-material/NoteAltRounded';
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
@@ -8,16 +18,15 @@ import {
   Divider,
   FormControlLabel,
   Grid,
+  InputAdornment,
   MenuItem,
+  Snackbar,
   Stack,
   Switch,
   TextField,
   Typography,
   alpha,
-  Snackbar,
-  Alert,
 } from '@mui/material';
-// import NoteAltRoundedIcon from '@mui/icons-material/NoteAltRounded';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,18 +36,23 @@ import { generateClientCode, getClientFormDefaults } from '@/modules/clients/uti
 import { BankAccount, Bank } from '@/types/domain';
 import { AccountQuickCreateDialog } from '@/modules/accounts/components/AccountQuickCreateDialog';
 
+const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
+
 interface ClientFormProps {
   defaultValues?: Partial<ClientFormValues>;
   loading?: boolean;
   availableAccounts?: BankAccount[];
   banks?: Bank[];
+  mode?: 'create' | 'edit';
   onSubmit: (values: ClientFormValues) => void | Promise<void>;
   onQuickCreateAccount?: (values: any) => Promise<BankAccount | null | undefined>;
+  onCancel?: () => void;
 }
 
-export function ClientForm({ defaultValues, loading, availableAccounts = [], banks = [], onSubmit, onQuickCreateAccount }: ClientFormProps) {
+export function ClientForm({ defaultValues, loading, availableAccounts = [], banks = [], mode = 'create', onSubmit, onQuickCreateAccount, onCancel }: ClientFormProps) {
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickCreateLoading, setQuickCreateLoading] = useState(false);
+  const [validationAlert, setValidationAlert] = useState('');
 
   const resolvedDefaultValues = useMemo(
     () => ({
@@ -48,14 +62,12 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
     [defaultValues],
   );
 
-  // Ajout d'une prop pour différencier ajout/modification
-  const isEditMode = Boolean(defaultValues && (defaultValues as any).id);
-
   const {
     control,
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     formState: { errors },
   } = useForm<ClientFormValues>({
@@ -66,81 +78,36 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
   const clientType = watch('type');
   const fullName = watch('fullName');
   const selectedAccountIds = watch('accountIds') ?? [];
-  const codeValue = watch('code');
   const generatedCode = useMemo(() => generateClientCode(fullName), [fullName]);
 
-  const fullNameRef = useRef<HTMLInputElement | null>(null);
-  const emailRef = useRef<HTMLInputElement | null>(null);
-  const phoneRef = useRef<HTMLInputElement | null>(null);
-  const [localAccounts, setLocalAccounts] = useState<BankAccount[]>(availableAccounts);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
+  // Ne reset que quand les defaultValues changent réellement (ouverture/changement de client)
+  const prevDefaultsRef = useRef<typeof defaultValues>(undefined);
   useEffect(() => {
-    reset(resolvedDefaultValues);
-  }, [reset, resolvedDefaultValues]);
+    if (prevDefaultsRef.current !== defaultValues) {
+      prevDefaultsRef.current = defaultValues;
+      reset(resolvedDefaultValues);
+    }
+  }, [reset, resolvedDefaultValues, defaultValues]);
 
   useEffect(() => {
     setValue('code', generatedCode, { shouldDirty: false, shouldValidate: false });
   }, [generatedCode, setValue]);
 
-  // Only set generated code automatically when creating a new client or when code is empty
-  useEffect(() => {
-    if (!isEditMode || !codeValue) {
-      setValue('code', generatedCode, { shouldDirty: false, shouldValidate: false });
-    }
-  }, [generatedCode, isEditMode, codeValue, setValue]);
-
-  // Focus the fullName or phone field when validation error occurs
-  useEffect(() => {
-    if (errors.fullName) {
-      setTimeout(() => fullNameRef.current?.focus(), 50);
-    } else if (errors.phone) {
-      setTimeout(() => phoneRef.current?.focus(), 50);
-    }
-  }, [errors.fullName, errors.phone]);
-
   const selectedAccounts = useMemo(
-    () => localAccounts.filter((account) => selectedAccountIds.includes(account.id)),
-    [localAccounts, selectedAccountIds],
+    () => availableAccounts.filter((account) => selectedAccountIds.includes(account.id)),
+    [availableAccounts, selectedAccountIds],
   );
 
   const handleQuickCreate = async (values: any) => {
     if (!onQuickCreateAccount) return;
     setQuickCreateLoading(true);
     try {
-      const raw = await onQuickCreateAccount(values);
-
-      // Normalize response: accept both domain BankAccount and { data: { id, attributes: { ... } } }
-      let createdAccount: BankAccount | null | undefined = undefined;
-      if (!raw) createdAccount = undefined;
-      else if ((raw as any).data && (raw as any).data.id) {
-        const d = (raw as any).data;
-        const attrs = d.attributes || {};
-        createdAccount = {
-          id: Number(d.id),
-          label: attrs.label || attrs.name || `Compte ${d.id}`,
-          accountNumber: attrs.accountNumber || attrs.number || '',
-          rib: attrs.rib || attrs.RIB || undefined,
-          iban: attrs.iban || undefined,
-          currency: attrs.currency || attrs.devise || '',
-          isActive: attrs.isActive !== undefined ? attrs.isActive : true,
-          bank: attrs.bank || undefined,
-        } as BankAccount;
-      } else {
-        createdAccount = raw as BankAccount;
-      }
-
-      if (createdAccount && createdAccount.id) {
-        // Add to local options if not already present
-        setLocalAccounts((prev) => {
-          if (prev.some((a) => a.id === createdAccount!.id)) return prev;
-          return [...prev, createdAccount!];
-        });
-
-        // Preserve existing selections and add the new account id
-        setValue('accountIds', [...selectedAccountIds, createdAccount.id], { shouldDirty: true });
-
-        setSuccessMessage('Compte créé et ajouté à la sélection');
+      const createdAccount = await onQuickCreateAccount(values);
+      if (createdAccount?.id) {
+        // Utiliser getValues pour la valeur courante (pas la closure stale)
+        const currentIds = getValues('accountIds') ?? [];
+        const nextAccountIds = Array.from(new Set([...currentIds, createdAccount.id]));
+        setValue('accountIds', nextAccountIds, { shouldDirty: true, shouldValidate: true });
         setQuickCreateOpen(false);
       }
     } finally {
@@ -148,19 +115,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
     }
   };
 
-  // Keep localAccounts in sync with incoming prop changes, but don't drop local additions
-  useEffect(() => {
-    setLocalAccounts((prev) => {
-      const map = new Map<number, BankAccount>();
-      // incoming accounts have priority (fresh from server)
-      availableAccounts.forEach((a) => map.set(a.id, a));
-      // keep any locally added accounts that are missing in availableAccounts
-      prev.forEach((a) => {
-        if (!map.has(a.id)) map.set(a.id, a);
-      });
-      return Array.from(map.values());
-    });
-  }, [availableAccounts]);
+  const isEditMode = mode === 'edit';
 
   const sectionSx = {
     borderRadius: 3,
@@ -178,47 +133,33 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
   } as const;
 
 
-  const handleLocalSubmit = async (values: ClientFormValues) => {
-    // Construction métier stricte du payload
-    // - téléphone toujours présent, trim
-    // - email ajouté uniquement s'il est non vide, trim, format validé par zod
-    // - email totalement absent si vide
-
-    const data: any = {
-      code: values.code,
-      type: values.type,
-      fullName: values.fullName,
-      companyName: values.companyName,
-      phone: values.phone.trim(),
-      address: values.address,
-      identityNumber: values.identityNumber,
-      taxNumber: values.taxNumber,
-      notes: values.notes,
-      isActive: values.isActive,
-      accountIds: values.accountIds,
-    };
-
-    // Ajout conditionnel de l'email
-    const emailValue = (values.email ?? '').trim();
-    if (emailValue !== '') {
-      data.email = emailValue;
-    }
-
-    // Nettoyage des champs vides (optionnel, pour éviter null/undefined)
-    Object.keys(data).forEach((key) => {
-      if (data[key] === undefined || data[key] === null) delete data[key];
-    });
-
-    const payload = { data };
-    // Pour debug/QA :
-    // console.log('Payload envoyé:', payload);
-
-    await onSubmit(payload);
-  };
-
   return (
     <>
-      <form onSubmit={handleSubmit(handleLocalSubmit)}>
+      <form onSubmit={handleSubmit(
+        async (values: ClientFormValues) => {
+          try {
+            console.log('[ClientForm] submit mode:', mode);
+            console.log('[ClientForm] values:', values);
+            await onSubmit(values);
+          } catch (error) {
+            console.error('[ClientForm] submit error:', error);
+          }
+        },
+        (validationErrors) => {
+          console.warn('[ClientForm] validation errors:', validationErrors);
+          const firstKey = Object.keys(validationErrors)[0];
+          if (firstKey) {
+            const msg = (validationErrors as any)[firstKey]?.message || 'Champ invalide';
+            setValidationAlert(msg);
+            // Focus sur le premier champ en erreur
+            const el = document.querySelector<HTMLInputElement>(`[name="${firstKey}"]`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => el.focus(), 300);
+            }
+          }
+        },
+      )} autoComplete="off">
         <Stack spacing={2.25} sx={{ mt: 0.5 }}>
           {/* ── Informations générales ───────────────────────────── */}
           <Box sx={{ ...sectionSx, backgroundColor: alpha(brandColors.slate[50], 0.6), p: { xs: 1.5, md: 2 } }}>
@@ -231,6 +172,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
               </Box>
               <Divider />
               <Grid container spacing={1.5} columns={12}>
+                {/* 1. Nom complet (premier) */}
                 <Grid item xs={12} md={6}>
                   <Controller
                     name="fullName"
@@ -239,25 +181,24 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                       <TextField
                         {...field}
                         fullWidth
+                        required
                         label="Nom complet"
                         placeholder="Ex. Fekra Ben Ayed"
                         error={!!errors.fullName}
                         helperText={errors.fullName?.message || 'Utilisé pour générer automatiquement le code client'}
                         size="small"
-                        InputLabelProps={{ required: true }}
-                        inputProps={{ 'aria-required': true }}
-                        inputRef={(el) => {
-                          // forward the ref to react-hook-form and keep our local ref for autofocus on error
-                          if (field.ref) {
-                            if (typeof field.ref === 'function') field.ref(el);
-                            else (field.ref as any).current = el;
-                          }
-                          fullNameRef.current = el;
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
                         }}
                       />
                     )}
                   />
                 </Grid>
+                {/* 2. Société (deuxième) */}
                 <Grid item xs={12} md={6}>
                   <Controller
                     name="companyName"
@@ -271,16 +212,39 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         error={!!errors.companyName}
                         helperText={errors.companyName?.message || (clientType === 'COMPANY' ? 'Champ recommandé pour une société' : 'Optionnel pour un particulier')}
                         size="small"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <BusinessRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
                       />
                     )}
                   />
                 </Grid>
+                {/* 3. Type (troisième) */}
                 <Grid item xs={12} md={6}>
                   <Controller
                     name="type"
                     control={control}
                     render={({ field }) => (
-                      <TextField {...field} select fullWidth label="Type" error={!!errors.type} helperText={errors.type?.message} size="small">
+                      <TextField
+                        {...field}
+                        select
+                        fullWidth
+                        label="Type"
+                        error={!!errors.type}
+                        helperText={errors.type?.message}
+                        size="small"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CategoryRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      >
                         <MenuItem value="INDIVIDUAL">Particulier</MenuItem>
                         <MenuItem value="COMPANY">Société</MenuItem>
                       </TextField>
@@ -309,15 +273,30 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                     render={({ field }) => (
                       <TextField
                         {...field}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                          const formatted = digits.length > 5
+                            ? `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`
+                            : digits.length > 2
+                              ? `${digits.slice(0, 2)} ${digits.slice(2)}`
+                              : digits;
+                          field.onChange(formatted);
+                        }}
                         fullWidth
+                        required
                         label="Téléphone"
-                        placeholder="12345678"
+                        placeholder="53 399 117"
                         error={!!errors.phone}
-                        helperText={errors.phone?.message}
-                        inputProps={{ inputMode: 'numeric', maxLength: 8, 'aria-required': true }}
-                        InputLabelProps={{ required: true }}
+                        helperText={errors.phone?.message || 'Obligatoire — format : XX XXX XXX'}
+                        inputProps={{ inputMode: 'numeric', maxLength: 10 }}
                         size="small"
-                        inputRef={(el) => (phoneRef.current = el)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PhoneRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
                       />
                     )}
                   />
@@ -333,9 +312,15 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                         label="Email"
                         placeholder="contact@client.ma"
                         error={!!errors.email}
-                        helperText={errors.email?.message}
+                        helperText={errors.email?.message || 'Optionnel'}
                         size="small"
-                        inputRef={(el) => (emailRef.current = el)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <EmailRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
                       />
                     )}
                   />
@@ -345,7 +330,22 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                     name="address"
                     control={control}
                     render={({ field }) => (
-                      <TextField {...field} fullWidth label="Adresse" placeholder="Adresse postale complète" multiline rows={2} size="small" />
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Adresse"
+                        placeholder="Adresse postale complète"
+                        multiline
+                        rows={2}
+                        size="small"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                              <LocationOnRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
                     )}
                   />
                 </Grid>
@@ -365,10 +365,48 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
               <Divider />
               <Grid container spacing={1.5} columns={12}>
                 <Grid item xs={12} md={6}>
-                  <Controller name="identityNumber" control={control} render={({ field }) => <TextField {...field} fullWidth label="Numéro identité" placeholder="Ex. AB123456" size="small" />} />
+                  <Controller
+                    name="identityNumber"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Numéro identité"
+                        placeholder="Ex. AB123456"
+                        size="small"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <BadgeRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <Controller name="taxNumber" control={control} render={({ field }) => <TextField {...field} fullWidth label="Matricule fiscal" placeholder="Ex. IF-245789" size="small" />} />
+                  <Controller
+                    name="taxNumber"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Matricule fiscal"
+                        placeholder="Ex. IF-245789"
+                        size="small"
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <DescriptionRoundedIcon sx={inputIconSx} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
                 </Grid>
                 <Grid item xs={12} md={12}>
                   <Controller
@@ -410,7 +448,23 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
                 name="notes"
                 control={control}
                 render={({ field }) => (
-                  <TextField {...field} fullWidth multiline rows={2} label="Notes" placeholder="Commentaires internes, informations de suivi, contexte métier..." size="small" sx={{ mt: 0.5 }} />
+                  <TextField
+                    {...field}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    label="Notes"
+                    placeholder="Commentaires internes, informations de suivi, contexte métier..."
+                    size="small"
+                    sx={{ mt: 0.5 }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                          <NoteAltRoundedIcon sx={inputIconSx} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
                 )}
               />
             </Stack>
@@ -565,7 +619,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
               variant="outlined"
               color="inherit"
               sx={{ minWidth: 110, fontWeight: 500, mr: 1 }}
-              onClick={() => window.history.back()}
+              onClick={() => onCancel ? onCancel() : undefined}
               disabled={loading}
             >
               Annuler
@@ -577,17 +631,14 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
               disabled={loading}
               sx={{ minWidth: 170, fontWeight: 700, boxShadow: '0 2px 8px 0 rgba(0,0,0,0.04)' }}
             >
-              {loading ? 'Enregistrement...' : 'Enregistrer le client'}
+              {loading
+                ? (isEditMode ? 'Modification en cours...' : 'Enregistrement...')
+                : (isEditMode ? 'Modifier le client' : 'Enregistrer le client')
+              }
             </Button>
           </Stack>
         </Stack>
       </form>
-
-      <Snackbar open={Boolean(successMessage)} autoHideDuration={3000} onClose={() => setSuccessMessage(null)}>
-        <Alert onClose={() => setSuccessMessage(null)} severity="success" sx={{ width: '100%' }}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
 
       {/* Quick-create dialog */}
       <AccountQuickCreateDialog
@@ -597,6 +648,17 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
         onClose={() => setQuickCreateOpen(false)}
         onSubmit={handleQuickCreate}
       />
+
+      <Snackbar
+        open={!!validationAlert}
+        autoHideDuration={4000}
+        onClose={() => setValidationAlert('')}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="warning" variant="filled" onClose={() => setValidationAlert('')} sx={{ width: '100%' }}>
+          {validationAlert}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

@@ -258,20 +258,48 @@ export const buildClientMutationPayload = (values: Partial<Client>): Partial<Cli
   const companyName = rawCompanyName?.trim() || '';
   const fallbackName = type === 'COMPANY' ? companyName || fullName : fullName || companyName;
 
-  return {
+  // Construction dynamique du payload - ne jamais envoyer de champs vides inutiles
+  const payload: Partial<Client> = {
     code: generateClientCode(fullName),
     type,
     name: fallbackName,
     fullName,
     companyName,
     phone: phone?.trim() || '',
-    email: email?.trim() || '',
-    address: address?.trim() || '',
-    identityNumber: identityNumber?.trim() || '',
-    taxNumber: taxNumber?.trim() || '',
-    notes: notes?.trim() || '',
     isActive: isActive ?? true,
   };
+
+  // Email : ajouter UNIQUEMENT si renseigné et valide
+  const trimmedEmail = email?.trim() || '';
+  if (trimmedEmail !== '') {
+    payload.email = trimmedEmail;
+  }
+
+  // Champs optionnels : ajouter uniquement si renseignés
+  const trimmedAddress = address?.trim() || '';
+  if (trimmedAddress !== '') {
+    payload.address = trimmedAddress;
+  }
+
+  const trimmedIdentityNumber = identityNumber?.trim() || '';
+  if (trimmedIdentityNumber !== '') {
+    payload.identityNumber = trimmedIdentityNumber;
+  }
+
+  const trimmedTaxNumber = taxNumber?.trim() || '';
+  if (trimmedTaxNumber !== '') {
+    payload.taxNumber = trimmedTaxNumber;
+  }
+
+  const trimmedNotes = notes?.trim() || '';
+  if (trimmedNotes !== '') {
+    payload.notes = trimmedNotes;
+  }
+
+  // Vérification obligatoire avant l'appel API
+  console.log('[buildClientMutationPayload] Payload construit:', payload);
+
+  return payload;
 };
 
 
