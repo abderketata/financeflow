@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Grid, MenuItem, TextField } from '@mui/material';
+import { Box, Button, Divider, Grid, InputAdornment, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
+import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import CurrencyExchangeRoundedIcon from '@mui/icons-material/CurrencyExchangeRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded';
+import EventRoundedIcon from '@mui/icons-material/EventRounded';
+import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import TimerRoundedIcon from '@mui/icons-material/TimerRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import NotesRoundedIcon from '@mui/icons-material/NotesRounded';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
 import {
   paymentItemStatusOptions,
@@ -17,6 +29,40 @@ import {
   ClientAutocompleteField,
   getClientLabel,
 } from '@/components/ui/EntityAutocompleteFields';
+import { brandColors, headingFont } from '@/app/theme';
+
+// ── Style helpers ────────────────────────────────────────────────────────
+const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
+
+const sectionSx = {
+  borderRadius: 2.5,
+  border: `1px solid ${alpha(brandColors.slate[200], 0.8)}`,
+  backgroundColor: alpha(brandColors.slate[50], 0.5),
+  p: { xs: 1.5, md: 2 },
+} as const;
+
+const sectionTitleSx = {
+  fontFamily: headingFont,
+  fontWeight: 700,
+  fontSize: '0.88rem',
+  color: brandColors.slate[700],
+  letterSpacing: '-0.01em',
+  mb: 0.5,
+} as const;
+
+const readOnlyInputSx = {
+  '& .MuiInputBase-input': {
+    backgroundColor: alpha(brandColors.slate[100], 0.7),
+    color: brandColors.slate[600],
+    fontWeight: 500,
+  },
+  '& .MuiOutlinedInput-root': {
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: alpha(brandColors.slate[200], 0.9),
+      borderStyle: 'dashed',
+    },
+  },
+} as const;
 
 interface PaymentItemFormProps {
   defaultValues?: Partial<PaymentItemFormValues>;
@@ -152,153 +198,351 @@ export function PaymentItemForm({
 
   return (
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
-      <Grid container spacing={2} sx={{ mt: 0.5 }}>
+      <Stack spacing={2} sx={{ mt: 0.5 }}>
 
-        {/* ── Ligne 1 : Client + Compte ──────────────────────── */}
-        <Grid item xs={12} md={6}>
-          <Controller name="client" control={control} render={({ field }) => (
-            <ClientAutocompleteField
-              value={selectedClient}
-              inputValue={clientSearchInput}
-              options={clientOptions}
-              loading={isClientsLoading}
-              onInputChange={(value, reason) => {
-                if (reason === 'input') {
-                  setClientSearchInput(value);
-                  return;
-                }
+        {/* ── Section 1 : Client & Compte ──────────────────────── */}
+        <Box sx={sectionSx}>
+          <Typography sx={sectionTitleSx}>Parties concernées</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Controller name="client" control={control} render={({ field }) => (
+                <ClientAutocompleteField
+                  value={selectedClient}
+                  inputValue={clientSearchInput}
+                  options={clientOptions}
+                  loading={isClientsLoading}
+                  onInputChange={(value, reason) => {
+                    if (reason === 'input') {
+                      setClientSearchInput(value);
+                      return;
+                    }
+                    if (reason === 'clear') {
+                      setClientSearchInput('');
+                    }
+                  }}
+                  onChange={(value) => {
+                    setSelectedClient(value);
+                    setClientSearchInput(value ? getClientLabel(value) : '');
+                    field.onChange(value?.id ?? undefined);
+                  }}
+                  onClose={() => {
+                    setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '');
+                  }}
+                  error={!!errors.client}
+                  helperText={errors.client?.message || 'Optionnel'}
+                />
+              )} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Controller name="account" control={control} render={({ field }) => (
+                <AccountAutocompleteField
+                  value={selectedAccount}
+                  options={accountOptions}
+                  disabled={!watchedClientId}
+                  loading={isAccountsLoading}
+                  onChange={(value) => {
+                    setSelectedAccount(value);
+                    field.onChange(value?.id ?? undefined);
+                  }}
+                  noOptionsText={watchedClientId ? 'Aucun compte trouvé pour ce client' : 'Sélectionnez d\'abord un client'}
+                  placeholder={watchedClientId ? 'Rechercher un compte…' : 'Sélectionnez d\'abord un client'}
+                  error={!!errors.account}
+                  helperText={errors.account?.message || 'Optionnel'}
+                />
+              )} />
+            </Grid>
+          </Grid>
+        </Box>
 
-                if (reason === 'clear') {
-                  setClientSearchInput('');
-                }
-              }}
-              onChange={(value) => {
-                setSelectedClient(value);
-                setClientSearchInput(value ? getClientLabel(value) : '');
-                field.onChange(value?.id ?? undefined);
-              }}
-              onClose={() => {
-                setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '');
-              }}
-              error={!!errors.client}
-              helperText={errors.client?.message || 'Optionnel'}
-            />
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="account" control={control} render={({ field }) => (
-            <AccountAutocompleteField
-              value={selectedAccount}
-              options={accountOptions}
-              disabled={!watchedClientId}
-              loading={isAccountsLoading}
-              onChange={(value) => {
-                setSelectedAccount(value);
-                field.onChange(value?.id ?? undefined);
-              }}
-              noOptionsText={watchedClientId ? 'Aucun compte trouvé pour ce client' : 'Sélectionnez d\'abord un client'}
-              placeholder={watchedClientId ? 'Rechercher un compte…' : 'Sélectionnez d\'abord un client'}
-              error={!!errors.account}
-              helperText={errors.account?.message || 'Optionnel'}
-            />
-          )} />
-        </Grid>
+        {/* ── Section 2 : Caractéristiques du paiement ─────────── */}
+        <Box sx={sectionSx}>
+          <Typography sx={sectionTitleSx}>Caractéristiques du paiement</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={6} md={3}>
+              <Controller name="type" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  select
+                  label="Type"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <ReceiptLongRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                >
+                  {paymentItemTypeOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  ))}
+                </TextField>
+              )} />
+            </Grid>
+            <Grid item xs={6} md={3}>
+              <Controller name="direction" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  select
+                  label="Sens"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SwapHorizRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                >
+                  <MenuItem value="IN">Entrant</MenuItem>
+                  <MenuItem value="OUT">Sortant</MenuItem>
+                </TextField>
+              )} />
+            </Grid>
+            <Grid item xs={8} md={4}>
+              <Controller name="amount" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  type="number"
+                  label="Montant"
+                  size="small"
+                  value={field.value ?? 0}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  error={!!errors.amount}
+                  helperText={errors.amount?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PaymentsRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )} />
+            </Grid>
+            <Grid item xs={4} md={2}>
+              <Controller name="currency" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Devise"
+                  size="small"
+                  error={!!errors.currency}
+                  helperText={errors.currency?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CurrencyExchangeRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )} />
+            </Grid>
+          </Grid>
+        </Box>
 
-        {/* ── Ligne 2 : Type + Sens + Montant + Devise ───────── */}
-        <Grid item xs={6} md={3}>
-          <Controller name="type" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Type">
-              {paymentItemTypeOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-              ))}
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={6} md={3}>
-          <Controller name="direction" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Sens">
-              <MenuItem value="IN">Entrant</MenuItem>
-              <MenuItem value="OUT">Sortant</MenuItem>
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={8} md={4}>
-          <Controller name="amount" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="number" label="Montant" value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)} error={!!errors.amount} helperText={errors.amount?.message} />
-          )} />
-        </Grid>
-        <Grid item xs={4} md={2}>
-          <Controller name="currency" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Devise" error={!!errors.currency} helperText={errors.currency?.message} />
-          )} />
-        </Grid>
+        {/* ── Section 3 : Statut & Dates ───────────────────────── */}
+        <Box sx={sectionSx}>
+          <Typography sx={sectionTitleSx}>Statut et échéances</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={3}>
+              <Controller name="status" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  select
+                  label="Statut"
+                  size="small"
+                  error={!!errors.status}
+                  helperText={errors.status?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CheckCircleOutlineRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                >
+                  {paymentItemStatusOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  ))}
+                </TextField>
+              )} />
+            </Grid>
+            <Grid item xs={6} md={2.5}>
+              <Controller name="issueDate" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  type="date"
+                  label="Date d'émission"
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <CalendarTodayRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )} />
+            </Grid>
+            <Grid item xs={6} md={2.5}>
+              <Controller name="dueDate" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  type="date"
+                  label="Échéance"
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  error={!!errors.dueDate}
+                  helperText={errors.dueDate?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EventRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )} />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <Controller name="alertEnabled" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  select
+                  label="Alertes"
+                  size="small"
+                  value={field.value ? 'true' : 'false'}
+                  onChange={(e) => field.onChange(e.target.value === 'true')}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <NotificationsActiveRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                >
+                  <MenuItem value="true">Activées</MenuItem>
+                  <MenuItem value="false">Désactivées</MenuItem>
+                </TextField>
+              )} />
+            </Grid>
+            <Grid item xs={6} md={2}>
+              <Controller name="alertDaysBefore" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  type="number"
+                  label="Jours avant"
+                  size="small"
+                  value={field.value ?? 0}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  disabled={!watchedAlertEnabled}
+                  error={!!errors.alertDaysBefore}
+                  helperText={errors.alertDaysBefore?.message}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <TimerRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )} />
+            </Grid>
+          </Grid>
+        </Box>
 
-        {/* ── Ligne 3 : Statut + Date émission + Échéance + Alertes + Jours alerte */}
-        <Grid item xs={12} md={3}>
-          <Controller name="status" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Statut" error={!!errors.status} helperText={errors.status?.message}>
-              {paymentItemStatusOptions.map((option) => (
-                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-              ))}
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={6} md={2.5}>
-          <Controller name="issueDate" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="date" label="Date d'émission" InputLabelProps={{ shrink: true }} />
-          )} />
-        </Grid>
-        <Grid item xs={6} md={2.5}>
-          <Controller name="dueDate" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="date" label="Échéance" InputLabelProps={{ shrink: true }} error={!!errors.dueDate} helperText={errors.dueDate?.message} />
-          )} />
-        </Grid>
-        <Grid item xs={6} md={2}>
-          <Controller name="alertEnabled" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Alertes" value={field.value ? 'true' : 'false'} onChange={(e) => field.onChange(e.target.value === 'true')}>
-              <MenuItem value="true">Activées</MenuItem>
-              <MenuItem value="false">Désactivées</MenuItem>
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={6} md={2}>
-          <Controller name="alertDaysBefore" control={control} render={({ field }) => (
+        {/* ── Section 4 : Tireur / Tiré (readonly) ─────────────── */}
+        <Box sx={sectionSx}>
+          <Typography sx={sectionTitleSx}>Parties (auto-renseignées)</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <Controller name="drawer" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Tireur"
+                  size="small"
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BusinessRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  sx={readOnlyInputSx}
+                />
+              )} />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Controller name="drawee" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Tiré"
+                  size="small"
+                  InputProps={{
+                    readOnly: true,
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonRoundedIcon sx={inputIconSx} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  sx={readOnlyInputSx}
+                />
+              )} />
+            </Grid>
+          </Grid>
+        </Box>
+
+        {/* ── Section 5 : Notes ────────────────────────────────── */}
+        <Box sx={sectionSx}>
+          <Typography sx={sectionTitleSx}>Notes</Typography>
+          <Controller name="notes" control={control} render={({ field }) => (
             <TextField
               {...field}
               fullWidth
-              type="number"
-              label="Jours avant alerte"
-              value={field.value ?? 0}
-              onChange={(e) => field.onChange(e.target.value)}
-              disabled={!watchedAlertEnabled}
-              error={!!errors.alertDaysBefore}
-              helperText={errors.alertDaysBefore?.message}
+              multiline
+              rows={3}
+              placeholder="Commentaires, informations complémentaires..."
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                    <NotesRoundedIcon sx={inputIconSx} />
+                  </InputAdornment>
+                ),
+              }}
             />
           )} />
-        </Grid>
-
-        {/* ── Ligne 4 : Tireur + Tiré ────────────────────────── */}
-        <Grid item xs={12} md={6}>
-          <Controller name="drawer" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Tireur" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="drawee" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Tiré" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
-          )} />
-        </Grid>
-
-        {/* ── Ligne 5 : Notes ────────────────────────────────── */}
-        <Grid item xs={12}>
-          <Controller name="notes" control={control} render={({ field }) => <TextField {...field} fullWidth multiline rows={4} label="Notes" />} />
-        </Grid>
+        </Box>
 
         {/* ── Bouton ─────────────────────────────────────────── */}
-        <Grid item xs={12}>
-          <Button type="submit" variant="contained" disabled={loading}>Enregistrer</Button>
-        </Grid>
-      </Grid>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={loading}
+            sx={{ minWidth: 140, fontWeight: 600 }}
+          >
+            {loading ? 'Enregistrement...' : 'Enregistrer'}
+          </Button>
+        </Box>
+      </Stack>
     </form>
   );
 }
