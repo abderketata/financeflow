@@ -4,7 +4,7 @@ export const paymentItemSchema = z.object({
   type: z.enum(['CHEQUE', 'TRAITE', 'AUTRE']),
   direction: z.enum(['IN', 'OUT']),
   amount: z.coerce.number().positive('Le montant doit être positif'),
-  currency: z.string().trim().min(1, 'La devise est requise').default('TND'),
+  currency: z.string().trim().min(1, 'La devise est requise'),
   status: z.enum(['Reçu', 'Déposé', 'Payé', 'Rejeté', 'Annulé', 'En retard']),
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),

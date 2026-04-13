@@ -37,6 +37,7 @@ import { normalizeClientIdentityNumber } from '@/modules/clients/utils/identityN
 import { CLIENT_TAX_NUMBER_PLACEHOLDER, formatClientTaxNumber } from '@/modules/clients/utils/taxNumber';
 import { BankAccount, Bank } from '@/types/domain';
 import { AccountQuickCreateDialog } from '@/modules/accounts/components/AccountQuickCreateDialog';
+import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
 const CLIENT_PHONE_PLACEHOLDER = '99 999 999';
@@ -53,6 +54,7 @@ interface ClientFormProps {
 }
 
 export function ClientForm({ defaultValues, loading, availableAccounts = [], banks = [], mode = 'create', onSubmit, onQuickCreateAccount, onCancel }: ClientFormProps) {
+  const defaultCurrency = useDefaultCurrency();
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickCreateLoading, setQuickCreateLoading] = useState(false);
   const [validationAlert, setValidationAlert] = useState('');
@@ -657,6 +659,7 @@ export function ClientForm({ defaultValues, loading, availableAccounts = [], ban
       <AccountQuickCreateDialog
         open={quickCreateOpen}
         banks={banks}
+        defaultCurrency={defaultCurrency}
         loading={quickCreateLoading}
         onClose={() => setQuickCreateOpen(false)}
         onSubmit={handleQuickCreate}

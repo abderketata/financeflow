@@ -87,8 +87,8 @@ export const getPaymentItemEffectiveDate = (item?: Partial<PaymentItem> | null) 
 export const getPaymentItemEffectiveDateLabel = (item?: Partial<PaymentItem> | null) =>
   item?.dueDate ? 'Échéance' : 'Émission';
 
-export const getPaymentItemCurrency = (item?: Partial<PaymentItem> | null) =>
-  item?.currency || getPaymentItemAccount(item)?.currency || 'TND';
+export const getPaymentItemCurrency = (item?: Partial<PaymentItem> | null, defaultCurrency = 'TND') =>
+  item?.currency || getPaymentItemAccount(item)?.currency || defaultCurrency;
 
 export const isPaymentItemClosedStatus = (status?: string | null) => {
   const resolved = getPaymentItemStatusLabel(status);

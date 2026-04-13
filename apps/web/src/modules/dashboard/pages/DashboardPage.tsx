@@ -22,6 +22,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
+import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { formatCurrency, formatDate } from '@/utils/format';
@@ -29,6 +30,7 @@ import { brandColors, iconBox, numericFont, headingFont } from '@/app/theme';
 
 export default function DashboardPage() {
   const { data, isLoading, isError, refetch } = useDashboard();
+  const defaultCurrency = useDefaultCurrency();
 
   if (isLoading) return <LoadingState message="Chargement du tableau de bord..." />;
   if (isError || !data) return <ErrorState onRetry={() => refetch()} message="Impossible de charger le dashboard." />;
@@ -55,7 +57,7 @@ export default function DashboardPage() {
       >
         <StatCard
           label="Crédits du mois"
-          value={formatCurrency(data.monthlyCredits)}
+          value={formatCurrency(data.monthlyCredits, defaultCurrency)}
           color={brandColors.credit}
           icon={<TrendingUpRoundedIcon />}
           helper="Entrées mensuelles"
@@ -64,7 +66,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Débits du mois"
-          value={formatCurrency(data.monthlyDebits)}
+          value={formatCurrency(data.monthlyDebits, defaultCurrency)}
           color={brandColors.debit}
           icon={<TrendingDownRoundedIcon />}
           helper="Sorties mensuelles"
@@ -97,7 +99,7 @@ export default function DashboardPage() {
       <Grid container spacing={2.5}>
         {/* Weekly chart */}
         <Grid item xs={12} lg={7}>
-          <WeeklyOperationsChart data={data.weeklyChart} />
+          <WeeklyOperationsChart data={data.weeklyChart} currency={defaultCurrency} />
         </Grid>
 
         {/* Upcoming payments */}
@@ -173,7 +175,7 @@ export default function DashboardPage() {
                           flexShrink: 0,
                         }}
                       >
-                        {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount)}
+                        {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount, defaultCurrency)}
                       </Typography>
                     </Box>
                   ))}
@@ -191,7 +193,7 @@ export default function DashboardPage() {
 
         {/* Monthly chart */}
         <Grid item xs={12}>
-          <MonthlyOperationsChart data={data.monthlyChart} />
+          <MonthlyOperationsChart data={data.monthlyChart} currency={defaultCurrency} />
         </Grid>
       </Grid>
     </>

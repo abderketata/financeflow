@@ -103,8 +103,8 @@ export const getBankAccountCurrentBalance = (account: Partial<BankAccount>) =>
 export const getBankAccountOpeningBalance = (account: Partial<BankAccount>) =>
   Number(account.openingBalance ?? 0);
 
-export const getPaymentItemCurrency = (item: Partial<PaymentItem>) => item.currency || getPaymentItemAccount(item)?.currency || 'TND';
-export const getTransactionCurrency = (transaction: Partial<Transaction>) => transaction.currency || transaction.bankAccount?.currency || 'TND';
+export const getPaymentItemCurrency = (item: Partial<PaymentItem>, defaultCurrency = 'TND') => item.currency || getPaymentItemAccount(item)?.currency || defaultCurrency;
+export const getTransactionCurrency = (transaction: Partial<Transaction>, defaultCurrency = 'TND') => transaction.currency || transaction.bankAccount?.currency || defaultCurrency;
 
 export const getClientMetrics = (client: Client) => {
   const accounts = getClientAccounts(client);

@@ -117,6 +117,7 @@ export interface Alert {
 
 export interface AppSetting {
   id: Identifier;
+  companyName?: string;
   currency: string;
   alertDaysBefore: number;
   weekStartsOn: 0 | 1;

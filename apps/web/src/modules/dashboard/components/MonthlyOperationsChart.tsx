@@ -13,7 +13,7 @@ import {
 import { ChartPoint } from '@/types/domain';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <Box
@@ -34,7 +34,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <Typography sx={{ fontSize: '0.78rem', color: brandColors.slate[500] }}>
             {entry.name}:{' '}
             <Box component="span" sx={{ fontFamily: numericFont, fontWeight: 600, color: brandColors.slate[800] }}>
-              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(entry.value)}
+              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(entry.value)}
             </Box>
           </Typography>
         </Stack>
@@ -43,7 +43,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-export function MonthlyOperationsChart({ data }: { data: ChartPoint[] }) {
+export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: ChartPoint[]; currency?: string }) {
   return (
     <Card>
       <CardContent sx={{ p: '24px !important' }}>
@@ -88,7 +88,7 @@ export function MonthlyOperationsChart({ data }: { data: ChartPoint[] }) {
               width={60}
               tickFormatter={(v) => new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(v)}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip currency={currency} />} />
             <Legend
               wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 14, color: brandColors.slate[600] }}
               iconType="circle"

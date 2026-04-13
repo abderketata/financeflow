@@ -16,6 +16,8 @@ import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemF
 import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useClients } from '@/modules/clients/hooks/useClients';
 import { useAccounts } from '@/modules/accounts/hooks/useAccounts';
+import { useSettings } from '@/modules/settings/hooks/useSettings';
+import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { PaymentItem } from '@/types/domain';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
 import { brandColors, numericFont } from '@/app/theme';
@@ -47,6 +49,8 @@ export default function PaymentItemsPage() {
   const { data = [], isLoading, isError, refetch } = usePaymentItems();
   const { data: clients = [], isLoading: isClientsLoading } = useClients({ enabled: openForm });
   const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts({ enabled: openForm });
+  const { data: settings } = useSettings();
+  const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const deleteMutation = useDeletePaymentItem();
@@ -262,8 +266,11 @@ export default function PaymentItemsPage() {
             client: editing.client?.id,
             account: getPaymentItemAccount(editing)?.id,
           } as any : undefined}
+          defaultCurrency={defaultCurrency}
+          defaultAlertDays={settings?.alertDaysBefore}
           clients={clients}
           accounts={accounts}
+          companyName={settings?.companyName || ''}
           clientsLoading={isClientsLoading}
           accountsLoading={isAccountsLoading}
           loading={createMutation.isPending || updateMutation.isPending}

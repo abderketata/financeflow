@@ -38,6 +38,7 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { AccountDetailsDrawer } from '@/modules/accounts/components/AccountDetailsDrawer';
 import { AccountForm } from '@/modules/accounts/components/AccountForm';
 import { useAccounts, useCreateAccount, useUpdateAccount } from '@/modules/accounts/hooks/useAccounts';
+import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { useBanks } from '@/modules/banks/hooks/useBanks';
 import { clientService } from '@/modules/clients/services/client.service';
 import { useCreateClient } from '@/modules/clients/hooks/useClients';
@@ -112,6 +113,7 @@ export default function AccountsPage() {
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
   const createClientMutation = useCreateClient();
+  const defaultCurrency = useDefaultCurrency();
   const [clientFormSearchInput, setClientFormSearchInput] = useState('');
   const debouncedClientFormSearch = useDebouncedValue(clientFormSearchInput, 350);
   const { data: formClients = [], isLoading: isFormClientsLoading } = useQuery({
@@ -120,7 +122,7 @@ export default function AccountsPage() {
     enabled: openForm,
     staleTime: 30_000,
   });
-  const accountFormDefaults = useMemo(() => getAccountFormDefaults(editing), [editing]);
+  const accountFormDefaults = useMemo(() => getAccountFormDefaults(editing, defaultCurrency), [editing, defaultCurrency]);
 
   useEffect(() => {
     setSearchQuery(debouncedSearchInput.trim());
@@ -295,14 +297,14 @@ export default function AccountsPage() {
           <Grid item xs={6} md={1.2}>
             <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Devise</Typography>
-              <Box><StatusChip status={account.currency || 'TND'} /></Box>
+              <Box><StatusChip status={account.currency || defaultCurrency} /></Box>
             </Stack>
           </Grid>
           <Grid item xs={6} md={2.05}>
             <Stack spacing={0.15} sx={{ minWidth: 0 }}>
               <Typography sx={accountMetaLabelSx}>Solde</Typography>
-              <Typography sx={{ fontFamily: numericFont, fontWeight: 800, color: getAccountBalanceValue(account) >= 0 ? brandColors.credit : brandColors.debit, fontSize: '0.9rem', ...ellipsisValueSx }} title={formatCurrency(getAccountBalanceValue(account), account.currency || 'TND')}>
-                {formatCurrency(getAccountBalanceValue(account), account.currency || 'TND')}
+              <Typography sx={{ fontFamily: numericFont, fontWeight: 800, color: getAccountBalanceValue(account) >= 0 ? brandColors.credit : brandColors.debit, fontSize: '0.9rem', ...ellipsisValueSx }} title={formatCurrency(getAccountBalanceValue(account), account.currency || defaultCurrency)}>
+                {formatCurrency(getAccountBalanceValue(account), account.currency || defaultCurrency)}
               </Typography>
             </Stack>
           </Grid>
@@ -663,6 +665,7 @@ export default function AccountsPage() {
       <FormDialog open={openForm} title={editing ? 'Modifier le compte' : 'Nouveau compte'} onClose={() => { setOpenForm(false); setEditing(null); }}>
         <AccountForm
           defaultValues={accountFormDefaults}
+          defaultCurrency={defaultCurrency}
           banks={banks}
           clients={formClients}
           initialClient={editing?.client ?? null}

@@ -7,10 +7,19 @@ import { Screen } from '@/components/ui/Screen';
 import { useCreatePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
 import { buildPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
+import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { MobileStackParamList } from '@/navigation/types';
+
+function getTodayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenProps<MobileStackParamList, 'PaymentItemForm'>) {
   const current = route.params?.paymentItem;
+  const defaultCurrency = useDefaultCurrency();
+  const { data: settings } = useSettings();
+  const defaultAlertDays = settings?.alertDaysBefore ?? 3;
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
 
@@ -20,9 +29,12 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
       type: current?.type || 'CHEQUE',
       direction: current?.direction || 'IN',
       amount: current?.amount || 0,
+      currency: current?.currency || defaultCurrency,
       status: (current?.status as any) || 'Reçu',
       dueDate: current?.dueDate ? current.dueDate.slice(0, 10) : '',
-      issueDate: current?.issueDate ? current.issueDate.slice(0, 10) : ''
+      issueDate: current?.issueDate
+        ? current.issueDate.slice(0, 10)
+        : getTodayISO()
     }
   });
 
@@ -33,6 +45,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
         <Controller name="type" control={control} render={({ field }) => <AppTextField label="Type (CHEQUE / TRAITE / AUTRE)" value={field.value} onChangeText={field.onChange} error={errors.type?.message} />} />
         <Controller name="direction" control={control} render={({ field }) => <AppTextField label="Sens (IN / OUT)" value={field.value} onChangeText={field.onChange} error={errors.direction?.message} />} />
         <Controller name="amount" control={control} render={({ field }) => <AppTextField label="Montant" value={String(field.value ?? '')} onChangeText={field.onChange as any} keyboardType="numeric" error={errors.amount?.message} />} />
+        <Controller name="currency" control={control} render={({ field }) => <AppTextField label="Devise" value={field.value} onChangeText={field.onChange} error={errors.currency?.message} />} />
         <Controller name="status" control={control} render={({ field }) => <AppTextField label="Statut (Reçu / Déposé / Payé / Rejeté / Annulé / En retard)" value={field.value} onChangeText={field.onChange} error={errors.status?.message} />} />
         <Controller name="issueDate" control={control} render={({ field }) => <AppTextField label="Date d'émission (YYYY-MM-DD)" value={field.value || ''} onChangeText={field.onChange} error={errors.issueDate?.message} />} />
         <Controller name="dueDate" control={control} render={({ field }) => <AppTextField label="Échéance (YYYY-MM-DD)" value={field.value || ''} onChangeText={field.onChange} error={errors.dueDate?.message} />} />

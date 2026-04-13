@@ -64,13 +64,13 @@ export const buildAccountSearchHaystack = (account: BankAccount) =>
     .map((entry) => normalizeText(entry))
     .join(' ');
 
-export const getAccountFormDefaults = (account?: Partial<BankAccount> | null) => ({
+export const getAccountFormDefaults = (account?: Partial<BankAccount> | null, defaultCurrency = 'TND') => ({
   label: account?.label || '',
   accountNumber: account?.accountNumber || '',
   rib: account?.rib || '',
   iban: account?.iban || '',
   balance: Number(account?.currentBalance ?? account?.balance ?? 0),
-  currency: account?.currency || 'TND',
+  currency: account?.currency || defaultCurrency,
   bank: typeof account?.bank === 'object' ? account.bank?.id : account?.bank,
   client: typeof account?.client === 'object' ? account.client?.id : account?.client,
 });

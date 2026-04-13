@@ -35,6 +35,7 @@ const ADD_CLIENT_SENTINEL = { id: -1, fullName: '__ADD_NEW__' } as Client;
 
 interface AccountFormProps {
   defaultValues?: Partial<AccountFormValues>;
+  defaultCurrency?: string;
   banks: Bank[];
   clients: Client[];
   initialClient?: Client | null;
@@ -71,6 +72,7 @@ const clientFilterOptions = createFilterOptions<Client>({
 
 export function AccountForm({
   defaultValues,
+  defaultCurrency = 'TND',
   banks,
   clients,
   initialClient,
@@ -92,7 +94,7 @@ export function AccountForm({
     rib: '',
     iban: '',
     balance: 0,
-    currency: 'TND',
+    currency: defaultCurrency,
     bank: undefined,
     client: undefined,
     ...defaultValues,

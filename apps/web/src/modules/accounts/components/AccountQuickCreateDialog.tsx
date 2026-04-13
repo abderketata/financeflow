@@ -79,6 +79,7 @@ type QuickAccountFormValues = z.infer<typeof quickAccountSchema>;
 interface AccountQuickCreateDialogProps {
   open: boolean;
   banks?: Bank[];
+  defaultCurrency?: string;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: QuickAccountFormValues) => void | Promise<void>;
@@ -93,6 +94,7 @@ const bankFilterOptions = createFilterOptions<Bank>({
 export function AccountQuickCreateDialog({
   open,
   banks = [],
+  defaultCurrency = 'TND',
   loading,
   onClose,
   onSubmit,
@@ -112,7 +114,7 @@ export function AccountQuickCreateDialog({
       accountNumber: '',
       iban: '',
       rib: '',
-      currency: 'TND',
+      currency: defaultCurrency,
       openingBalance: 0,
       currentBalance: 0,
       isActive: true,

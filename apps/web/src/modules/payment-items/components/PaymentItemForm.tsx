@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Button, Grid, MenuItem, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,29 +15,40 @@ import { BankAccount, Client } from '@/types/domain';
 
 interface PaymentItemFormProps {
   defaultValues?: Partial<PaymentItemFormValues>;
+  defaultCurrency?: string;
+  defaultAlertDays?: number;
   clients: Client[];
   accounts: BankAccount[];
+  companyName: string;
   clientsLoading?: boolean;
   accountsLoading?: boolean;
   loading?: boolean;
   onSubmit: (values: PaymentItemFormValues) => void | Promise<void>;
 }
 
-export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoading, accountsLoading, loading, onSubmit }: PaymentItemFormProps) {
-  const { control, handleSubmit, formState: { errors } } = useForm<PaymentItemFormValues>({
+function getTodayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function PaymentItemForm({ defaultValues, defaultCurrency = 'TND', defaultAlertDays = 3, clients, accounts, companyName, clientsLoading, accountsLoading, loading, onSubmit }: PaymentItemFormProps) {
+  const isEditMode = Boolean(defaultValues);
+
+  const { control, handleSubmit, formState: { errors }, watch, setValue } = useForm<PaymentItemFormValues>({
     resolver: zodResolver(paymentItemSchema),
     defaultValues: {
       type: 'CHEQUE',
       direction: 'IN',
       amount: 0,
-      currency: 'TND',
+      currency: defaultCurrency,
       status: 'Reçu',
-      issueDate: '',
+      issueDate: isEditMode ? (defaultValues?.issueDate || '') : getTodayISO(),
       dueDate: '',
       drawer: '',
       drawee: '',
       alertEnabled: true,
-      alertDaysBefore: 3,
+      alertDaysBefore: isEditMode
+        ? (defaultValues?.alertDaysBefore ?? defaultAlertDays)
+        : defaultAlertDays,
       notes: '',
       client: undefined,
       account: undefined,
@@ -44,9 +56,52 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
     }
   });
 
+  const watchedDirection = watch('direction');
+  const watchedClientId = watch('client');
+
+  useEffect(() => {
+    const selectedClient = clients.find((c) => c.id === Number(watchedClientId));
+    const clientLabel = selectedClient
+      ? (selectedClient.companyName?.trim() || selectedClient.fullName?.trim() || selectedClient.name?.trim() || '')
+      : '';
+    const company = companyName || '';
+
+    if (watchedDirection === 'IN') {
+      setValue('drawer', company);
+      setValue('drawee', clientLabel);
+    } else {
+      setValue('drawer', clientLabel);
+      setValue('drawee', company);
+    }
+  }, [watchedDirection, watchedClientId, clients, companyName, setValue]);
+
   return (
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
       <Grid container spacing={2} sx={{ mt: 0.5 }}>
+        <Grid item xs={12} md={6}>
+          <Controller name="client" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={clientsLoading} helperText={clientsLoading ? 'Chargement des clients...' : undefined}>
+              <MenuItem value="">Aucun</MenuItem>
+              {clients.map((client) => (
+                <MenuItem key={client.id} value={client.id}>
+                  {getPaymentItemClientPrimary(client)}{getPaymentItemClientSecondary(client) ? ` — ${getPaymentItemClientSecondary(client)}` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          )} />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Controller name="account" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth select label="Compte" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
+              <MenuItem value="">Aucun</MenuItem>
+              {accounts.map((account) => (
+                <MenuItem key={account.id} value={account.id}>
+                  {getPaymentItemAccountPrimary(account)}{getPaymentItemAccountSecondary(account) ? ` — ${getPaymentItemAccountSecondary(account)}` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          )} />
+        </Grid>
         <Grid item xs={12} md={3}>
           <Controller name="type" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Type">
@@ -64,12 +119,12 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={5}>
           <Controller name="amount" control={control} render={({ field }) => (
             <TextField {...field} fullWidth type="number" label="Montant" value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)} error={!!errors.amount} helperText={errors.amount?.message} />
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={3}>
           <Controller name="currency" control={control} render={({ field }) => (
             <TextField {...field} fullWidth label="Devise" error={!!errors.currency} helperText={errors.currency?.message} />
           )} />
@@ -108,36 +163,12 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="drawer" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Tireur" />
+            <TextField {...field} fullWidth label="Tireur" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
           )} />
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="drawee" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Tiré" />
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="client" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={clientsLoading} helperText={clientsLoading ? 'Chargement des clients...' : undefined}>
-              <MenuItem value="">Aucun</MenuItem>
-              {clients.map((client) => (
-                <MenuItem key={client.id} value={client.id}>
-                  {getPaymentItemClientPrimary(client)}{getPaymentItemClientSecondary(client) ? ` — ${getPaymentItemClientSecondary(client)}` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="account" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Compte" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
-              <MenuItem value="">Aucun</MenuItem>
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  {getPaymentItemAccountPrimary(account)}{getPaymentItemAccountSecondary(account) ? ` — ${getPaymentItemAccountSecondary(account)}` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
+            <TextField {...field} fullWidth label="Tiré" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
           )} />
         </Grid>
         <Grid item xs={12}>
@@ -150,4 +181,3 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
     </form>
   );
 }
-
