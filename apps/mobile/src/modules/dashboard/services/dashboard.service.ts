@@ -1,6 +1,7 @@
 import { AlertItem, DashboardSummary, PaymentItem, Transaction } from '@/types';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
+import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { transactionService } from '@/modules/transactions/services/transaction.service';
 
 const startOfMonthNative = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
@@ -44,8 +45,8 @@ export const dashboardService = {
       return date >= monthStart && date <= monthEnd;
     });
 
-    const dueThisWeek = paymentItems.filter((item: PaymentItem) => item.dueDate ? isWithinIntervalNative(new Date(item.dueDate), { start: weekStart, end: weekEnd }) : false);
-    const overdue = paymentItems.filter((item: PaymentItem) => item.dueDate ? isBeforeNative(new Date(item.dueDate), now) && item.status?.toUpperCase() !== 'PAID' : false);
+    const dueThisWeek = paymentItems.filter((item: PaymentItem) => getPaymentItemEffectiveDate(item) ? isWithinIntervalNative(new Date(getPaymentItemEffectiveDate(item)), { start: weekStart, end: weekEnd }) : false);
+    const overdue = paymentItems.filter((item: PaymentItem) => getPaymentItemEffectiveDate(item) ? isBeforeNative(new Date(getPaymentItemEffectiveDate(item)), now) && !isPaymentItemClosedStatus(item.status) : false);
     const unreadAlerts = alerts.filter((item: AlertItem) => !item.isRead);
 
     return {

@@ -1,7 +1,8 @@
 export type Identifier = number;
 
-export type PaymentItemType = 'CHEQUE' | 'TRAITE';
+export type PaymentItemType = 'CHEQUE' | 'TRAITE' | 'AUTRE';
 export type PaymentDirection = 'IN' | 'OUT';
+export type PaymentItemStatus = 'Reçu' | 'Déposé' | 'Payé' | 'Rejeté' | 'Annulé' | 'En retard';
 export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 
 export interface Client {
@@ -33,15 +34,22 @@ export interface BankAccount {
 
 export interface PaymentItem {
   id: Identifier;
-  reference: string;
+  referenceNumber: string;
+  reference?: string;
   type: PaymentItemType;
   direction: PaymentDirection;
   amount: number;
-  status: string;
-  dueDate: string;
+  status: PaymentItemStatus | string;
+  currency?: string;
   issueDate?: string;
+  dueDate?: string;
+  drawer?: string;
+  drawee?: string;
+  alertEnabled?: boolean;
+  alertDaysBefore?: number;
   notes?: string;
   client?: Client | null;
+  account?: BankAccount | null;
   bankAccount?: BankAccount | null;
 }
 

@@ -1,7 +1,15 @@
 import { Box, Chip, alpha } from '@mui/material';
 
 const statusMap: Record<string, { label: string; color: 'success' | 'warning' | 'error' | 'info' | 'default'; dotColor: string }> = {
+  'REÇU':       { label: 'Reçu',         color: 'info',    dotColor: '#2563EB' },
+  'DÉPOSÉ':     { label: 'Déposé',       color: 'warning', dotColor: '#D97706' },
+  'PAYÉ':       { label: 'Payé',         color: 'success', dotColor: '#059669' },
+  'REJETÉ':     { label: 'Rejeté',       color: 'error',   dotColor: '#DC2626' },
+  'ANNULÉ':     { label: 'Annulé',       color: 'default', dotColor: '#94A3B8' },
+  'EN RETARD':  { label: 'En retard',    color: 'error',   dotColor: '#DC2626' },
   PAID:         { label: 'Payé',         color: 'success', dotColor: '#059669' },
+  DEPOSITED:    { label: 'Déposé',       color: 'warning', dotColor: '#D97706' },
+  RECEIVED:     { label: 'Reçu',         color: 'info',    dotColor: '#2563EB' },
   ENCASHED:     { label: 'Encaissé',     color: 'success', dotColor: '#059669' },
   DONE:         { label: 'Terminé',      color: 'success', dotColor: '#059669' },
   SETTLED:      { label: 'Réglé',        color: 'success', dotColor: '#059669' },
@@ -22,6 +30,7 @@ const statusMap: Record<string, { label: string; color: 'success' | 'warning' | 
   IN:           { label: 'Entrant',      color: 'info',    dotColor: '#2563EB' },
   CHEQUE:       { label: 'Chèque',       color: 'info',    dotColor: '#2563EB' },
   TRAITE:       { label: 'Traite',       color: 'info',    dotColor: '#2563EB' },
+  AUTRE:        { label: 'Autre',        color: 'info',    dotColor: '#2563EB' },
   OVERDUE:      { label: 'En retard',    color: 'error',   dotColor: '#DC2626' },
   LATE:         { label: 'En retard',    color: 'error',   dotColor: '#DC2626' },
   UNPAID:       { label: 'Impayé',       color: 'error',   dotColor: '#DC2626' },

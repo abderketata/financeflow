@@ -6,6 +6,7 @@ import { AppTextField } from '@/components/ui/AppTextField';
 import { Screen } from '@/components/ui/Screen';
 import { useCreatePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
+import { buildPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { MobileStackParamList } from '@/navigation/types';
 
 export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenProps<MobileStackParamList, 'PaymentItemForm'>) {
@@ -16,12 +17,12 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
   const { control, handleSubmit, formState: { errors } } = useForm<PaymentItemFormValues>({
     resolver: zodResolver(paymentItemSchema),
     defaultValues: {
-      reference: current?.reference || '',
       type: current?.type || 'CHEQUE',
       direction: current?.direction || 'IN',
       amount: current?.amount || 0,
-      status: current?.status || 'PENDING',
-      dueDate: current?.dueDate ? current.dueDate.slice(0, 10) : ''
+      status: (current?.status as any) || 'Reçu',
+      dueDate: current?.dueDate ? current.dueDate.slice(0, 10) : '',
+      issueDate: current?.issueDate ? current.issueDate.slice(0, 10) : ''
     }
   });
 
@@ -29,17 +30,22 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
     <Screen>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{current ? 'Modifier paiement' : 'Nouveau paiement'}</Text>
-        <Controller name="reference" control={control} render={({ field }) => <AppTextField label="Référence" value={field.value} onChangeText={field.onChange} error={errors.reference?.message} />} />
-        <Controller name="type" control={control} render={({ field }) => <AppTextField label="Type (CHEQUE / TRAITE)" value={field.value} onChangeText={field.onChange} error={errors.type?.message} />} />
+        <Controller name="type" control={control} render={({ field }) => <AppTextField label="Type (CHEQUE / TRAITE / AUTRE)" value={field.value} onChangeText={field.onChange} error={errors.type?.message} />} />
         <Controller name="direction" control={control} render={({ field }) => <AppTextField label="Sens (IN / OUT)" value={field.value} onChangeText={field.onChange} error={errors.direction?.message} />} />
         <Controller name="amount" control={control} render={({ field }) => <AppTextField label="Montant" value={String(field.value ?? '')} onChangeText={field.onChange as any} keyboardType="numeric" error={errors.amount?.message} />} />
-        <Controller name="status" control={control} render={({ field }) => <AppTextField label="Statut" value={field.value} onChangeText={field.onChange} error={errors.status?.message} />} />
-        <Controller name="dueDate" control={control} render={({ field }) => <AppTextField label="Échéance (YYYY-MM-DD)" value={field.value} onChangeText={field.onChange} error={errors.dueDate?.message} />} />
+        <Controller name="status" control={control} render={({ field }) => <AppTextField label="Statut (Reçu / Déposé / Payé / Rejeté / Annulé / En retard)" value={field.value} onChangeText={field.onChange} error={errors.status?.message} />} />
+        <Controller name="issueDate" control={control} render={({ field }) => <AppTextField label="Date d'émission (YYYY-MM-DD)" value={field.value || ''} onChangeText={field.onChange} error={errors.issueDate?.message} />} />
+        <Controller name="dueDate" control={control} render={({ field }) => <AppTextField label="Échéance (YYYY-MM-DD)" value={field.value || ''} onChangeText={field.onChange} error={errors.dueDate?.message} />} />
         <Pressable style={styles.button} onPress={handleSubmit(async (values) => {
+          const payload = {
+            ...values,
+            referenceNumber: buildPaymentItemReference(values.type, values.direction),
+          };
+
           if (current) {
-            await updateMutation.mutateAsync({ id: current.id, payload: values as any });
+            await updateMutation.mutateAsync({ id: current.id, payload: payload as any });
           } else {
-            await createMutation.mutateAsync(values as any);
+            await createMutation.mutateAsync(payload as any);
           }
           navigation.goBack();
         })}>

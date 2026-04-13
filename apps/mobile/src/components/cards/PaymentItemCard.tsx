@@ -1,14 +1,16 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { PaymentItem } from '@/types';
+import { getPaymentItemEffectiveDate, getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { formatCurrency, formatDate } from '@/utils/format';
 
 export function PaymentItemCard({ item }: { item: PaymentItem }) {
+  const statusLabel = getPaymentItemStatusLabel(item.status);
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{item.reference}</Text>
+      <Text style={styles.title}>{getPaymentItemReference(item)}</Text>
       <Text style={styles.meta}>{item.type} • {item.direction}</Text>
-      <Text style={styles.meta}>{formatCurrency(item.amount)} • {formatDate(item.dueDate)}</Text>
-      <Text style={[styles.badge, item.status?.toUpperCase().includes('PAID') ? styles.success : styles.warning]}>{item.status}</Text>
+      <Text style={styles.meta}>{formatCurrency(item.amount, item.currency)} • {formatDate(getPaymentItemEffectiveDate(item))}</Text>
+      <Text style={[styles.badge, statusLabel === 'Payé' ? styles.success : statusLabel === 'En retard' || statusLabel === 'Rejeté' ? styles.error : styles.warning]}>{statusLabel}</Text>
     </View>
   );
 }
@@ -44,6 +46,9 @@ const styles = StyleSheet.create({
   },
   warning: {
     backgroundColor: '#d97706'
+  },
+  error: {
+    backgroundColor: '#dc2626'
   }
 });
 

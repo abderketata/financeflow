@@ -1,4 +1,5 @@
 import { Client, BankAccount, PaymentItem, Transaction, RelationCollection, ClientType } from '@/types/domain';
+import { getPaymentItemAccount, getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { normalizeClientIdentityNumber } from '@/modules/clients/utils/identityNumber';
 import { normalizeText } from '@/utils/format';
 import { formatClientTaxNumber, normalizeClientTaxNumber } from '@/modules/clients/utils/taxNumber';
@@ -102,7 +103,7 @@ export const getBankAccountCurrentBalance = (account: Partial<BankAccount>) =>
 export const getBankAccountOpeningBalance = (account: Partial<BankAccount>) =>
   Number(account.openingBalance ?? 0);
 
-export const getPaymentItemCurrency = (item: Partial<PaymentItem>) => item.currency || item.bankAccount?.currency || 'TND';
+export const getPaymentItemCurrency = (item: Partial<PaymentItem>) => item.currency || getPaymentItemAccount(item)?.currency || 'TND';
 export const getTransactionCurrency = (transaction: Partial<Transaction>) => transaction.currency || transaction.bankAccount?.currency || 'TND';
 
 export const getClientMetrics = (client: Client) => {
@@ -159,7 +160,7 @@ export const buildClientSearchHaystack = (client: Client) => {
       account.status,
     ]),
     ...paymentItems.flatMap((paymentItem) => [
-      paymentItem.reference,
+      getPaymentItemReference(paymentItem),
       paymentItem.type,
       paymentItem.direction,
       paymentItem.status,
@@ -167,6 +168,9 @@ export const buildClientSearchHaystack = (client: Client) => {
       paymentItem.drawer,
       paymentItem.drawee,
       paymentItem.bankName,
+      getPaymentItemAccount(paymentItem)?.label,
+      getPaymentItemAccount(paymentItem)?.accountNumber,
+      getPaymentItemAccount(paymentItem)?.rib,
       paymentItem.instrumentAccountNumber,
     ]),
     ...transactions.flatMap((transaction) => [

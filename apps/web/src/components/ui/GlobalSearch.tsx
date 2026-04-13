@@ -10,6 +10,7 @@ import { accountService } from '@/modules/accounts/services/account.service';
 // import { bankService } from '@/modules/banks/services/bank.service';
 import { clientService } from '@/modules/clients/services/client.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
+import { getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { normalizeText } from '@/utils/format';
 import { brandColors, headingFont } from '@/app/theme';
 
@@ -80,8 +81,8 @@ export function GlobalSearch() {
     });
 
     paymentItems.forEach((item) => {
-      if (`${item.reference} ${item.type || ''} ${item.status || ''}`.toLowerCase().includes(term)) {
-        results.push({ id: `payment-${item.id}`, label: item.reference, route: '/payment-items', group: 'Chèques / Traites' });
+      if (`${getPaymentItemReference(item)} ${item.type || ''} ${item.status || ''}`.toLowerCase().includes(term)) {
+        results.push({ id: `payment-${item.id}`, label: getPaymentItemReference(item), route: '/payment-items', group: 'Chèques / Traites' });
       }
     });
 

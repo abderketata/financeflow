@@ -7,6 +7,7 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { usePaymentItems } from '@/modules/payment-items/hooks/usePaymentItems';
+import { getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { MobileStackParamList } from '@/navigation/types';
 import { useMemo, useState } from 'react';
 
@@ -16,7 +17,7 @@ export function PaymentItemListScreen({ navigation }: NativeStackScreenProps<Mob
   const [typeFilter, setTypeFilter] = useState('');
 
   const rows = useMemo(() => data.filter((item) => {
-    const textMatch = `${item.reference} ${item.status}`.toLowerCase().includes(search.toLowerCase());
+    const textMatch = `${getPaymentItemReference(item)} ${getPaymentItemStatusLabel(item.status)}`.toLowerCase().includes(search.toLowerCase());
     const typeMatch = !typeFilter || item.type === typeFilter;
     return textMatch && typeMatch;
   }), [data, search, typeFilter]);
@@ -34,7 +35,7 @@ export function PaymentItemListScreen({ navigation }: NativeStackScreenProps<Mob
       </View>
       <View style={styles.searchWrap}>
         <TextInput style={styles.search} placeholder="Rechercher..." value={search} onChangeText={setSearch} />
-        <FilterChips options={['', 'CHEQUE', 'TRAITE']} value={typeFilter} onChange={setTypeFilter} />
+        <FilterChips options={['', 'CHEQUE', 'TRAITE', 'AUTRE']} value={typeFilter} onChange={setTypeFilter} />
       </View>
       <FlatList
         data={rows}

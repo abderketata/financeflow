@@ -2,6 +2,14 @@ import { Button, Grid, MenuItem, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
+import {
+  getPaymentItemAccountPrimary,
+  getPaymentItemAccountSecondary,
+  getPaymentItemClientPrimary,
+  getPaymentItemClientSecondary,
+  paymentItemStatusOptions,
+  paymentItemTypeOptions,
+} from '@/modules/payment-items/utils/paymentItemPresentation';
 import { BankAccount, Client } from '@/types/domain';
 
 interface PaymentItemFormProps {
@@ -18,16 +26,20 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
   const { control, handleSubmit, formState: { errors } } = useForm<PaymentItemFormValues>({
     resolver: zodResolver(paymentItemSchema),
     defaultValues: {
-      reference: '',
       type: 'CHEQUE',
       direction: 'IN',
       amount: 0,
-      status: 'PENDING',
-      dueDate: '',
+      currency: 'TND',
+      status: 'Reçu',
       issueDate: '',
+      dueDate: '',
+      drawer: '',
+      drawee: '',
+      alertEnabled: true,
+      alertDaysBefore: 3,
       notes: '',
       client: undefined,
-      bankAccount: undefined,
+      account: undefined,
       ...defaultValues
     }
   });
@@ -35,16 +47,12 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
   return (
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
       <Grid container spacing={2} sx={{ mt: 0.5 }}>
-        <Grid item xs={12} md={6}>
-          <Controller name="reference" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Référence" error={!!errors.reference} helperText={errors.reference?.message} />
-          )} />
-        </Grid>
         <Grid item xs={12} md={3}>
           <Controller name="type" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Type">
-              <MenuItem value="CHEQUE">Chèque</MenuItem>
-              <MenuItem value="TRAITE">Traite</MenuItem>
+              {paymentItemTypeOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+              ))}
             </TextField>
           )} />
         </Grid>
@@ -62,8 +70,22 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
           )} />
         </Grid>
         <Grid item xs={12} md={4}>
+          <Controller name="currency" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth label="Devise" error={!!errors.currency} helperText={errors.currency?.message} />
+          )} />
+        </Grid>
+        <Grid item xs={12} md={4}>
           <Controller name="status" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Statut" />
+            <TextField {...field} fullWidth select label="Statut" error={!!errors.status} helperText={errors.status?.message}>
+              {paymentItemStatusOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+              ))}
+            </TextField>
+          )} />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Controller name="issueDate" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth type="date" label="Date d'émission" InputLabelProps={{ shrink: true }} />
           )} />
         </Grid>
         <Grid item xs={12} md={4}>
@@ -71,24 +93,50 @@ export function PaymentItemForm({ defaultValues, clients, accounts, clientsLoadi
             <TextField {...field} fullWidth type="date" label="Échéance" InputLabelProps={{ shrink: true }} error={!!errors.dueDate} helperText={errors.dueDate?.message} />
           )} />
         </Grid>
+        <Grid item xs={12} md={4}>
+          <Controller name="alertEnabled" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth select label="Alertes" value={field.value ? 'true' : 'false'} onChange={(e) => field.onChange(e.target.value === 'true')}>
+              <MenuItem value="true">Activées</MenuItem>
+              <MenuItem value="false">Désactivées</MenuItem>
+            </TextField>
+          )} />
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Controller name="alertDaysBefore" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth type="number" label="Jours avant alerte" value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)} error={!!errors.alertDaysBefore} helperText={errors.alertDaysBefore?.message} />
+          )} />
+        </Grid>
         <Grid item xs={12} md={6}>
-          <Controller name="issueDate" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="date" label="Date d'émission" InputLabelProps={{ shrink: true }} />
+          <Controller name="drawer" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth label="Tireur" />
+          )} />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Controller name="drawee" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth label="Tiré" />
           )} />
         </Grid>
         <Grid item xs={12} md={6}>
           <Controller name="client" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Client" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={clientsLoading} helperText={clientsLoading ? 'Chargement des clients...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
-              {clients.map((client) => <MenuItem key={client.id} value={client.id}>{client.name}</MenuItem>)}
+              {clients.map((client) => (
+                <MenuItem key={client.id} value={client.id}>
+                  {getPaymentItemClientPrimary(client)}{getPaymentItemClientSecondary(client) ? ` — ${getPaymentItemClientSecondary(client)}` : ''}
+                </MenuItem>
+              ))}
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12}>
-          <Controller name="bankAccount" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Compte bancaire" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
+        <Grid item xs={12} md={6}>
+          <Controller name="account" control={control} render={({ field }) => (
+            <TextField {...field} fullWidth select label="Compte" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={accountsLoading} helperText={accountsLoading ? 'Chargement des comptes...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
-              {accounts.map((account) => <MenuItem key={account.id} value={account.id}>{account.label}</MenuItem>)}
+              {accounts.map((account) => (
+                <MenuItem key={account.id} value={account.id}>
+                  {getPaymentItemAccountPrimary(account)}{getPaymentItemAccountSecondary(account) ? ` — ${getPaymentItemAccountSecondary(account)}` : ''}
+                </MenuItem>
+              ))}
             </TextField>
           )} />
         </Grid>

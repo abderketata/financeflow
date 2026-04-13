@@ -36,6 +36,7 @@ import {
   getPaymentItemCurrency,
   getTransactionCurrency,
 } from '@/modules/clients/utils/clientPresentation';
+import { getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 interface ClientDetailsDrawerProps {
   client: Client | null;
@@ -306,7 +307,7 @@ export function ClientDetailsDrawer({ client, open, onClose, onEdit }: ClientDet
                       {tx.category && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Catégorie : {tx.category}</Typography>}
                       {tx.paymentMethod && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Mode : {tx.paymentMethod}</Typography>}
                       {tx.bankAccount?.label && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Compte : {tx.bankAccount.label}</Typography>}
-                      {tx.paymentItem?.reference && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Paiement : {tx.paymentItem.reference}</Typography>}
+                      {tx.paymentItem && getPaymentItemReference(tx.paymentItem) !== '—' && <Typography sx={{ fontSize: 'inherit', color: 'inherit' }}>Paiement : {getPaymentItemReference(tx.paymentItem)}</Typography>}
                     </Stack>
                     {tx.notes && <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary', mt: 0.4, fontStyle: 'italic' }}>{tx.notes}</Typography>}
                   </Box>

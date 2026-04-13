@@ -3,6 +3,7 @@ import { fr } from 'date-fns/locale';
 import { Alert, DashboardSummary, PaymentItem, Transaction } from '@/types/domain';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
+import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { transactionService } from '@/modules/transactions/services/transaction.service';
 
 const sumByType = (items: Transaction[], operationType: 'DEBIT' | 'CREDIT') =>
@@ -30,11 +31,13 @@ export const dashboardService = {
     });
 
     const dueThisWeek = paymentItems.filter((item: PaymentItem) =>
-      item.dueDate ? isWithinInterval(new Date(item.dueDate), { start: weekStart, end: weekEnd }) : false
+      getPaymentItemEffectiveDate(item) ? isWithinInterval(new Date(getPaymentItemEffectiveDate(item)), { start: weekStart, end: weekEnd }) : false
     );
 
     const overdue = paymentItems.filter((item: PaymentItem) =>
-      item.dueDate ? isBefore(new Date(item.dueDate), now) && item.status?.toUpperCase() !== 'PAID' : false
+      getPaymentItemEffectiveDate(item)
+        ? isBefore(new Date(getPaymentItemEffectiveDate(item)), now) && !isPaymentItemClosedStatus(item.status)
+        : false
     );
 
     const unreadAlerts = alerts.filter((alert: Alert) => !alert.isRead);

@@ -2,6 +2,7 @@ import { Button, Grid, MenuItem, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { transactionSchema, TransactionFormValues } from '@/modules/transactions/schemas/transaction.schema';
+import { getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { BankAccount, Client, PaymentItem } from '@/types/domain';
 
 interface TransactionFormProps {
@@ -78,7 +79,7 @@ export function TransactionForm({ defaultValues, clients, accounts, paymentItems
           <Controller name="paymentItem" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Chèque / Traite lié" value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value || undefined)} disabled={paymentItemsLoading} helperText={paymentItemsLoading ? 'Chargement des paiements...' : undefined}>
               <MenuItem value="">Aucun</MenuItem>
-              {paymentItems.map((paymentItem) => <MenuItem key={paymentItem.id} value={paymentItem.id}>{paymentItem.reference}</MenuItem>)}
+              {paymentItems.map((paymentItem) => <MenuItem key={paymentItem.id} value={paymentItem.id}>{getPaymentItemReference(paymentItem)}</MenuItem>)}
             </TextField>
           )} />
         </Grid>

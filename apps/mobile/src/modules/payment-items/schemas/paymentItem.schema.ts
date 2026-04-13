@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 export const paymentItemSchema = z.object({
-  reference: z.string().min(2, 'Référence requise'),
-  type: z.enum(['CHEQUE', 'TRAITE']),
+  type: z.enum(['CHEQUE', 'TRAITE', 'AUTRE']),
   direction: z.enum(['IN', 'OUT']),
   amount: z.coerce.number().positive('Montant invalide'),
-  status: z.string().min(2, 'Statut requis'),
-  dueDate: z.string().min(1, 'Date requise')
+  status: z.enum(['Reçu', 'Déposé', 'Payé', 'Rejeté', 'Annulé', 'En retard']),
+  dueDate: z.string().optional(),
+  issueDate: z.string().optional()
 });
 
 export type PaymentItemFormValues = z.infer<typeof paymentItemSchema>;

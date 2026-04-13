@@ -20,6 +20,7 @@ import { usePaymentItems } from '@/modules/payment-items/hooks/usePaymentItems';
 import { Transaction } from '@/types/domain';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
 import { actionIconButton, brandColors, numericFont } from '@/app/theme';
+import { getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 export default function TransactionsPage() {
   const [search, setSearch] = useState('');
@@ -50,7 +51,7 @@ export default function TransactionsPage() {
   );
 
   const filteredRows = useMemo(() => data.filter((item) => {
-    const searchOk = [item.label, item.operationType, item.client?.name, item.bankAccount?.label, item.paymentItem?.reference].map(normalizeText).join(' ').includes(normalizeText(search));
+    const searchOk = [item.label, item.operationType, item.client?.name, item.bankAccount?.label, getPaymentItemReference(item.paymentItem)].map(normalizeText).join(' ').includes(normalizeText(search));
     const typeOk = !typeFilter || item.operationType === typeFilter;
     const clientOk = !clientFilter || String(item.client?.id || '') === clientFilter;
     const accountOk = !accountFilter || String(item.bankAccount?.id || '') === accountFilter;
@@ -76,7 +77,7 @@ export default function TransactionsPage() {
     { field: 'operationDate', headerName: 'Date', flex: 1, valueGetter: ({ row }) => formatDate(row.operationDate) },
     { field: 'clientName', headerName: 'Client', flex: 1, valueGetter: ({ row }) => row.client?.name || '—' },
     { field: 'accountName', headerName: 'Compte', flex: 1, valueGetter: ({ row }) => row.bankAccount?.label || '—' },
-    { field: 'paymentItemRef', headerName: 'Paiement lié', flex: 1, valueGetter: ({ row }) => row.paymentItem?.reference || '—' },
+    { field: 'paymentItemRef', headerName: 'Paiement lié', flex: 1, valueGetter: ({ row }) => getPaymentItemReference(row.paymentItem) },
     {
       field: 'actions',
       headerName: '',
