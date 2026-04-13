@@ -14,7 +14,7 @@ import {
   createFilterOptions,
 } from '@mui/material';
 import { ReactNode } from 'react';
-import { brandColors, headingFont } from '@/app/theme';
+import { brandColors, headingFont, premiumShadows } from '@/app/theme';
 import { Bank, BankAccount, Client } from '@/types/domain';
 
 export const ADD_CLIENT_SENTINEL = { id: -1, fullName: '__ADD_NEW__' } as Client;
@@ -81,17 +81,87 @@ const sharedOptionBoxSx = {
   alignItems: 'center',
   justifyContent: 'center',
   backgroundColor: alpha(brandColors.blue[500], 0.08),
+  border: `1px solid ${alpha(brandColors.blue[400], 0.14)}`,
   color: brandColors.blue[600],
   flexShrink: 0,
+  transition: 'all 0.18s ease',
+} as const;
+
+const sharedAutocompleteSx = {
+  '& .MuiAutocomplete-popupIndicator, & .MuiAutocomplete-clearIndicator': {
+    color: brandColors.slate[400],
+    borderRadius: '8px',
+    transition: 'all 0.18s ease',
+  },
+  '& .MuiAutocomplete-popupIndicator:hover, & .MuiAutocomplete-clearIndicator:hover': {
+    backgroundColor: alpha(brandColors.blue[500], 0.08),
+    color: brandColors.blue[600],
+  },
+  '& .MuiAutocomplete-popupIndicator.Mui-focused, & .MuiAutocomplete-clearIndicator.Mui-focused': {
+    backgroundColor: alpha(brandColors.blue[500], 0.12),
+  },
+} as const;
+
+const sharedAutocompletePaperSx = {
+  mt: 0.75,
+  borderRadius: '14px',
+  border: `1px solid ${alpha(brandColors.slate[200], 0.95)}`,
+  backgroundColor: alpha(brandColors.slate[50], 0.98),
+  backgroundImage: `linear-gradient(180deg, ${alpha('#FFFFFF', 0.92)} 0%, ${alpha(brandColors.blue[50], 0.72)} 100%)`,
+  boxShadow: premiumShadows.lg,
+  overflow: 'hidden',
 } as const;
 
 const sharedListboxSx = {
-  '& .MuiAutocomplete-option': {
-    py: 1,
+  p: 0.75,
+  backgroundColor: 'transparent',
+  '& .MuiAutocomplete-noOptions, & .MuiAutocomplete-loading': {
     px: 1.5,
-    borderRadius: '8px',
-    mx: 0.5,
-    my: 0.2,
+    py: 1.25,
+    color: brandColors.slate[500],
+    fontSize: '0.84rem',
+  },
+  '& .MuiAutocomplete-option': {
+    position: 'relative',
+    py: 1.1,
+    px: 1.5,
+    borderRadius: '10px',
+    mx: 0,
+    my: 0.35,
+    minHeight: 52,
+    border: `1px solid transparent`,
+    backgroundColor: 'transparent',
+    color: brandColors.slate[700],
+    transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+    '&:hover': {
+      backgroundColor: alpha(brandColors.blue[500], 0.06),
+      borderColor: alpha(brandColors.blue[300], 0.18),
+    },
+    '&.Mui-focused, &[data-focus="true"], &.Mui-focusVisible': {
+      backgroundColor: alpha(brandColors.blue[500], 0.08),
+      borderColor: alpha(brandColors.blue[400], 0.22),
+      outline: 'none',
+    },
+    '&[aria-selected="true"]': {
+      backgroundColor: alpha(brandColors.blue[500], 0.12),
+      borderColor: alpha(brandColors.blue[500], 0.24),
+      boxShadow: `inset 0 0 0 1px ${alpha(brandColors.blue[400], 0.08)}`,
+    },
+    '&[aria-selected="true"].Mui-focused, &[aria-selected="true"]:hover, &[aria-selected="true"][data-focus="true"]': {
+      backgroundColor: alpha(brandColors.blue[500], 0.16),
+      borderColor: alpha(brandColors.blue[500], 0.28),
+    },
+    '&[aria-disabled="true"]': {
+      opacity: 0.55,
+    },
+    '& .MuiTypography-root': {
+      transition: 'color 0.18s ease',
+    },
+    '&:hover .entity-autocomplete-optionIcon, &.Mui-focused .entity-autocomplete-optionIcon, &[data-focus="true"] .entity-autocomplete-optionIcon, &[aria-selected="true"] .entity-autocomplete-optionIcon': {
+      backgroundColor: alpha(brandColors.blue[500], 0.12),
+      borderColor: alpha(brandColors.blue[400], 0.2),
+      color: brandColors.blue[700],
+    },
   },
 } as const;
 
@@ -118,6 +188,7 @@ export function BankAutocompleteField({
 }: BankAutocompleteFieldProps) {
   return (
     <Autocomplete
+      sx={sharedAutocompleteSx}
       value={value}
       onChange={(_, nextValue) => onChange(nextValue)}
       options={options}
@@ -128,10 +199,13 @@ export function BankAutocompleteField({
       openText="Ouvrir"
       clearText="Effacer"
       size={size}
+      componentsProps={{
+        paper: { elevation: 0, sx: sharedAutocompletePaperSx },
+      }}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
-            <Box sx={sharedOptionBoxSx}>
+            <Box className="entity-autocomplete-optionIcon" sx={sharedOptionBoxSx}>
               <AccountBalanceRoundedIcon sx={{ fontSize: 15 }} />
             </Box>
             <Box sx={{ minWidth: 0 }}>
@@ -209,6 +283,7 @@ export function ClientAutocompleteField({
 
   return (
     <Autocomplete
+      sx={sharedAutocompleteSx}
       value={value}
       inputValue={inputValue}
       onChange={(_, nextValue) => {
@@ -232,6 +307,9 @@ export function ClientAutocompleteField({
       openText="Ouvrir"
       clearText="Effacer"
       size={size}
+      componentsProps={{
+        paper: { elevation: 0, sx: sharedAutocompletePaperSx },
+      }}
       onInputChange={(_, nextValue, reason) => onInputChange(nextValue, reason)}
       onClose={onClose}
       renderOption={(props, option) => {
@@ -251,7 +329,7 @@ export function ClientAutocompleteField({
         return (
           <li {...props} key={option.id}>
             <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
-              <Box sx={sharedOptionBoxSx}>
+              <Box className="entity-autocomplete-optionIcon" sx={sharedOptionBoxSx}>
                 <PersonRoundedIcon sx={{ fontSize: 15 }} />
               </Box>
               <Box sx={{ minWidth: 0 }}>
@@ -326,6 +404,7 @@ export function AccountAutocompleteField({
 }: AccountAutocompleteFieldProps) {
   return (
     <Autocomplete
+      sx={sharedAutocompleteSx}
       value={value}
       onChange={(_, nextValue) => onChange(nextValue)}
       options={options}
@@ -338,10 +417,13 @@ export function AccountAutocompleteField({
       openText="Ouvrir"
       clearText="Effacer"
       size={size}
+      componentsProps={{
+        paper: { elevation: 0, sx: sharedAutocompletePaperSx },
+      }}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
-            <Box sx={sharedOptionBoxSx}>
+            <Box className="entity-autocomplete-optionIcon" sx={sharedOptionBoxSx}>
               <AccountBalanceRoundedIcon sx={{ fontSize: 15 }} />
             </Box>
             <Box sx={{ minWidth: 0 }}>
