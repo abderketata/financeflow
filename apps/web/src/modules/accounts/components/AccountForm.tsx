@@ -1,14 +1,10 @@
-import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
-import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded';
 import CurrencyExchangeRoundedIcon from '@mui/icons-material/CurrencyExchangeRounded';
 import LabelRoundedIcon from '@mui/icons-material/LabelRounded';
 import NumbersRoundedIcon from '@mui/icons-material/NumbersRounded';
-import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import SavingsRoundedIcon from '@mui/icons-material/SavingsRounded';
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import { Autocomplete, Box, Button, createFilterOptions, Divider, Grid, InputAdornment, Stack, TextField, Typography, alpha } from '@mui/material';
+import { Box, Button, Divider, Grid, InputAdornment, Stack, TextField, Typography, alpha } from '@mui/material';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -18,18 +14,11 @@ import { formatAccountNumber, formatIban, normalizeRib } from '@/modules/account
 import { Bank, Client } from '@/types/domain';
 import { ClientQuickCreateDialog, QuickClientFormValues } from '@/modules/clients/components/ClientQuickCreateDialog';
 import { getStrapiFieldError } from '@/utils/strapi';
+import { BankAutocompleteField, ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 
 /* ─── Constants ────────────────────────────────────────────────────── */
 
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
-
-const bankFilterOptions = createFilterOptions<Bank>({
-  stringify: (option) => `${option.code ?? ''} ${option.name ?? ''}`,
-  ignoreCase: true,
-  trim: true,
-});
-
-const ADD_CLIENT_SENTINEL = { id: -1, fullName: '__ADD_NEW__' } as Client;
 
 /* ─── Props ────────────────────────────────────────────────────────── */
 
@@ -48,25 +37,6 @@ interface AccountFormProps {
   /** Quick-create a client inline; should return the created Client or null */
   onQuickCreateClient?: (values: QuickClientFormValues) => Promise<Client | null | undefined>;
 }
-
-/* ─── Helpers ──────────────────────────────────────────────────────── */
-
-function getClientLabel(client: Client): string {
-  if (client.id === ADD_CLIENT_SENTINEL.id) return '';
-  const company = client.companyName?.trim();
-  const full = client.fullName?.trim();
-  if (company && full && company !== full) return `${company} — ${full}`;
-  return company || full || client.name?.trim() || client.code?.trim() || `Client #${client.id}`;
-}
-
-const clientFilterOptions = createFilterOptions<Client>({
-  stringify: (option) =>
-    option.id === ADD_CLIENT_SENTINEL.id
-      ? ''
-      : `${option.fullName ?? ''} ${option.companyName ?? ''} ${option.code ?? ''}`,
-  ignoreCase: true,
-  trim: true,
-});
 
 /* ─── Component ────────────────────────────────────────────────────── */
 
@@ -222,55 +192,12 @@ export function AccountForm({
                   <Controller name="bank" control={control} render={({ field }) => {
                     const selectedBank = banks.find((b) => b.id === field.value) ?? null;
                     return (
-                      <Autocomplete
+                      <BankAutocompleteField
                         value={selectedBank}
-                        onChange={(_, v) => field.onChange(v?.id ?? undefined)}
                         options={banks}
-                        filterOptions={bankFilterOptions}
-                        getOptionLabel={(o) => o.code ? `${o.code} — ${o.name}` : o.name}
-                        isOptionEqualToValue={(o, v) => o.id === v.id}
-                        noOptionsText="Aucune banque trouvée"
-                        openText="Ouvrir"
-                        clearText="Effacer"
-                        size="small"
-                        renderOption={(props, option) => (
-                          <li {...props} key={option.id}>
-                            <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
-                              <Box sx={{ width: 30, height: 30, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(brandColors.blue[500], 0.08), color: brandColors.blue[600], flexShrink: 0 }}>
-                                <AccountBalanceRoundedIcon sx={{ fontSize: 15 }} />
-                              </Box>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography sx={{ fontSize: '0.86rem', fontWeight: 700, color: brandColors.slate[700], fontFamily: headingFont }} noWrap>
-                                  {option.code || option.name}
-                                </Typography>
-                                {option.code && (
-                                  <Typography sx={{ fontSize: '0.73rem', color: brandColors.slate[400] }} noWrap>
-                                    {option.name}
-                                  </Typography>
-                                )}
-                              </Box>
-                            </Stack>
-                          </li>
-                        )}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Banque"
-                            placeholder="Rechercher par code ou nom…"
-                            error={!!errors.bank}
-                            helperText={errors.bank?.message || 'Optionnel'}
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                                <>
-                                  <SearchRoundedIcon sx={{ fontSize: 18, color: brandColors.slate[400], ml: 0.3, mr: 0.5 }} />
-                                  {params.InputProps.startAdornment}
-                                </>
-                              ),
-                            }}
-                          />
-                        )}
-                        ListboxProps={{ sx: { maxHeight: 220, '& .MuiAutocomplete-option': { py: 1, px: 1.5, borderRadius: '8px', mx: 0.5, my: 0.2 } } }}
+                        onChange={(value) => field.onChange(value?.id ?? undefined)}
+                        error={!!errors.bank}
+                        helperText={errors.bank?.message || 'Optionnel'}
                       />
                     );
                   }} />
@@ -280,42 +207,19 @@ export function AccountForm({
                 <Grid item xs={12} md={6}>
                   <Controller name="client" control={control} render={({ field }) => {
                     const selectedClient = mergedClients.find((c) => c.id === field.value) ?? null;
-                    // Build options: all clients + sentinel "add new" if we have the callback
-                    const options: Client[] = onQuickCreateClient
-                      ? [...mergedClients, ADD_CLIENT_SENTINEL]
-                      : mergedClients;
-
                     return (
-                      <Autocomplete
+                      <ClientAutocompleteField
                         value={selectedClient}
                         inputValue={clientAutocompleteInput}
-                        onChange={(_, v) => {
-                          if (v && v.id === ADD_CLIENT_SENTINEL.id) {
-                            setQuickCreateOpen(true);
-                            return;
-                          }
-                          setClientAutocompleteInput(v ? getClientLabel(v) : '');
-                          field.onChange(v?.id ?? undefined);
+                        options={mergedClients}
+                        onChange={(value) => {
+                          setClientAutocompleteInput(value ? getClientLabel(value) : '');
+                          field.onChange(value?.id ?? undefined);
                         }}
-                        options={options}
-                        filterOptions={(opts, state) => {
-                          const filtered = clientFilterOptions(opts.filter((o) => o.id !== ADD_CLIENT_SENTINEL.id), state);
-                          // Always append sentinel at end
-                          if (onQuickCreateClient) filtered.push(ADD_CLIENT_SENTINEL);
-                          return filtered;
-                        }}
-                        getOptionLabel={(o) => (o.id === ADD_CLIENT_SENTINEL.id ? '' : getClientLabel(o))}
-                        isOptionEqualToValue={(o, v) => o.id === v.id}
-                        loading={clientsLoading}
-                        loadingText="Chargement…"
-                        noOptionsText="Aucun client trouvé"
-                        openText="Ouvrir"
-                        clearText="Effacer"
-                        size="small"
-                        onInputChange={(_, v, reason) => {
+                        onInputChange={(value, reason) => {
                           if (reason === 'input') {
-                            setClientAutocompleteInput(v);
-                            if (onClientSearch) onClientSearch(v);
+                            setClientAutocompleteInput(value);
+                            if (onClientSearch) onClientSearch(value);
                             return;
                           }
 
@@ -325,68 +229,14 @@ export function AccountForm({
                           }
                         }}
                         onClose={() => {
-                          // Reset remote search when dropdown closes so the full list reloads next time
                           setClientAutocompleteInput(selectedClient ? getClientLabel(selectedClient) : '');
                           if (onClientSearch) onClientSearch('');
                         }}
-                        renderOption={(props, option) => {
-                          if (option.id === ADD_CLIENT_SENTINEL.id) {
-                            return (
-                              <li {...props} key="__add_new__">
-                                <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%', color: brandColors.blue[600], fontWeight: 700, py: 0.25 }}>
-                                  <AddRoundedIcon sx={{ fontSize: 18 }} />
-                                  <Typography sx={{ fontSize: '0.86rem', fontWeight: 700, color: 'inherit' }}>
-                                    Ajouter un nouveau client
-                                  </Typography>
-                                </Stack>
-                              </li>
-                            );
-                          }
-
-                          const company = option.companyName?.trim();
-                          const full = option.fullName?.trim();
-                          const primary = company || full || option.name?.trim() || `Client #${option.id}`;
-                          const secondary = company && full && company !== full ? full : '';
-
-                          return (
-                            <li {...props} key={option.id}>
-                              <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
-                                <Box sx={{ width: 30, height: 30, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(brandColors.blue[500], 0.08), color: brandColors.blue[600], flexShrink: 0 }}>
-                                  <PersonRoundedIcon sx={{ fontSize: 15 }} />
-                                </Box>
-                                <Box sx={{ minWidth: 0 }}>
-                                  <Typography sx={{ fontSize: '0.86rem', fontWeight: 600, color: brandColors.slate[700] }} noWrap>
-                                    {primary}
-                                  </Typography>
-                                  {secondary && (
-                                    <Typography sx={{ fontSize: '0.73rem', color: brandColors.slate[400] }} noWrap>
-                                      {secondary}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </Stack>
-                            </li>
-                          );
-                        }}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Client"
-                            placeholder="Rechercher par nom, société ou code…"
-                            error={!!errors.client}
-                            helperText={errors.client?.message || 'Optionnel'}
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                                <>
-                                  <SearchRoundedIcon sx={{ fontSize: 18, color: brandColors.slate[400], ml: 0.3, mr: 0.5 }} />
-                                  {params.InputProps.startAdornment}
-                                </>
-                              ),
-                            }}
-                          />
-                        )}
-                        ListboxProps={{ sx: { maxHeight: 260, '& .MuiAutocomplete-option': { py: 1, px: 1.5, borderRadius: '8px', mx: 0.5, my: 0.2 } } }}
+                        loading={clientsLoading}
+                        error={!!errors.client}
+                        helperText={errors.client?.message || 'Optionnel'}
+                        allowAddNew={Boolean(onQuickCreateClient)}
+                        onAddNew={() => setQuickCreateOpen(true)}
                       />
                     );
                   }} />

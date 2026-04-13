@@ -2,6 +2,7 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -16,7 +17,10 @@ import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemF
 import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
-import { PaymentItem } from '@/types/domain';
+import { clientService } from '@/modules/clients/services/client.service';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { BankAccount, Client, PaymentItem } from '@/types/domain';
+import { AccountAutocompleteField, ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
 import { brandColors, numericFont } from '@/app/theme';
 import {
@@ -37,29 +41,41 @@ export default function PaymentItemsPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [clientFilter, setClientFilter] = useState('');
-  const [accountFilter, setAccountFilter] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientSearchInput, setClientSearchInput] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
+  const debouncedClientSearchInput = useDebouncedValue(clientSearchInput, 350);
   const { data = [], isLoading, isError, refetch } = usePaymentItems();
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const deleteMutation = useDeletePaymentItem();
-
-  const availableClients = useMemo(
-    () => Array.from(new Map(data.filter((item) => item.client?.id).map((item) => [item.client!.id, item.client!])).values()),
-    [data],
-  );
+  const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
+    queryKey: ['clients', 'payment-items-filter-lookup', debouncedClientSearchInput],
+    queryFn: () => clientService.lookup(debouncedClientSearchInput, 50),
+    staleTime: 30_000,
+  });
 
   const availableAccounts = useMemo(
     () => Array.from(new Map(data.map((item) => getPaymentItemAccount(item)).filter((account): account is NonNullable<typeof account> => Boolean(account?.id)).map((account) => [account.id, account])).values()),
     [data],
   );
+
+  const clientFilterOptions = useMemo(() => {
+    if (!selectedClient) {
+      return remoteClients;
+    }
+
+    return remoteClients.some((client) => client.id === selectedClient.id)
+      ? remoteClients
+      : [selectedClient, ...remoteClients];
+  }, [remoteClients, selectedClient]);
 
   const filteredRows = useMemo(() => data.filter((item) => {
     const account = getPaymentItemAccount(item);
@@ -76,13 +92,13 @@ export default function PaymentItemsPage() {
     ].map(normalizeText).join(' ').includes(normalizeText(search));
     const typeOk = !typeFilter || item.type === typeFilter;
     const statusOk = !statusFilter || normalizeText(getPaymentItemStatusLabel(item.status)) === normalizeText(statusFilter);
-    const clientOk = !clientFilter || String(item.client?.id || '') === clientFilter;
-    const accountOk = !accountFilter || String(getPaymentItemAccount(item)?.id || '') === accountFilter;
+    const clientOk = !selectedClient?.id || item.client?.id === selectedClient.id;
+    const accountOk = !selectedAccount?.id || getPaymentItemAccount(item)?.id === selectedAccount.id;
     const effectiveDate = getPaymentItemEffectiveDate(item) ? new Date(getPaymentItemEffectiveDate(item)).getTime() : 0;
     const fromOk = !dateFrom || effectiveDate >= new Date(dateFrom).getTime();
     const toOk = !dateTo || effectiveDate <= new Date(dateTo).getTime();
     return searchOk && typeOk && statusOk && clientOk && accountOk && fromOk && toOk;
-  }), [accountFilter, clientFilter, data, dateFrom, dateTo, search, statusFilter, typeFilter]);
+  }), [selectedAccount?.id, selectedClient?.id, data, dateFrom, dateTo, search, statusFilter, typeFilter]);
 
   const columns: GridColDef<PaymentItem>[] = [
     {
@@ -235,8 +251,42 @@ export default function PaymentItemsPage() {
             <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche globale..." /></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem><MenuItem value="CHEQUE">Chèque</MenuItem><MenuItem value="TRAITE">Traite</MenuItem><MenuItem value="AUTRE">Autre</MenuItem></TextField></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{paymentItemStatusOptions.map((status) => <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>)}</TextField></Grid>
-            <Grid item xs={12} md={2}><TextField fullWidth select label="Client" value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{availableClients.map((client) => <MenuItem key={client.id} value={String(client.id)}>{getPaymentItemClientPrimary(client)}</MenuItem>)}</TextField></Grid>
-            <Grid item xs={12} md={2}><TextField fullWidth select label="Compte" value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{availableAccounts.map((account) => <MenuItem key={account.id} value={String(account.id)}>{getPaymentItemAccountPrimary(account)}</MenuItem>)}</TextField></Grid>
+            <Grid item xs={12} md={2.5}>
+              <ClientAutocompleteField
+                value={selectedClient}
+                inputValue={clientSearchInput}
+                options={clientFilterOptions}
+                loading={isClientLookupLoading}
+                label="Client"
+                placeholder="Rechercher par nom, société ou code…"
+                onInputChange={(value, reason) => {
+                  if (reason === 'input') {
+                    setClientSearchInput(value);
+                    return;
+                  }
+
+                  if (reason === 'clear') {
+                    setClientSearchInput('');
+                  }
+                }}
+                onChange={(value) => {
+                  setSelectedClient(value);
+                  setClientSearchInput(value ? getClientLabel(value) : '');
+                }}
+                onClose={() => setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '')}
+                noOptionsText="Aucun client trouvé"
+              />
+            </Grid>
+            <Grid item xs={12} md={2.5}>
+              <AccountAutocompleteField
+                value={selectedAccount}
+                options={availableAccounts}
+                label="Compte"
+                placeholder="Rechercher un compte…"
+                onChange={setSelectedAccount}
+                noOptionsText="Aucun compte trouvé"
+              />
+            </Grid>
             <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date min" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
             <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date max" value={dateTo} onChange={(e) => setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
           </Grid>

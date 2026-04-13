@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Autocomplete, Box, Button, CircularProgress, Grid, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
+import { Button, Grid, MenuItem, TextField } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -12,26 +12,11 @@ import { BankAccount, Client } from '@/types/domain';
 import { clientService } from '@/modules/clients/services/client.service';
 import { accountService } from '@/modules/accounts/services/account.service';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { brandColors } from '@/app/theme';
-
-/* ── helpers ──────────────────────────────────────────── */
-function getClientPrimary(client?: Client | null) {
-  return client?.companyName?.trim() || client?.fullName?.trim() || client?.name?.trim() || client?.code || '—';
-}
-function getClientSecondary(client?: Client | null) {
-  const company = client?.companyName?.trim();
-  const full = client?.fullName?.trim();
-  if (company && full && company !== full) return full;
-  return '';
-}
-function getAccountLabel(account?: BankAccount | null) {
-  return account?.label?.trim() || account?.accountNumber?.trim() || '—';
-}
-function getAccountSecondary(account?: BankAccount | null) {
-  if (!account) return '';
-  const parts = [account.accountNumber?.trim(), account.bank?.code?.trim(), account.currency].filter(Boolean);
-  return parts.join(' • ');
-}
+import {
+  AccountAutocompleteField,
+  ClientAutocompleteField,
+  getClientLabel,
+} from '@/components/ui/EntityAutocompleteFields';
 
 interface PaymentItemFormProps {
   defaultValues?: Partial<PaymentItemFormValues>;
@@ -87,9 +72,10 @@ export function PaymentItemForm({
 
   const watchedDirection = watch('direction');
   const watchedClientId = watch('client');
+  const watchedAlertEnabled = watch('alertEnabled');
 
   /* ── Client Autocomplete state ────────────────────────── */
-  const [clientSearchInput, setClientSearchInput] = useState('');
+  const [clientSearchInput, setClientSearchInput] = useState(initialClient ? getClientLabel(initialClient) : '');
   const debouncedClientSearch = useDebouncedValue(clientSearchInput, 350);
   const [selectedClient, setSelectedClient] = useState<Client | null>(initialClient ?? null);
 
@@ -168,130 +154,58 @@ export function PaymentItemForm({
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
       <Grid container spacing={2} sx={{ mt: 0.5 }}>
 
-        {/* ── Client Autocomplete ────────────────────────────── */}
+        {/* ── Ligne 1 : Client + Compte ──────────────────────── */}
         <Grid item xs={12} md={6}>
           <Controller name="client" control={control} render={({ field }) => (
-            <Autocomplete
-              options={clientOptions}
+            <ClientAutocompleteField
               value={selectedClient}
               inputValue={clientSearchInput}
+              options={clientOptions}
               loading={isClientsLoading}
-              filterOptions={(opts) => opts}
-              onInputChange={(_, value) => setClientSearchInput(value)}
-              onChange={(_, value) => {
+              onInputChange={(value, reason) => {
+                if (reason === 'input') {
+                  setClientSearchInput(value);
+                  return;
+                }
+
+                if (reason === 'clear') {
+                  setClientSearchInput('');
+                }
+              }}
+              onChange={(value) => {
                 setSelectedClient(value);
+                setClientSearchInput(value ? getClientLabel(value) : '');
                 field.onChange(value?.id ?? undefined);
               }}
-              isOptionEqualToValue={(opt, val) => opt.id === val.id}
-              getOptionLabel={(opt) => getClientPrimary(opt)}
-              noOptionsText="Aucun client trouvé"
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Stack spacing={0.2} sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.85rem' }}>
-                      {getClientPrimary(option)}
-                    </Typography>
-                    {getClientSecondary(option) ? (
-                      <Typography sx={{ color: 'text.secondary', fontSize: '0.78rem' }}>
-                        {getClientSecondary(option)}
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                </li>
-              )}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  fullWidth
-                  label="Client"
-                  placeholder="Rechercher un client..."
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {isClientsLoading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              componentsProps={{
-                paper: {
-                  sx: {
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(brandColors.slate[200], 0.7)}`,
-                    boxShadow: `0 4px 16px ${alpha(brandColors.slate[900], 0.07)}`,
-                    mt: 0.5,
-                  },
-                },
+              onClose={() => {
+                setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '');
               }}
+              error={!!errors.client}
+              helperText={errors.client?.message || 'Optionnel'}
             />
           )} />
         </Grid>
-
-        {/* ── Account Autocomplete (filtered by client) ──────── */}
         <Grid item xs={12} md={6}>
           <Controller name="account" control={control} render={({ field }) => (
-            <Autocomplete
-              options={accountOptions}
+            <AccountAutocompleteField
               value={selectedAccount}
+              options={accountOptions}
               disabled={!watchedClientId}
               loading={isAccountsLoading}
-              onChange={(_, value) => {
+              onChange={(value) => {
                 setSelectedAccount(value);
                 field.onChange(value?.id ?? undefined);
               }}
-              isOptionEqualToValue={(opt, val) => opt.id === val.id}
-              getOptionLabel={(opt) => getAccountLabel(opt)}
               noOptionsText={watchedClientId ? 'Aucun compte trouvé pour ce client' : 'Sélectionnez d\'abord un client'}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Stack spacing={0.2} sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.85rem' }}>
-                      {getAccountLabel(option)}
-                    </Typography>
-                    {getAccountSecondary(option) ? (
-                      <Typography sx={{ color: 'text.secondary', fontSize: '0.78rem' }}>
-                        {getAccountSecondary(option)}
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                </li>
-              )}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  fullWidth
-                  label="Compte"
-                  placeholder={watchedClientId ? 'Rechercher un compte...' : 'Sélectionnez d\'abord un client'}
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {isAccountsLoading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-              componentsProps={{
-                paper: {
-                  sx: {
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(brandColors.slate[200], 0.7)}`,
-                    boxShadow: `0 4px 16px ${alpha(brandColors.slate[900], 0.07)}`,
-                    mt: 0.5,
-                  },
-                },
-              }}
+              placeholder={watchedClientId ? 'Rechercher un compte…' : 'Sélectionnez d\'abord un client'}
+              error={!!errors.account}
+              helperText={errors.account?.message || 'Optionnel'}
             />
           )} />
         </Grid>
 
-        {/* ── Rest of the form (unchanged logic) ─────────────── */}
-        <Grid item xs={12} md={3}>
+        {/* ── Ligne 2 : Type + Sens + Montant + Devise ───────── */}
+        <Grid item xs={6} md={3}>
           <Controller name="type" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Type">
               {paymentItemTypeOptions.map((option) => (
@@ -300,7 +214,7 @@ export function PaymentItemForm({
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={6} md={3}>
           <Controller name="direction" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Sens">
               <MenuItem value="IN">Entrant</MenuItem>
@@ -308,17 +222,19 @@ export function PaymentItemForm({
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12} md={5}>
+        <Grid item xs={8} md={4}>
           <Controller name="amount" control={control} render={({ field }) => (
             <TextField {...field} fullWidth type="number" label="Montant" value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)} error={!!errors.amount} helperText={errors.amount?.message} />
           )} />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={4} md={2}>
           <Controller name="currency" control={control} render={({ field }) => (
             <TextField {...field} fullWidth label="Devise" error={!!errors.currency} helperText={errors.currency?.message} />
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+
+        {/* ── Ligne 3 : Statut + Date émission + Échéance + Alertes + Jours alerte */}
+        <Grid item xs={12} md={3}>
           <Controller name="status" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Statut" error={!!errors.status} helperText={errors.status?.message}>
               {paymentItemStatusOptions.map((option) => (
@@ -327,17 +243,17 @@ export function PaymentItemForm({
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={6} md={2.5}>
           <Controller name="issueDate" control={control} render={({ field }) => (
             <TextField {...field} fullWidth type="date" label="Date d'émission" InputLabelProps={{ shrink: true }} />
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={6} md={2.5}>
           <Controller name="dueDate" control={control} render={({ field }) => (
             <TextField {...field} fullWidth type="date" label="Échéance" InputLabelProps={{ shrink: true }} error={!!errors.dueDate} helperText={errors.dueDate?.message} />
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={6} md={2}>
           <Controller name="alertEnabled" control={control} render={({ field }) => (
             <TextField {...field} fullWidth select label="Alertes" value={field.value ? 'true' : 'false'} onChange={(e) => field.onChange(e.target.value === 'true')}>
               <MenuItem value="true">Activées</MenuItem>
@@ -345,11 +261,23 @@ export function PaymentItemForm({
             </TextField>
           )} />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={6} md={2}>
           <Controller name="alertDaysBefore" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="number" label="Jours avant alerte" value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)} error={!!errors.alertDaysBefore} helperText={errors.alertDaysBefore?.message} />
+            <TextField
+              {...field}
+              fullWidth
+              type="number"
+              label="Jours avant alerte"
+              value={field.value ?? 0}
+              onChange={(e) => field.onChange(e.target.value)}
+              disabled={!watchedAlertEnabled}
+              error={!!errors.alertDaysBefore}
+              helperText={errors.alertDaysBefore?.message}
+            />
           )} />
         </Grid>
+
+        {/* ── Ligne 4 : Tireur + Tiré ────────────────────────── */}
         <Grid item xs={12} md={6}>
           <Controller name="drawer" control={control} render={({ field }) => (
             <TextField {...field} fullWidth label="Tireur" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
@@ -360,9 +288,13 @@ export function PaymentItemForm({
             <TextField {...field} fullWidth label="Tiré" InputProps={{ readOnly: true }} InputLabelProps={{ shrink: true }} sx={{ '& .MuiInputBase-input': { backgroundColor: '#f8fafc', color: '#475569' } }} />
           )} />
         </Grid>
+
+        {/* ── Ligne 5 : Notes ────────────────────────────────── */}
         <Grid item xs={12}>
           <Controller name="notes" control={control} render={({ field }) => <TextField {...field} fullWidth multiline rows={4} label="Notes" />} />
         </Grid>
+
+        {/* ── Bouton ─────────────────────────────────────────── */}
         <Grid item xs={12}>
           <Button type="submit" variant="contained" disabled={loading}>Enregistrer</Button>
         </Grid>
