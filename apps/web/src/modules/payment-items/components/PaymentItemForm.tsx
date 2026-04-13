@@ -15,6 +15,15 @@ import TimerRoundedIcon from '@mui/icons-material/TimerRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import NotesRoundedIcon from '@mui/icons-material/NotesRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
+import PaidRoundedIcon from '@mui/icons-material/PaidRounded';
+import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import BlockRoundedIcon from '@mui/icons-material/BlockRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
 import {
   paymentItemStatusOptions,
@@ -56,13 +65,53 @@ const readOnlyInputSx = {
     color: brandColors.slate[600],
     fontWeight: 500,
   },
-  '& .MuiOutlinedInput-root': {
-    '& .MuiOutlinedInput-notchedOutline': {
-      borderColor: alpha(brandColors.slate[200], 0.9),
-      borderStyle: 'dashed',
-    },
+  '& .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline': {
+    borderColor: alpha(brandColors.slate[200], 0.9),
+    borderStyle: 'dashed',
   },
 } as const;
+
+// ── Direction visual config ──────────────────────────────────────────────
+const directionConfig = {
+  IN:  { label: 'Entrant',  color: '#059669', bg: '#ECFDF5', icon: ArrowUpwardRoundedIcon },
+  OUT: { label: 'Sortant',  color: '#DC2626', bg: '#FEF2F2', icon: ArrowDownwardRoundedIcon },
+} as const;
+
+// ── Status visual config ─────────────────────────────────────────────────
+const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  'Reçu':       { color: '#2563EB', bg: '#EFF6FF', icon: CheckCircleRoundedIcon },
+  'Déposé':     { color: '#D97706', bg: '#FFFBEB', icon: AccountBalanceWalletRoundedIcon },
+  'Payé':       { color: '#059669', bg: '#ECFDF5', icon: PaidRoundedIcon },
+  'Rejeté':     { color: '#DC2626', bg: '#FEF2F2', icon: CancelRoundedIcon },
+  'Annulé':     { color: '#64748B', bg: '#F1F5F9', icon: BlockRoundedIcon },
+  'En retard':  { color: '#DC2626', bg: '#FEF2F2', icon: WarningAmberRoundedIcon },
+};
+
+/** Colored chip-like rendering for select options */
+function ColoredOptionLabel({ icon: Icon, label, color, bg }: { icon: React.ElementType; label: string; color: string; bg: string }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+      <Box sx={{
+        width: 22, height: 22, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: bg, color, flexShrink: 0,
+      }}>
+        <Icon sx={{ fontSize: 14 }} />
+      </Box>
+      <Typography component="span" sx={{ fontSize: '0.86rem', fontWeight: 600, color }}>{label}</Typography>
+    </Box>
+  );
+}
+
+/** Due date urgency helper */
+function getDueDateUrgency(dateStr: string): { color: string; icon: React.ElementType | null; helperText: string } {
+  if (!dateStr) return { color: brandColors.slate[400], icon: null, helperText: '' };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dateStr); due.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  if (diffDays < 0) return { color: '#DC2626', icon: ErrorOutlineRoundedIcon, helperText: `Échue depuis ${Math.abs(diffDays)} j` };
+  if (diffDays <= 7) return { color: '#D97706', icon: WarningAmberRoundedIcon, helperText: `Dans ${diffDays} j` };
+  return { color: '#059669', icon: EventRoundedIcon, helperText: `Dans ${diffDays} j` };
+}
 
 interface PaymentItemFormProps {
   defaultValues?: Partial<PaymentItemFormValues>;
@@ -119,6 +168,8 @@ export function PaymentItemForm({
   const watchedDirection = watch('direction');
   const watchedClientId = watch('client');
   const watchedAlertEnabled = watch('alertEnabled');
+  const watchedDueDate = watch('dueDate');
+  const dueDateUrgency = useMemo(() => getDueDateUrgency(watchedDueDate || ''), [watchedDueDate]);
 
   /* ── Client Autocomplete state ────────────────────────── */
   const [clientSearchInput, setClientSearchInput] = useState(initialClient ? getClientLabel(initialClient) : '');
@@ -200,7 +251,7 @@ export function PaymentItemForm({
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
       <Stack spacing={2} sx={{ mt: 0.5 }}>
 
-        {/* ── Section 1 : Client & Compte ──────────────────────── */}
+        {/* ── Section 1 : Client & Compte — unchanged ──────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Parties concernées</Typography>
           <Grid container spacing={2}>
@@ -260,86 +311,58 @@ export function PaymentItemForm({
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
               <Controller name="type" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  select
-                  label="Type"
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <ReceiptLongRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                >
-                  {paymentItemTypeOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                  ))}
+                <TextField {...field} fullWidth select label="Type" size="small"
+                  InputProps={{ startAdornment: <InputAdornment position="start"><ReceiptLongRoundedIcon sx={inputIconSx} /></InputAdornment> }}>
+                  {paymentItemTypeOptions.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
                 </TextField>
               )} />
             </Grid>
+
+            {/* ── SENS — colored options ──────────────────────────── */}
             <Grid item xs={6} md={3}>
-              <Controller name="direction" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  select
-                  label="Sens"
-                  size="small"
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SwapHorizRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                >
-                  <MenuItem value="IN">Entrant</MenuItem>
-                  <MenuItem value="OUT">Sortant</MenuItem>
-                </TextField>
-              )} />
+              <Controller name="direction" control={control} render={({ field }) => {
+                const cfg = directionConfig[field.value as keyof typeof directionConfig] ?? directionConfig.IN;
+                return (
+                  <TextField
+                    {...field}
+                    fullWidth select label="Sens" size="small"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <cfg.icon sx={{ fontSize: 18, color: cfg.color }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiSelect-select': { color: cfg.color, fontWeight: 600 },
+                    }}
+                  >
+                    {(['IN', 'OUT'] as const).map((dir) => {
+                      const d = directionConfig[dir];
+                      return (
+                        <MenuItem key={dir} value={dir}>
+                          <ColoredOptionLabel icon={d.icon} label={d.label} color={d.color} bg={d.bg} />
+                        </MenuItem>
+                      );
+                    })}
+                  </TextField>
+                );
+              }} />
             </Grid>
+
             <Grid item xs={8} md={4}>
               <Controller name="amount" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  type="number"
-                  label="Montant"
-                  size="small"
-                  value={field.value ?? 0}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  error={!!errors.amount}
-                  helperText={errors.amount?.message}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PaymentsRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                <TextField {...field} fullWidth type="number" label="Montant" size="small"
+                  value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)}
+                  error={!!errors.amount} helperText={errors.amount?.message}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><PaymentsRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
               )} />
             </Grid>
             <Grid item xs={4} md={2}>
               <Controller name="currency" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Devise"
-                  size="small"
-                  error={!!errors.currency}
-                  helperText={errors.currency?.message}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CurrencyExchangeRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                <TextField {...field} fullWidth label="Devise" size="small"
+                  error={!!errors.currency} helperText={errors.currency?.message}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><CurrencyExchangeRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
               )} />
             </Grid>
           </Grid>
@@ -349,88 +372,83 @@ export function PaymentItemForm({
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Statut et échéances</Typography>
           <Grid container spacing={2}>
+
+            {/* ── STATUT — colored options ────────────────────────── */}
             <Grid item xs={12} md={3}>
-              <Controller name="status" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  select
-                  label="Statut"
-                  size="small"
-                  error={!!errors.status}
-                  helperText={errors.status?.message}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CheckCircleOutlineRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                >
-                  {paymentItemStatusOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-                  ))}
-                </TextField>
-              )} />
+              <Controller name="status" control={control} render={({ field }) => {
+                const cfg = statusConfig[field.value] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
+                return (
+                  <TextField
+                    {...field}
+                    fullWidth select label="Statut" size="small"
+                    error={!!errors.status} helperText={errors.status?.message}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <cfg.icon sx={{ fontSize: 18, color: cfg.color }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiSelect-select': { color: cfg.color, fontWeight: 600 },
+                    }}
+                  >
+                    {paymentItemStatusOptions.map((o) => {
+                      const sc = statusConfig[o.value] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
+                      return (
+                        <MenuItem key={o.value} value={o.value}>
+                          <ColoredOptionLabel icon={sc.icon} label={o.label} color={sc.color} bg={sc.bg} />
+                        </MenuItem>
+                      );
+                    })}
+                  </TextField>
+                );
+              }} />
             </Grid>
+
             <Grid item xs={6} md={2.5}>
               <Controller name="issueDate" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  type="date"
-                  label="Date d'émission"
-                  size="small"
+                <TextField {...field} fullWidth type="date" label="Date d'émission" size="small"
                   InputLabelProps={{ shrink: true }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <CalendarTodayRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarTodayRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
               )} />
             </Grid>
+
+            {/* ── ÉCHÉANCE — dynamic color by urgency ────────────── */}
             <Grid item xs={6} md={2.5}>
               <Controller name="dueDate" control={control} render={({ field }) => (
                 <TextField
                   {...field}
-                  fullWidth
-                  type="date"
-                  label="Échéance"
-                  size="small"
+                  fullWidth type="date" label="Échéance" size="small"
                   InputLabelProps={{ shrink: true }}
                   error={!!errors.dueDate}
-                  helperText={errors.dueDate?.message}
+                  helperText={errors.dueDate?.message || dueDateUrgency.helperText}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <EventRoundedIcon sx={inputIconSx} />
+                        {dueDateUrgency.icon
+                          ? <Box component={dueDateUrgency.icon} sx={{ fontSize: 18, color: dueDateUrgency.color }} />
+                          : <EventRoundedIcon sx={inputIconSx} />}
                       </InputAdornment>
                     ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': field.value ? {
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: alpha(dueDateUrgency.color, 0.4) },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: dueDateUrgency.color },
+                    } : {},
+                    '& .MuiFormHelperText-root': field.value && !errors.dueDate ? { color: dueDateUrgency.color, fontWeight: 600 } : {},
                   }}
                 />
               )} />
             </Grid>
+
+            {/* ...existing alertEnabled and alertDaysBefore fields... */}
             <Grid item xs={6} md={2}>
               <Controller name="alertEnabled" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  select
-                  label="Alertes"
-                  size="small"
-                  value={field.value ? 'true' : 'false'}
-                  onChange={(e) => field.onChange(e.target.value === 'true')}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <NotificationsActiveRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                >
+                <TextField {...field} fullWidth select label="Alertes" size="small"
+                  value={field.value ? 'true' : 'false'} onChange={(e) => field.onChange(e.target.value === 'true')}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><NotificationsActiveRoundedIcon sx={inputIconSx} /></InputAdornment> }}>
                   <MenuItem value="true">Activées</MenuItem>
                   <MenuItem value="false">Désactivées</MenuItem>
                 </TextField>
@@ -438,30 +456,16 @@ export function PaymentItemForm({
             </Grid>
             <Grid item xs={6} md={2}>
               <Controller name="alertDaysBefore" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  type="number"
-                  label="Jours avant"
-                  size="small"
-                  value={field.value ?? 0}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  disabled={!watchedAlertEnabled}
-                  error={!!errors.alertDaysBefore}
-                  helperText={errors.alertDaysBefore?.message}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <TimerRoundedIcon sx={inputIconSx} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+                <TextField {...field} fullWidth type="number" label="Jours avant" size="small"
+                  value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)}
+                  disabled={!watchedAlertEnabled} error={!!errors.alertDaysBefore} helperText={errors.alertDaysBefore?.message}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><TimerRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
               )} />
             </Grid>
           </Grid>
         </Box>
 
+        {/* ── Sections 4 & 5 + button — unchanged ──────────────── */}
         {/* ── Section 4 : Tireur / Tiré (readonly) ─────────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Parties (auto-renseignées)</Typography>
