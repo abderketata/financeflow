@@ -14,8 +14,6 @@ import { FormDialog } from '@/components/ui/FormDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
 import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
-import { useClients } from '@/modules/clients/hooks/useClients';
-import { useAccounts } from '@/modules/accounts/hooks/useAccounts';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { PaymentItem } from '@/types/domain';
@@ -47,8 +45,6 @@ export default function PaymentItemsPage() {
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
   const { data = [], isLoading, isError, refetch } = usePaymentItems();
-  const { data: clients = [], isLoading: isClientsLoading } = useClients({ enabled: openForm });
-  const { data: accounts = [], isLoading: isAccountsLoading } = useAccounts({ enabled: openForm });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
@@ -268,11 +264,9 @@ export default function PaymentItemsPage() {
           } as any : undefined}
           defaultCurrency={defaultCurrency}
           defaultAlertDays={settings?.alertDaysBefore}
-          clients={clients}
-          accounts={accounts}
+          initialClient={editing?.client ?? null}
+          initialAccount={editing ? getPaymentItemAccount(editing) : null}
           companyName={settings?.companyName || ''}
-          clientsLoading={isClientsLoading}
-          accountsLoading={isAccountsLoading}
           loading={createMutation.isPending || updateMutation.isPending}
           onSubmit={async (values) => {
             const payload = {
