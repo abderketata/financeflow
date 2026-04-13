@@ -471,6 +471,73 @@ export const theme = createTheme({
       },
     },
 
+    MuiAutocomplete: {
+      defaultProps: {
+        openText: 'Ouvrir',
+        clearText: 'Effacer',
+        loadingText: 'Chargement…',
+      },
+      styleOverrides: {
+        root: {
+          '& .MuiAutocomplete-popupIndicator, & .MuiAutocomplete-clearIndicator': {
+            color: slate[400],
+            borderRadius: 8,
+            transition: 'all 0.18s ease',
+          },
+          '& .MuiAutocomplete-popupIndicator:hover, & .MuiAutocomplete-clearIndicator:hover': {
+            backgroundColor: alpha(blue[500], 0.08),
+            color: blue[600],
+          },
+        },
+        paper: {
+          marginTop: 6,
+          borderRadius: 14,
+          border: `1px solid ${alpha(slate[200], 0.95)}`,
+          backgroundColor: alpha(slate[50], 0.98),
+          backgroundImage: `linear-gradient(180deg, ${alpha('#FFFFFF', 0.92)} 0%, ${alpha(blue[50], 0.72)} 100%)`,
+          boxShadow: premiumShadows.lg,
+          overflow: 'hidden',
+        },
+        listbox: {
+          padding: 6,
+          '& .MuiAutocomplete-option': {
+            minHeight: 52,
+            padding: '9px 12px',
+            margin: '3px 0',
+            borderRadius: 10,
+            border: '1px solid transparent',
+            transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              backgroundColor: alpha(blue[500], 0.06),
+              borderColor: alpha(blue[300], 0.18),
+            },
+            '&.Mui-focused, &[data-focus="true"]': {
+              backgroundColor: alpha(blue[500], 0.08),
+              borderColor: alpha(blue[400], 0.22),
+            },
+            '&[aria-selected="true"]': {
+              backgroundColor: alpha(blue[500], 0.12),
+              borderColor: alpha(blue[500], 0.24),
+            },
+            '&[aria-selected="true"]:hover, &[aria-selected="true"].Mui-focused': {
+              backgroundColor: alpha(blue[500], 0.16),
+              borderColor: alpha(blue[500], 0.28),
+            },
+          },
+        },
+        noOptions: {
+          padding: '10px 12px',
+          color: slate[500],
+          fontSize: '0.84rem',
+        },
+        loading: {
+          padding: '10px 12px',
+          color: slate[500],
+          fontSize: '0.84rem',
+        },
+      },
+    },
+
     MuiMenu: {
       styleOverrides: {
         paper: {
