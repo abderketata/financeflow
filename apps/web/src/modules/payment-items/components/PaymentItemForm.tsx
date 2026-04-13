@@ -320,34 +320,27 @@ export function PaymentItemForm({
 
             {/* ── SENS — colored options ──────────────────────────── */}
             <Grid item xs={6} md={3}>
-              <Controller name="direction" control={control} render={({ field }) => {
-                const cfg = directionConfig[field.value as keyof typeof directionConfig] ?? directionConfig.IN;
-                return (
-                  <TextField
-                    {...field}
-                    fullWidth select label="Sens" size="small"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <cfg.icon sx={{ fontSize: 18, color: cfg.color }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiSelect-select': { color: cfg.color, fontWeight: 600 },
-                    }}
-                  >
-                    {(['IN', 'OUT'] as const).map((dir) => {
-                      const d = directionConfig[dir];
-                      return (
-                        <MenuItem key={dir} value={dir}>
-                          <ColoredOptionLabel icon={d.icon} label={d.label} color={d.color} bg={d.bg} />
-                        </MenuItem>
-                      );
-                    })}
-                  </TextField>
-                );
-              }} />
+              <Controller name="direction" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth select label="Sens" size="small"
+                  SelectProps={{
+                    renderValue: (val) => {
+                      const d = directionConfig[val as keyof typeof directionConfig] ?? directionConfig.IN;
+                      return <ColoredOptionLabel icon={d.icon} label={d.label} color={d.color} bg={d.bg} />;
+                    },
+                  }}
+                >
+                  {(['IN', 'OUT'] as const).map((dir) => {
+                    const d = directionConfig[dir];
+                    return (
+                      <MenuItem key={dir} value={dir}>
+                        <ColoredOptionLabel icon={d.icon} label={d.label} color={d.color} bg={d.bg} />
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+              )} />
             </Grid>
 
             <Grid item xs={8} md={4}>
@@ -375,35 +368,28 @@ export function PaymentItemForm({
 
             {/* ── STATUT — colored options ────────────────────────── */}
             <Grid item xs={12} md={3}>
-              <Controller name="status" control={control} render={({ field }) => {
-                const cfg = statusConfig[field.value] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
-                return (
-                  <TextField
-                    {...field}
-                    fullWidth select label="Statut" size="small"
-                    error={!!errors.status} helperText={errors.status?.message}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <cfg.icon sx={{ fontSize: 18, color: cfg.color }} />
-                        </InputAdornment>
-                      ),
-                    }}
-                    sx={{
-                      '& .MuiSelect-select': { color: cfg.color, fontWeight: 600 },
-                    }}
-                  >
-                    {paymentItemStatusOptions.map((o) => {
-                      const sc = statusConfig[o.value] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
-                      return (
-                        <MenuItem key={o.value} value={o.value}>
-                          <ColoredOptionLabel icon={sc.icon} label={o.label} color={sc.color} bg={sc.bg} />
-                        </MenuItem>
-                      );
-                    })}
-                  </TextField>
-                );
-              }} />
+              <Controller name="status" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth select label="Statut" size="small"
+                  error={!!errors.status} helperText={errors.status?.message}
+                  SelectProps={{
+                    renderValue: (val) => {
+                      const sc = statusConfig[val as string] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
+                      return <ColoredOptionLabel icon={sc.icon} label={val as string} color={sc.color} bg={sc.bg} />;
+                    },
+                  }}
+                >
+                  {paymentItemStatusOptions.map((o) => {
+                    const sc = statusConfig[o.value] ?? { color: brandColors.slate[500], bg: brandColors.slate[50], icon: CheckCircleOutlineRoundedIcon };
+                    return (
+                      <MenuItem key={o.value} value={o.value}>
+                        <ColoredOptionLabel icon={sc.icon} label={o.label} color={sc.color} bg={sc.bg} />
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+              )} />
             </Grid>
 
             <Grid item xs={6} md={2.5}>
