@@ -219,13 +219,13 @@ export function PaymentItemForm({
   useEffect(() => {
     if (!watchedClientId) {
       setSelectedAccount(null);
-      setValue('account', undefined);
+      setValue('account', undefined as any);
     } else if (isEditMode && initialClient?.id === Number(watchedClientId) && initialAccount) {
       // Keep the pre-selected account in edit mode
     } else {
       // Client changed to a new value — reset account
       setSelectedAccount(null);
-      setValue('account', undefined);
+      setValue('account', undefined as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedClientId]);
@@ -280,7 +280,7 @@ export function PaymentItemForm({
                     setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '');
                   }}
                   error={!!errors.client}
-                  helperText={errors.client?.message || 'Optionnel'}
+                  helperText={errors.client?.message}
                 />
               )} />
             </Grid>
@@ -298,7 +298,7 @@ export function PaymentItemForm({
                   noOptionsText={watchedClientId ? 'Aucun compte trouvé pour ce client' : 'Sélectionnez d\'abord un client'}
                   placeholder={watchedClientId ? 'Rechercher un compte…' : 'Sélectionnez d\'abord un client'}
                   error={!!errors.account}
-                  helperText={errors.account?.message || 'Optionnel'}
+                  helperText={errors.account?.message}
                 />
               )} />
             </Grid>
@@ -396,7 +396,10 @@ export function PaymentItemForm({
               <Controller name="issueDate" control={control} render={({ field }) => (
                 <TextField {...field} fullWidth type="date" label="Date d'émission" size="small"
                   InputLabelProps={{ shrink: true }}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarTodayRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
+                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarTodayRoundedIcon sx={inputIconSx} /></InputAdornment> }}
+                  onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.()}
+                  sx={{ '& input': { cursor: 'pointer' } }}
+                />
               )} />
             </Grid>
 
@@ -405,10 +408,12 @@ export function PaymentItemForm({
               <Controller name="dueDate" control={control} render={({ field }) => (
                 <TextField
                   {...field}
+                  required
                   fullWidth type="date" label="Échéance" size="small"
                   InputLabelProps={{ shrink: true }}
                   error={!!errors.dueDate}
                   helperText={errors.dueDate?.message || dueDateUrgency.helperText}
+                  onClick={(e) => (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.()}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -419,6 +424,7 @@ export function PaymentItemForm({
                     ),
                   }}
                   sx={{
+                    '& input': { cursor: 'pointer' },
                     '& .MuiOutlinedInput-root': field.value ? {
                       '& .MuiOutlinedInput-notchedOutline': { borderColor: alpha(dueDateUrgency.color, 0.4) },
                       '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: dueDateUrgency.color },
