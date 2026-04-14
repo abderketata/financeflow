@@ -19,8 +19,8 @@ import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { BankAccount, Client, PaymentItem } from '@/types/domain';
-import { AccountAutocompleteField, ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
+import { Client, PaymentItem } from '@/types/domain';
+import { ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
 import { brandColors, numericFont } from '@/app/theme';
 import {
@@ -43,7 +43,6 @@ export default function PaymentItemsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientSearchInput, setClientSearchInput] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [openForm, setOpenForm] = useState(false);
@@ -62,10 +61,6 @@ export default function PaymentItemsPage() {
     staleTime: 30_000,
   });
 
-  const availableAccounts = useMemo(
-    () => Array.from(new Map(data.map((item) => getPaymentItemAccount(item)).filter((account): account is NonNullable<typeof account> => Boolean(account?.id)).map((account) => [account.id, account])).values()),
-    [data],
-  );
 
   const clientFilterOptions = useMemo(() => {
     if (!selectedClient) {
@@ -93,12 +88,11 @@ export default function PaymentItemsPage() {
     const typeOk = !typeFilter || item.type === typeFilter;
     const statusOk = !statusFilter || normalizeText(getPaymentItemStatusLabel(item.status)) === normalizeText(statusFilter);
     const clientOk = !selectedClient?.id || item.client?.id === selectedClient.id;
-    const accountOk = !selectedAccount?.id || getPaymentItemAccount(item)?.id === selectedAccount.id;
     const effectiveDate = getPaymentItemEffectiveDate(item) ? new Date(getPaymentItemEffectiveDate(item)).getTime() : 0;
     const fromOk = !dateFrom || effectiveDate >= new Date(dateFrom).getTime();
     const toOk = !dateTo || effectiveDate <= new Date(dateTo).getTime();
-    return searchOk && typeOk && statusOk && clientOk && accountOk && fromOk && toOk;
-  }), [selectedAccount?.id, selectedClient?.id, data, dateFrom, dateTo, search, statusFilter, typeFilter]);
+    return searchOk && typeOk && statusOk && clientOk && fromOk && toOk;
+  }), [selectedClient?.id, data, dateFrom, dateTo, search, statusFilter, typeFilter]);
 
   const columns: GridColDef<PaymentItem>[] = [
     {
@@ -251,7 +245,7 @@ export default function PaymentItemsPage() {
             <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche globale..." /></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem><MenuItem value="CHEQUE">Chèque</MenuItem><MenuItem value="TRAITE">Traite</MenuItem><MenuItem value="AUTRE">Autre</MenuItem></TextField></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{paymentItemStatusOptions.map((status) => <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>)}</TextField></Grid>
-            <Grid item xs={12} md={2.5}>
+            <Grid item xs={12} md={4}>
               <ClientAutocompleteField
                 value={selectedClient}
                 inputValue={clientSearchInput}
@@ -275,16 +269,6 @@ export default function PaymentItemsPage() {
                 }}
                 onClose={() => setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '')}
                 noOptionsText="Aucun client trouvé"
-              />
-            </Grid>
-            <Grid item xs={12} md={2.5}>
-              <AccountAutocompleteField
-                value={selectedAccount}
-                options={availableAccounts}
-                label="Compte"
-                placeholder="Rechercher un compte…"
-                onChange={setSelectedAccount}
-                noOptionsText="Aucun compte trouvé"
               />
             </Grid>
             <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date min" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
