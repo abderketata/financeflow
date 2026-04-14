@@ -132,7 +132,6 @@ export default function PaymentItemsPage() {
       filters.push({
         $or: [
           { referenceNumber: { $containsi: debouncedSearch.trim() } },
-          { reference: { $containsi: debouncedSearch.trim() } },
           { drawer: { $containsi: debouncedSearch.trim() } },
           { drawee: { $containsi: debouncedSearch.trim() } },
         ],

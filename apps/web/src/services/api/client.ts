@@ -1,4 +1,5 @@
 import axios from 'axios';
+import qs from 'qs';
 
 const baseURL = (__API_BASE_URL__ || 'http://51.75.24.113:1334').replace(/\/$/, '');
 
@@ -6,7 +7,8 @@ export const api = axios.create({
   baseURL: `${baseURL}/api`,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  paramsSerializer: (params) => qs.stringify(params, { encodeValuesOnly: true }),
 });
 
 api.interceptors.request.use((config) => {

@@ -11,9 +11,19 @@ export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<s
     // Always filter out soft-deleted items; merge with any additional caller params
     queryFn: () => {
       const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
-      const mergedFilters = Object.keys(callerFilters).length
-        ? { $and: [{ supprimer: { $eq: false } }, callerFilters] }
-        : { supprimer: { $eq: false } };
+      let mergedFilters: Record<string, unknown>;
+
+      if (!Object.keys(callerFilters).length) {
+        // No caller filters — simple supprimer guard
+        mergedFilters = { supprimer: { $eq: false } };
+      } else if (Array.isArray(callerFilters.$and)) {
+        // Caller already uses $and — inject supprimer into the same array (flatten)
+        mergedFilters = { $and: [{ supprimer: { $eq: false } }, ...callerFilters.$and] };
+      } else {
+        // Caller uses $or or plain field filters — merge at top level (implicit AND)
+        mergedFilters = { supprimer: { $eq: false }, ...callerFilters };
+      }
+
       return paymentItemService.list({
         populate: '*',
         ...(options?.params ?? {}),
