@@ -24,7 +24,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Client, PaymentItem } from '@/types/domain';
 import { ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
-import { brandColors, numericFont } from '@/app/theme';
+import { actionIconButton, brandColors, numericFont } from '@/app/theme';
 import {
   buildPaymentItemReference,
   getPaymentItemAccount,
@@ -184,19 +184,7 @@ export default function PaymentItemsPage() {
                 setEditing(row);
                 setOpenForm(true);
               }}
-              sx={{
-                width: 30,
-                height: 30,
-                borderRadius: '8px',
-                backgroundColor: alpha('#f59e0b', 0.1),
-                color: '#b45309',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  backgroundColor: alpha('#f59e0b', 0.22),
-                  color: '#92400e',
-                  transform: 'scale(1.1)',
-                },
-              }}
+              sx={actionIconButton('#EAB308')}
             >
               <EditRoundedIcon sx={{ fontSize: 16 }} />
             </IconButton>

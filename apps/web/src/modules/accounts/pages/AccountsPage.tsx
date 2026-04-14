@@ -351,19 +351,7 @@ export default function AccountsPage() {
                       event.stopPropagation();
                       handleOpenForm(account);
                     }}
-                    sx={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: '8px',
-                      backgroundColor: alpha('#f59e0b', 0.1),
-                      color: '#b45309',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: alpha('#f59e0b', 0.22),
-                        color: '#92400e',
-                        transform: 'scale(1.1)',
-                      },
-                    }}
+                    sx={actionIconButton('#EAB308')}
                   >
                     <EditRoundedIcon sx={{ fontSize: 16 }} />
                   </IconButton>

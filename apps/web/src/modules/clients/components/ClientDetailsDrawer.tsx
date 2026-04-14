@@ -330,7 +330,7 @@ export function ClientDetailsDrawer({ client, open, onClose, onEdit }: ClientDet
       {/* FOOTER */}
       <Box sx={{ flexShrink: 0, px: { xs: 2, md: 2.75 }, py: 1.5, borderTop: `1px solid ${brandColors.slate[200]}`, backgroundColor: '#FFFFFF', display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
         <Button variant="outlined" size="small" onClick={onClose} sx={{ fontSize: '0.8rem', px: 2 }}>Fermer</Button>
-        <Button variant="contained" size="small" startIcon={<EditRoundedIcon sx={{ fontSize: 15 }} />} onClick={() => onEdit(client)} sx={{ fontSize: '0.8rem', px: 2, background: 'linear-gradient(135deg, #f59e0b 0%, #eab308 100%)', color: '#1f2937', boxShadow: `0 1px 2px ${alpha('#d97706', 0.25)}`, '&:hover': { background: 'linear-gradient(135deg, #d97706 0%, #ca8a04 100%)', color: '#111827', boxShadow: `0 4px 12px ${alpha('#d97706', 0.3)}` } }}>Modifier</Button>
+        <Button variant="contained" size="small" startIcon={<EditRoundedIcon sx={{ fontSize: 15 }} />} onClick={() => onEdit(client)} sx={{ fontSize: '0.8rem', px: 2, background: 'linear-gradient(135deg, #FDE047 0%, #FACC15 100%)', color: '#713F12', boxShadow: `0 1px 2px ${alpha('#FACC15', 0.35)}`, '&:hover': { background: 'linear-gradient(135deg, #FACC15 0%, #EAB308 100%)', color: '#422006', boxShadow: `0 4px 12px ${alpha('#FACC15', 0.4)}` } }}>Modifier</Button>
       </Box>
     </Dialog>
   );

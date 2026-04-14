@@ -461,13 +461,13 @@ export function AccountDetailsDrawer({ account, open, onClose, onEdit }: Account
           sx={{
             fontSize: '0.8rem',
             px: 2,
-            background: 'linear-gradient(135deg, #f59e0b 0%, #eab308 100%)',
-            color: '#1f2937',
-            boxShadow: `0 1px 2px ${alpha('#d97706', 0.25)}`,
+            background: 'linear-gradient(135deg, #FDE047 0%, #FACC15 100%)',
+            color: '#713F12',
+            boxShadow: `0 1px 2px ${alpha('#FACC15', 0.35)}`,
             '&:hover': {
-              background: 'linear-gradient(135deg, #d97706 0%, #ca8a04 100%)',
-              color: '#111827',
-              boxShadow: `0 4px 12px ${alpha('#d97706', 0.3)}`,
+              background: 'linear-gradient(135deg, #FACC15 0%, #EAB308 100%)',
+              color: '#422006',
+              boxShadow: `0 4px 12px ${alpha('#FACC15', 0.4)}`,
             },
           }}
         >
