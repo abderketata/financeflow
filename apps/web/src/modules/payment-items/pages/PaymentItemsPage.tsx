@@ -13,6 +13,9 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import LocalAtmRoundedIcon from '@mui/icons-material/LocalAtmRounded';
+import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
@@ -63,6 +66,12 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
   'Rejeté':    { color: '#DC2626', bg: '#FEF2F2', icon: CancelRoundedIcon },
   'Annulé':    { color: '#64748B', bg: '#F1F5F9', icon: BlockRoundedIcon },
   'En retard': { color: '#DC2626', bg: '#FEF2F2', icon: WarningAmberRoundedIcon },
+};
+
+const paymentMethodConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+  ESPECES:  { label: 'Espèces',  color: '#059669', bg: '#ECFDF5', icon: LocalAtmRoundedIcon },
+  VIREMENT: { label: 'Virement', color: '#2563EB', bg: '#EFF6FF', icon: SyncAltRoundedIcon },
+  CARTE:    { label: 'Carte',    color: '#0891B2', bg: '#ECFEFF', icon: CreditCardRoundedIcon },
 };
 
 function ColoredChip({ icon: Icon, label, color, bg }: { icon: React.ElementType; label: string; color: string; bg: string }) {
@@ -148,9 +157,19 @@ export default function PaymentItemsPage() {
     {
       field: 'type',
       headerName: 'Type',
-      flex: 0.9,
-      valueGetter: ({ row }) => typeConfig[row.type]?.label ?? row.type,
+      flex: 1,
+      valueGetter: ({ row }) => {
+        if (row.type === 'AUTRE' && row.paymentMethod) {
+          return paymentMethodConfig[row.paymentMethod]?.label ?? row.paymentMethod;
+        }
+        return typeConfig[row.type]?.label ?? row.type;
+      },
       renderCell: ({ row }) => {
+        // Si type = AUTRE et qu'une méthode est renseignée, afficher la méthode
+        if (row.type === 'AUTRE' && row.paymentMethod) {
+          const pm = paymentMethodConfig[row.paymentMethod];
+          if (pm) return <ColoredChip icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />;
+        }
         const tc = typeConfig[row.type] ?? typeConfig.AUTRE;
         return <ColoredChip icon={tc.icon} label={tc.label} color={tc.color} bg={tc.bg} />;
       },
