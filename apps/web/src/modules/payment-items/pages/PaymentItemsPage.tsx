@@ -144,27 +144,6 @@ export default function PaymentItemsPage() {
       ),
     },
     {
-      field: 'accountName',
-      headerName: 'Compte',
-      flex: 1.2,
-      valueGetter: ({ row }) => getPaymentItemAccountPrimary(getPaymentItemAccount(row)),
-      renderCell: ({ row }) => {
-        const account = getPaymentItemAccount(row);
-        return (
-          <Box sx={{ py: 0.35, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.83rem', lineHeight: 1.3, whiteSpace: 'normal' }}>
-              {getPaymentItemAccountPrimary(account)}
-            </Typography>
-            {getPaymentItemAccountSecondary(account) ? (
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.76rem', mt: 0.2, lineHeight: 1.3, whiteSpace: 'normal' }}>
-                {getPaymentItemAccountSecondary(account)}
-              </Typography>
-            ) : null}
-          </Box>
-        );
-      },
-    },
-    {
       field: 'actions',
       headerName: 'Actions',
       width: 110,
