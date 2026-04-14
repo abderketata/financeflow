@@ -386,8 +386,10 @@ export default function PaymentItemsPage() {
                 value={dateFrom}
                 onChange={(e) => handleDateFromChange(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                inputProps={{ onClick: (e) => (e.target as HTMLInputElement).showPicker?.() }}
                 size="small"
                 error={!!dateError && !!dateFrom}
+                sx={{ cursor: 'pointer', '& input': { cursor: 'pointer' } }}
               />
             </Grid>
             <Grid item xs={12} md={3}>
@@ -398,9 +400,11 @@ export default function PaymentItemsPage() {
                 value={dateTo}
                 onChange={(e) => handleDateToChange(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                inputProps={{ onClick: (e) => (e.target as HTMLInputElement).showPicker?.() }}
                 size="small"
                 error={!!dateError && !!dateTo}
                 helperText={dateError || (datesPartial ? 'Saisir les deux dates pour filtrer par période' : '')}
+                sx={{ cursor: 'pointer', '& input': { cursor: 'pointer' } }}
               />
             </Grid>
             {isFetching && !isLoading && (
