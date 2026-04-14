@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { PaymentItem } from '@/types/domain';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
 
@@ -8,8 +8,10 @@ export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<s
   useQuery({
     queryKey: [...queryKey, options?.params ?? {}],
     enabled: options?.enabled,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
     // Always filter out soft-deleted items; merge with any additional caller params
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
       let mergedFilters: Record<string, unknown>;
 
@@ -28,7 +30,7 @@ export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<s
         populate: '*',
         ...(options?.params ?? {}),
         filters: mergedFilters,
-      });
+      }, { signal });
     }
   });
 

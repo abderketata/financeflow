@@ -47,8 +47,8 @@ function normalizeToBackend(payload: any): any {
 }
 
 export const paymentItemService = {
-  async list(params?: Record<string, unknown>) {
-    const items = await rawService.list(params);
+  async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
+    const items = await rawService.list(params, options);
     return items.map(normalizeFromBackend);
   },
   async get(id: number, params?: Record<string, unknown>) {

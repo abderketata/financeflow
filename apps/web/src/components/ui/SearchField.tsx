@@ -56,13 +56,18 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher...', on
               size="small"
               onClick={() => onChange('')}
               sx={{
-                width: 22,
-                height: 22,
-                color: brandColors.slate[400],
-                '&:hover': { color: brandColors.slate[600] },
+                width: 24,
+                height: 24,
+                color: brandColors.debit,
+                backgroundColor: alpha(brandColors.debit, 0.08),
+                border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
+                '&:hover': {
+                  backgroundColor: alpha(brandColors.debit, 0.14),
+                  borderColor: alpha(brandColors.debit, 0.24),
+                },
               }}
             >
-              <CloseRoundedIcon sx={{ fontSize: 15 }} />
+              <CloseRoundedIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </InputAdornment>
         ) : (

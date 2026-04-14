@@ -2,8 +2,8 @@ import { api } from '@/services/api/client';
 import { unwrapCollection, unwrapSingle } from '@/utils/strapi';
 
 export const createCrudService = <TEntity, TPayload = Partial<TEntity>>(endpoint: string) => ({
-  async list(params?: Record<string, unknown>) {
-    const { data } = await api.get(endpoint, { params });
+  async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
+    const { data } = await api.get(endpoint, { params, signal: options?.signal });
     return unwrapCollection<TEntity>(data);
   },
   async get(id: number, params?: Record<string, unknown>) {
