@@ -93,55 +93,102 @@ export default function PaymentItemsPage() {
   const [clientSearchInput, setClientSearchInput] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [dateError, setDateError] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
+
+  const debouncedSearch = useDebouncedValue(search, 400);
   const debouncedClientSearchInput = useDebouncedValue(clientSearchInput, 350);
-  const { data = [], isLoading, isError, refetch } = usePaymentItems();
+
+  // ── Date validation ───────────────────────────────────────────────
+  // Dates are only applied when both are filled and dateFrom < dateTo (strict)
+  const datesValid = dateFrom && dateTo && dateFrom < dateTo;
+  const datesPartial = (dateFrom && !dateTo) || (!dateFrom && dateTo);
+
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    if (value && dateTo && value >= dateTo) {
+      setDateError('La date min doit être strictement inférieure à la date max');
+    } else {
+      setDateError('');
+    }
+  };
+
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    if (dateFrom && value && dateFrom >= value) {
+      setDateError('La date min doit être strictement inférieure à la date max');
+    } else {
+      setDateError('');
+    }
+  };
+
+  // ── Server-side query params ──────────────────────────────────────
+  const queryParams = useMemo(() => {
+    const filters: Record<string, unknown>[] = [];
+
+    if (debouncedSearch.trim()) {
+      filters.push({
+        $or: [
+          { referenceNumber: { $containsi: debouncedSearch.trim() } },
+          { reference: { $containsi: debouncedSearch.trim() } },
+          { drawer: { $containsi: debouncedSearch.trim() } },
+          { drawee: { $containsi: debouncedSearch.trim() } },
+        ],
+      });
+    }
+
+    if (typeFilter) {
+      filters.push({ type: { $eq: typeFilter } });
+    }
+
+    if (statusFilter) {
+      filters.push({ status: { $eq: statusFilter } });
+    }
+
+    if (selectedClient?.id) {
+      filters.push({ client: { id: { $eq: selectedClient.id } } });
+    }
+
+    // Date filter: only when both dates are filled and valid
+    if (datesValid) {
+      filters.push({
+        $or: [
+          { echeance: { $gte: dateFrom, $lte: dateTo } },
+          { issueDate: { $gte: dateFrom, $lte: dateTo } },
+        ],
+      });
+    }
+
+    if (!filters.length) return undefined;
+    return { filters: filters.length === 1 ? filters[0] : { $and: filters } };
+  }, [debouncedSearch, typeFilter, statusFilter, selectedClient?.id, datesValid, dateFrom, dateTo]);
+
+  const { data = [], isLoading, isError, refetch, isFetching } = usePaymentItems({ params: queryParams });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const deleteMutation = useDeletePaymentItem();
   const softDeleteMutation = useSoftDeletePaymentItem();
+
+  // Client lookup: limit to 10 on initial load, dynamic on search
   const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
     queryKey: ['clients', 'payment-items-filter-lookup', debouncedClientSearchInput],
-    queryFn: () => clientService.lookup(debouncedClientSearchInput, 50),
+    queryFn: () => clientService.lookup(debouncedClientSearchInput, debouncedClientSearchInput.trim() ? 50 : 10),
     staleTime: 30_000,
   });
 
-
   const clientFilterOptions = useMemo(() => {
-    if (!selectedClient) {
-      return remoteClients;
-    }
-
-    return remoteClients.some((client) => client.id === selectedClient.id)
+    if (!selectedClient) return remoteClients;
+    return remoteClients.some((c) => c.id === selectedClient.id)
       ? remoteClients
       : [selectedClient, ...remoteClients];
   }, [remoteClients, selectedClient]);
 
-  const filteredRows = useMemo(() => data.filter((item) => {
-    const account = getPaymentItemAccount(item);
-    const searchOk = [
-      getPaymentItemReference(item),
-      item.type,
-      getPaymentItemStatusLabel(item.status),
-      getPaymentItemClientPrimary(item.client),
-      getPaymentItemClientSecondary(item.client),
-      getPaymentItemAccountPrimary(account),
-      getPaymentItemAccountSecondary(account),
-      item.drawer,
-      item.drawee,
-    ].map(normalizeText).join(' ').includes(normalizeText(search));
-    const typeOk = !typeFilter || item.type === typeFilter;
-    const statusOk = !statusFilter || normalizeText(getPaymentItemStatusLabel(item.status)) === normalizeText(statusFilter);
-    const clientOk = !selectedClient?.id || item.client?.id === selectedClient.id;
-    const effectiveDate = getPaymentItemEffectiveDate(item) ? new Date(getPaymentItemEffectiveDate(item)).getTime() : 0;
-    const fromOk = !dateFrom || effectiveDate >= new Date(dateFrom).getTime();
-    const toOk = !dateTo || effectiveDate <= new Date(dateTo).getTime();
-    return searchOk && typeOk && statusOk && clientOk && fromOk && toOk;
-  }), [selectedClient?.id, data, dateFrom, dateTo, search, statusFilter, typeFilter]);
+  // No local filtering — all filtering is server-side
+  const filteredRows = data;
 
   const columns: GridColDef<PaymentItem>[] = [
     {
@@ -302,13 +349,13 @@ export default function PaymentItemsPage() {
       <PageHeader
         title="Chèques / Traites"
         subtitle="Suivi des échéances, statuts, montants et relations clients/comptes"
-        count={filteredRows.length}
+        count={data.length}
         action={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setOpenForm(true); }}>Ajouter un paiement</Button>}
       />
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche globale..." /></Grid>
+            <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche : référence, tireur, tiré…" /></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem><MenuItem value="CHEQUE">Chèque</MenuItem><MenuItem value="TRAITE">Traite</MenuItem><MenuItem value="AUTRE">Autre</MenuItem></TextField></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{paymentItemStatusOptions.map((status) => <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>)}</TextField></Grid>
             <Grid item xs={12} md={4}>
@@ -320,15 +367,8 @@ export default function PaymentItemsPage() {
                 label="Client"
                 placeholder="Rechercher par nom, société ou code…"
                 onInputChange={(value, reason) => {
-                  if (reason === 'input') {
-                    setClientSearchInput(value);
-                    return;
-                  }
-                  if (reason === 'clear') {
-                    setClientSearchInput('');
-                    return;
-                  }
-                  // reason === 'reset': accept MUI's synced label
+                  if (reason === 'input') { setClientSearchInput(value); return; }
+                  if (reason === 'clear') { setClientSearchInput(''); return; }
                   setClientSearchInput(value);
                 }}
                 onChange={(value) => {
@@ -338,8 +378,36 @@ export default function PaymentItemsPage() {
                 noOptionsText="Aucun client trouvé"
               />
             </Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date min" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Date max" value={dateTo} onChange={(e) => setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} size="small" /></Grid>
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Date min"
+                value={dateFrom}
+                onChange={(e) => handleDateFromChange(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                error={!!dateError && !!dateFrom}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Date max"
+                value={dateTo}
+                onChange={(e) => handleDateToChange(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+                error={!!dateError && !!dateTo}
+                helperText={dateError || (datesPartial ? 'Saisir les deux dates pour filtrer par période' : '')}
+              />
+            </Grid>
+            {isFetching && !isLoading && (
+              <Grid item xs={12}>
+                <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Mise à jour des résultats…</Typography>
+              </Grid>
+            )}
           </Grid>
         </CardContent>
       </Card>

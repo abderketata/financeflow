@@ -4,15 +4,22 @@ import { paymentItemService } from '@/modules/payment-items/services/paymentItem
 
 const queryKey = ['payment-items'];
 
-export const usePaymentItems = (options?: { enabled?: boolean }) =>
+export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
   useQuery({
-    queryKey,
+    queryKey: [...queryKey, options?.params ?? {}],
     enabled: options?.enabled,
-    // Only fetch non-deleted items (soft delete: supprimer = false)
-    queryFn: () => paymentItemService.list({
-      populate: '*',
-      filters: { supprimer: { $eq: false } },
-    })
+    // Always filter out soft-deleted items; merge with any additional caller params
+    queryFn: () => {
+      const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
+      const mergedFilters = Object.keys(callerFilters).length
+        ? { $and: [{ supprimer: { $eq: false } }, callerFilters] }
+        : { supprimer: { $eq: false } };
+      return paymentItemService.list({
+        populate: '*',
+        ...(options?.params ?? {}),
+        filters: mergedFilters,
+      });
+    }
   });
 
 export const useCreatePaymentItem = () => {
