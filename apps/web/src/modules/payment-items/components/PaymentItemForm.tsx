@@ -24,6 +24,11 @@ import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
 import BlockRoundedIcon from '@mui/icons-material/BlockRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import LocalAtmRoundedIcon from '@mui/icons-material/LocalAtmRounded';
+import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
 import {
   paymentItemStatusOptions,
@@ -85,6 +90,16 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
   'Rejeté':     { color: '#DC2626', bg: '#FEF2F2', icon: CancelRoundedIcon },
   'Annulé':     { color: '#64748B', bg: '#F1F5F9', icon: BlockRoundedIcon },
   'En retard':  { color: '#DC2626', bg: '#FEF2F2', icon: WarningAmberRoundedIcon },
+};
+
+// ── Payment method visual config ─────────────────────────────────────────
+const paymentMethodConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+  ESPECES:  { label: 'Espèces',  color: '#059669', bg: '#ECFDF5', icon: LocalAtmRoundedIcon },
+  VIREMENT: { label: 'Virement', color: '#2563EB', bg: '#EFF6FF', icon: SyncAltRoundedIcon },
+  CHEQUE:   { label: 'Chèque',   color: '#D97706', bg: '#FFFBEB', icon: ReceiptLongRoundedIcon },
+  TRAITE:   { label: 'Traite',   color: '#7C3AED', bg: '#F5F3FF', icon: DescriptionRoundedIcon },
+  CARTE:    { label: 'Carte',    color: '#0891B2', bg: '#ECFEFF', icon: CreditCardRoundedIcon },
+  AUTRE:    { label: 'Autre',    color: '#64748B', bg: '#F1F5F9', icon: MoreHorizRoundedIcon },
 };
 
 /** Colored chip-like rendering for select options */
@@ -159,6 +174,7 @@ export function PaymentItemForm({
         ? (defaultValues?.alertDaysBefore ?? defaultAlertDays)
         : defaultAlertDays,
       notes: '',
+      paymentMethod: 'ESPECES',
       client: undefined,
       account: undefined,
       ...defaultValues,
@@ -356,6 +372,28 @@ export function PaymentItemForm({
                 <TextField {...field} fullWidth label="Devise" size="small"
                   error={!!errors.currency} helperText={errors.currency?.message}
                   InputProps={{ startAdornment: <InputAdornment position="start"><CurrencyExchangeRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
+              )} />
+            </Grid>
+
+            {/* ── MÉTHODE DE PAIEMENT — colored options ──────────── */}
+            <Grid item xs={12} md={4}>
+              <Controller name="paymentMethod" control={control} render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth select label="Méthode de paiement" size="small"
+                  SelectProps={{
+                    renderValue: (val) => {
+                      const pm = paymentMethodConfig[val as string] ?? paymentMethodConfig.AUTRE;
+                      return <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />;
+                    },
+                  }}
+                >
+                  {Object.entries(paymentMethodConfig).map(([key, pm]) => (
+                    <MenuItem key={key} value={key}>
+                      <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />
+                    </MenuItem>
+                  ))}
+                </TextField>
               )} />
             </Grid>
           </Grid>

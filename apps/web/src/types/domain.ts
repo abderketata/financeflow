@@ -6,6 +6,7 @@ export type ClientType = 'INDIVIDUAL' | 'COMPANY';
 export type PaymentItemType = 'CHEQUE' | 'TRAITE' | 'AUTRE';
 export type PaymentDirection = 'IN' | 'OUT';
 export type PaymentItemStatus = 'Reçu' | 'Déposé' | 'Payé' | 'Rejeté' | 'Annulé' | 'En retard';
+export type PaymentMethod = 'ESPECES' | 'VIREMENT' | 'CHEQUE' | 'TRAITE' | 'CARTE' | 'AUTRE';
 export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 
 export interface Client {
@@ -76,6 +77,7 @@ export interface PaymentItem {
   instrumentAccountNumber?: string;
   alertEnabled?: boolean;
   alertDaysBefore?: number;
+  paymentMethod?: PaymentMethod;
   notes?: string;
   client?: Client | null;
   account?: BankAccount | null;

@@ -12,6 +12,7 @@ export const paymentItemSchema = z.object({
   drawee: z.string().optional(),
   alertEnabled: z.boolean().default(true),
   alertDaysBefore: z.coerce.number().min(0, 'Valeur invalide').optional(),
+  paymentMethod: z.enum(['ESPECES', 'VIREMENT', 'CHEQUE', 'TRAITE', 'CARTE', 'AUTRE']).default('ESPECES'),
   notes: z.string().optional(),
   client: z.coerce.number({ required_error: 'Le client est requis', invalid_type_error: 'Le client est requis' }).min(1, 'Le client est requis'),
   account: z.coerce.number({ required_error: 'Le compte est requis', invalid_type_error: 'Le compte est requis' }).min(1, 'Le compte est requis'),
