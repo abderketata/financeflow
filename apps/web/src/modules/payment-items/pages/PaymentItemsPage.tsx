@@ -3,6 +3,16 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
+import PaidRoundedIcon from '@mui/icons-material/PaidRounded';
+import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import BlockRoundedIcon from '@mui/icons-material/BlockRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
@@ -38,6 +48,33 @@ import {
   getPaymentItemStatusLabel,
   paymentItemStatusOptions,
 } from '@/modules/payment-items/utils/paymentItemPresentation';
+
+// ── Configs visuelles (identiques au formulaire) ─────────────────────
+const typeConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+  CHEQUE: { label: 'Chèque', color: '#D97706', bg: '#FFFBEB', icon: ReceiptLongRoundedIcon },
+  TRAITE: { label: 'Traite', color: '#7C3AED', bg: '#F5F3FF', icon: DescriptionRoundedIcon },
+  AUTRE:  { label: 'Autre',  color: '#64748B', bg: '#F1F5F9', icon: MoreHorizRoundedIcon },
+};
+
+const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  'Reçu':      { color: '#2563EB', bg: '#EFF6FF', icon: CheckCircleRoundedIcon },
+  'Déposé':    { color: '#D97706', bg: '#FFFBEB', icon: AccountBalanceWalletRoundedIcon },
+  'Payé':      { color: '#059669', bg: '#ECFDF5', icon: PaidRoundedIcon },
+  'Rejeté':    { color: '#DC2626', bg: '#FEF2F2', icon: CancelRoundedIcon },
+  'Annulé':    { color: '#64748B', bg: '#F1F5F9', icon: BlockRoundedIcon },
+  'En retard': { color: '#DC2626', bg: '#FEF2F2', icon: WarningAmberRoundedIcon },
+};
+
+function ColoredChip({ icon: Icon, label, color, bg }: { icon: React.ElementType; label: string; color: string; bg: string }) {
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7 }}>
+      <Box sx={{ width: 22, height: 22, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: bg, color, flexShrink: 0 }}>
+        <Icon sx={{ fontSize: 13 }} />
+      </Box>
+      <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color }}>{label}</Typography>
+    </Box>
+  );
+}
 
 export default function PaymentItemsPage() {
   const [search, setSearch] = useState('');
@@ -108,7 +145,16 @@ export default function PaymentItemsPage() {
         </Typography>
       ),
     },
-    { field: 'type', headerName: 'Type', flex: 0.8, renderCell: ({ row }) => <StatusChip status={row.type} /> },
+    {
+      field: 'type',
+      headerName: 'Type',
+      flex: 0.9,
+      valueGetter: ({ row }) => typeConfig[row.type]?.label ?? row.type,
+      renderCell: ({ row }) => {
+        const tc = typeConfig[row.type] ?? typeConfig.AUTRE;
+        return <ColoredChip icon={tc.icon} label={tc.label} color={tc.color} bg={tc.bg} />;
+      },
+    },
     {
       field: 'direction',
       headerName: 'Sens',
@@ -147,7 +193,17 @@ export default function PaymentItemsPage() {
       flex: 1,
       valueGetter: ({ row }) => getPaymentItemEffectiveDate(row) ? formatDate(getPaymentItemEffectiveDate(row)) : '—',
     },
-    { field: 'status', headerName: 'Statut', flex: 1, renderCell: ({ row }) => <StatusChip status={getPaymentItemStatusLabel(row.status)} /> },
+    {
+      field: 'status',
+      headerName: 'Statut',
+      flex: 1,
+      valueGetter: ({ row }) => getPaymentItemStatusLabel(row.status),
+      renderCell: ({ row }) => {
+        const label = getPaymentItemStatusLabel(row.status) as string;
+        const sc = statusConfig[label] ?? { color: brandColors.slate[500], bg: brandColors.slate[100], icon: CheckCircleOutlineRoundedIcon };
+        return <ColoredChip icon={sc.icon} label={label} color={sc.color} bg={sc.bg} />;
+      },
+    },
     {
       field: 'clientName',
       headerName: 'Client',
