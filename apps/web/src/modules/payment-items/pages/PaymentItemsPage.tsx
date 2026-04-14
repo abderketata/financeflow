@@ -155,6 +155,24 @@ export default function PaymentItemsPage() {
       ),
     },
     {
+      field: 'clientName',
+      headerName: 'Client',
+      flex: 1.2,
+      valueGetter: ({ row }) => getPaymentItemClientPrimary(row.client),
+      renderCell: ({ row }) => (
+        <Box sx={{ py: 0.35, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.83rem', lineHeight: 1.3, whiteSpace: 'normal' }}>
+            {getPaymentItemClientPrimary(row.client)}
+          </Typography>
+          {getPaymentItemClientSecondary(row.client) ? (
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.76rem', mt: 0.2, lineHeight: 1.3, whiteSpace: 'normal' }}>
+              {getPaymentItemClientSecondary(row.client)}
+            </Typography>
+          ) : null}
+        </Box>
+      ),
+    },
+    {
       field: 'type',
       headerName: 'Type',
       flex: 1,
@@ -222,24 +240,6 @@ export default function PaymentItemsPage() {
         const sc = statusConfig[label] ?? { color: brandColors.slate[500], bg: brandColors.slate[100], icon: CheckCircleOutlineRoundedIcon };
         return <ColoredChip icon={sc.icon} label={label} color={sc.color} bg={sc.bg} />;
       },
-    },
-    {
-      field: 'clientName',
-      headerName: 'Client',
-      flex: 1.2,
-      valueGetter: ({ row }) => getPaymentItemClientPrimary(row.client),
-      renderCell: ({ row }) => (
-        <Box sx={{ py: 0.35, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, color: 'text.primary', fontSize: '0.83rem', lineHeight: 1.3, whiteSpace: 'normal' }}>
-            {getPaymentItemClientPrimary(row.client)}
-          </Typography>
-          {getPaymentItemClientSecondary(row.client) ? (
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.76rem', mt: 0.2, lineHeight: 1.3, whiteSpace: 'normal' }}>
-              {getPaymentItemClientSecondary(row.client)}
-            </Typography>
-          ) : null}
-        </Box>
-      ),
     },
     {
       field: 'actions',
