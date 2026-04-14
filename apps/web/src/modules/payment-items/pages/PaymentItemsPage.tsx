@@ -1,6 +1,7 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
@@ -407,6 +408,29 @@ export default function PaymentItemsPage() {
                 sx={{ cursor: 'pointer', '& input': { cursor: 'pointer' } }}
               />
             </Grid>
+            {(dateFrom || dateTo) && (
+              <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'flex-start', pt: { xs: 0, md: '8px !important' } }}>
+                <Tooltip title="Effacer le filtre par date" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setDateFrom('');
+                      setDateTo('');
+                      setDateError('');
+                    }}
+                    sx={{
+                      border: `1px solid`,
+                      borderColor: 'divider',
+                      borderRadius: '8px',
+                      color: 'text.secondary',
+                      '&:hover': { borderColor: 'error.main', color: 'error.main', backgroundColor: 'error.50' },
+                    }}
+                  >
+                    <CloseRoundedIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              </Grid>
+            )}
             {isFetching && !isLoading && (
               <Grid item xs={12}>
                 <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Mise à jour des résultats…</Typography>
