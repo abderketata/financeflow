@@ -112,24 +112,22 @@ export default function PaymentItemsPage() {
     {
       field: 'direction',
       headerName: 'Sens',
-      flex: 0.85,
+      flex: 0.5,
       renderCell: ({ row }) => {
         const isIn = row.direction === 'IN';
         const color = isIn ? '#059669' : '#DC2626';
         const bg    = isIn ? '#ECFDF5' : '#FEF2F2';
         const Icon  = isIn ? ArrowUpwardRoundedIcon : ArrowDownwardRoundedIcon;
-        const label = isIn ? 'Entrant' : 'Sortant';
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7 }}>
+          <Tooltip title={isIn ? 'Entrant' : 'Sortant'} arrow>
             <Box sx={{
-              width: 22, height: 22, borderRadius: '6px',
+              width: 24, height: 24, borderRadius: '6px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backgroundColor: bg, color, flexShrink: 0,
             }}>
-              <Icon sx={{ fontSize: 13 }} />
+              <Icon sx={{ fontSize: 14 }} />
             </Box>
-            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color }}>{label}</Typography>
-          </Box>
+          </Tooltip>
         );
       },
     },
