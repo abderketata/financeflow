@@ -82,6 +82,13 @@ const directionConfig = {
   OUT: { label: 'Sortant',  color: '#DC2626', bg: '#FEF2F2', icon: ArrowDownwardRoundedIcon },
 } as const;
 
+// ── Type visual config ───────────────────────────────────────────────────
+const typeConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+  CHEQUE: { label: 'Chèque', color: '#D97706', bg: '#FFFBEB', icon: ReceiptLongRoundedIcon },
+  TRAITE: { label: 'Traite', color: '#7C3AED', bg: '#F5F3FF', icon: DescriptionRoundedIcon },
+  AUTRE:  { label: 'Autre',  color: '#64748B', bg: '#F1F5F9', icon: MoreHorizRoundedIcon },
+};
+
 // ── Status visual config ─────────────────────────────────────────────────
 const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
   'Reçu':       { color: '#2563EB', bg: '#EFF6FF', icon: CheckCircleRoundedIcon },
@@ -96,10 +103,7 @@ const statusConfig: Record<string, { color: string; bg: string; icon: React.Elem
 const paymentMethodConfig: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   ESPECES:  { label: 'Espèces',  color: '#059669', bg: '#ECFDF5', icon: LocalAtmRoundedIcon },
   VIREMENT: { label: 'Virement', color: '#2563EB', bg: '#EFF6FF', icon: SyncAltRoundedIcon },
-  CHEQUE:   { label: 'Chèque',   color: '#D97706', bg: '#FFFBEB', icon: ReceiptLongRoundedIcon },
-  TRAITE:   { label: 'Traite',   color: '#7C3AED', bg: '#F5F3FF', icon: DescriptionRoundedIcon },
   CARTE:    { label: 'Carte',    color: '#0891B2', bg: '#ECFEFF', icon: CreditCardRoundedIcon },
-  AUTRE:    { label: 'Autre',    color: '#64748B', bg: '#F1F5F9', icon: MoreHorizRoundedIcon },
 };
 
 /** Colored chip-like rendering for select options */
@@ -327,9 +331,21 @@ export function PaymentItemForm({
           <Grid container spacing={2}>
             <Grid item xs={6} md={3}>
               <Controller name="type" control={control} render={({ field }) => (
-                <TextField {...field} fullWidth select label="Type" size="small"
-                  InputProps={{ startAdornment: <InputAdornment position="start"><ReceiptLongRoundedIcon sx={inputIconSx} /></InputAdornment> }}>
-                  {paymentItemTypeOptions.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+                <TextField
+                  {...field}
+                  fullWidth select label="Type" size="small"
+                  SelectProps={{
+                    renderValue: (val) => {
+                      const tc = typeConfig[val as string] ?? typeConfig.AUTRE;
+                      return <ColoredOptionLabel icon={tc.icon} label={tc.label} color={tc.color} bg={tc.bg} />;
+                    },
+                  }}
+                >
+                  {Object.entries(typeConfig).map(([key, tc]) => (
+                    <MenuItem key={key} value={key}>
+                      <ColoredOptionLabel icon={tc.icon} label={tc.label} color={tc.color} bg={tc.bg} />
+                    </MenuItem>
+                  ))}
                 </TextField>
               )} />
             </Grid>
