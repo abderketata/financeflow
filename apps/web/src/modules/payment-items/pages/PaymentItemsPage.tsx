@@ -1,6 +1,8 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
@@ -107,7 +109,30 @@ export default function PaymentItemsPage() {
       ),
     },
     { field: 'type', headerName: 'Type', flex: 0.8, renderCell: ({ row }) => <StatusChip status={row.type} /> },
-    { field: 'direction', headerName: 'Sens', flex: 0.8, renderCell: ({ row }) => <StatusChip status={row.direction} /> },
+    {
+      field: 'direction',
+      headerName: 'Sens',
+      flex: 0.85,
+      renderCell: ({ row }) => {
+        const isIn = row.direction === 'IN';
+        const color = isIn ? '#059669' : '#DC2626';
+        const bg    = isIn ? '#ECFDF5' : '#FEF2F2';
+        const Icon  = isIn ? ArrowUpwardRoundedIcon : ArrowDownwardRoundedIcon;
+        const label = isIn ? 'Entrant' : 'Sortant';
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7 }}>
+            <Box sx={{
+              width: 22, height: 22, borderRadius: '6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              backgroundColor: bg, color, flexShrink: 0,
+            }}>
+              <Icon sx={{ fontSize: 13 }} />
+            </Box>
+            <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color }}>{label}</Typography>
+          </Box>
+        );
+      },
+    },
     {
       field: 'amount',
       headerName: 'Montant',
