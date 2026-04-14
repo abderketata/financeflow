@@ -258,16 +258,17 @@ export default function PaymentItemsPage() {
                     setClientSearchInput(value);
                     return;
                   }
-
                   if (reason === 'clear') {
                     setClientSearchInput('');
+                    return;
                   }
+                  // reason === 'reset': accept MUI's synced label
+                  setClientSearchInput(value);
                 }}
                 onChange={(value) => {
                   setSelectedClient(value);
                   setClientSearchInput(value ? getClientLabel(value) : '');
                 }}
-                onClose={() => setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '')}
                 noOptionsText="Aucun client trouvé"
               />
             </Grid>

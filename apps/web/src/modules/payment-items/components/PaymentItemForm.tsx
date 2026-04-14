@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Divider, Grid, InputAdornment, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -149,6 +149,22 @@ function getTodayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// ── Amount formatting helpers ──────────────────────────────────────────
+/** Inserts a space every 3 digits in the integer part, keeps decimals intact. */
+function formatAmountDisplay(value: string): string {
+  if (!value) return '';
+  const clean = value.replace(/\s/g, '');
+  const dotIndex = clean.indexOf('.');
+  const intPart = dotIndex >= 0 ? clean.slice(0, dotIndex) : clean;
+  const decPart = dotIndex >= 0 ? clean.slice(dotIndex) : ''; // includes the dot
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return formattedInt + decPart;
+}
+
+function stripSpaces(value: string): string {
+  return value.replace(/\s/g, '');
+}
+
 export function PaymentItemForm({
   defaultValues,
   defaultCurrency = 'TND',
@@ -192,6 +208,13 @@ export function PaymentItemForm({
   const watchedDueDate = watch('dueDate');
   const dueDateUrgency = useMemo(() => getDueDateUrgency(watchedDueDate || ''), [watchedDueDate]);
   const showPaymentMethod = watchedType === 'AUTRE';
+
+  // ── Amount display mask ────────────────────────────────
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const [amountDisplay, setAmountDisplay] = useState(() => {
+    const v = defaultValues?.amount;
+    return v != null && v !== 0 ? formatAmountDisplay(String(v)) : '';
+  });
 
   // Clear paymentMethod when type is not AUTRE
   useEffect(() => {
@@ -298,15 +321,16 @@ export function PaymentItemForm({
                     }
                     if (reason === 'clear') {
                       setClientSearchInput('');
+                      return;
                     }
+                    // reason === 'reset': MUI syncs the input after selection, blur or
+                    // options change. Accept its value so the display stays correct.
+                    setClientSearchInput(value);
                   }}
                   onChange={(value) => {
                     setSelectedClient(value);
                     setClientSearchInput(value ? getClientLabel(value) : '');
                     field.onChange(value?.id ?? undefined);
-                  }}
-                  onClose={() => {
-                    setClientSearchInput(selectedClient ? getClientLabel(selectedClient) : '');
                   }}
                   error={!!errors.client}
                   helperText={errors.client?.message}
@@ -386,10 +410,61 @@ export function PaymentItemForm({
 
             <Grid item xs={8} md={4}>
               <Controller name="amount" control={control} render={({ field }) => (
-                <TextField {...field} fullWidth type="number" label="Montant" size="small"
-                  value={field.value ?? 0} onChange={(e) => field.onChange(e.target.value)}
-                  error={!!errors.amount} helperText={errors.amount?.message}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><PaymentsRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
+                <TextField
+                  fullWidth
+                  label="Montant"
+                  size="small"
+                  value={amountDisplay}
+                  inputRef={amountInputRef}
+                  onChange={(e) => {
+                    const input = e.target as HTMLInputElement;
+                    const cursorPos = input.selectionStart ?? 0;
+                    const rawInput = e.target.value;
+                    const stripped = stripSpaces(rawInput);
+
+                    // Allow only digits and a single decimal point
+                    if (stripped !== '' && !/^\d*\.?\d*$/.test(stripped)) return;
+
+                    const formatted = formatAmountDisplay(stripped);
+
+                    // Compute new cursor position (count non-space chars before cursor)
+                    let nonSpaceCount = 0;
+                    for (let i = 0; i < cursorPos && i < rawInput.length; i++) {
+                      if (rawInput[i] !== ' ') nonSpaceCount++;
+                    }
+                    let newCursorPos = 0;
+                    let counted = 0;
+                    for (let i = 0; i < formatted.length; i++) {
+                      if (counted === nonSpaceCount) break;
+                      if (formatted[i] !== ' ') counted++;
+                      newCursorPos = i + 1;
+                    }
+
+                    setAmountDisplay(formatted);
+                    const num = stripped === '' || stripped === '.' ? 0 : parseFloat(stripped);
+                    if (!isNaN(num)) field.onChange(num);
+
+                    requestAnimationFrame(() => {
+                      amountInputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+                    });
+                  }}
+                  onBlur={() => {
+                    field.onBlur();
+                    const stripped = stripSpaces(amountDisplay);
+                    if (stripped === '' || isNaN(parseFloat(stripped))) {
+                      setAmountDisplay('');
+                    } else {
+                      // Re-format cleanly (removes trailing dot if any)
+                      setAmountDisplay(formatAmountDisplay(stripped));
+                    }
+                  }}
+                  error={!!errors.amount}
+                  helperText={errors.amount?.message}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><PaymentsRoundedIcon sx={inputIconSx} /></InputAdornment>,
+                  }}
+                  inputProps={{ inputMode: 'decimal' }}
+                />
               )} />
             </Grid>
             <Grid item xs={4} md={2}>
