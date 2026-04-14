@@ -322,6 +322,7 @@ export default function PaymentItemsPage() {
             const payload = {
               ...values,
               referenceNumber: buildPaymentItemReference(values.type, values.direction),
+              paymentMethod: values.type === 'AUTRE' ? (values.paymentMethod || null) : null,
             };
 
             if (editing) {

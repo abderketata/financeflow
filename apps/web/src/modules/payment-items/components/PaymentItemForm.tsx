@@ -186,10 +186,19 @@ export function PaymentItemForm({
   });
 
   const watchedDirection = watch('direction');
+  const watchedType = watch('type');
   const watchedClientId = watch('client');
   const watchedAlertEnabled = watch('alertEnabled');
   const watchedDueDate = watch('dueDate');
   const dueDateUrgency = useMemo(() => getDueDateUrgency(watchedDueDate || ''), [watchedDueDate]);
+  const showPaymentMethod = watchedType === 'AUTRE';
+
+  // Clear paymentMethod when type is not AUTRE
+  useEffect(() => {
+    if (!showPaymentMethod) {
+      setValue('paymentMethod', undefined as any);
+    }
+  }, [showPaymentMethod, setValue]);
 
   /* ── Client Autocomplete state ────────────────────────── */
   const [clientSearchInput, setClientSearchInput] = useState(initialClient ? getClientLabel(initialClient) : '');
@@ -391,27 +400,30 @@ export function PaymentItemForm({
               )} />
             </Grid>
 
-            {/* ── MÉTHODE DE PAIEMENT — colored options ──────────── */}
-            <Grid item xs={12} md={4}>
-              <Controller name="paymentMethod" control={control} render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth select label="Méthode de paiement" size="small"
-                  SelectProps={{
-                    renderValue: (val) => {
-                      const pm = paymentMethodConfig[val as string] ?? paymentMethodConfig.AUTRE;
-                      return <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />;
-                    },
-                  }}
-                >
-                  {Object.entries(paymentMethodConfig).map(([key, pm]) => (
-                    <MenuItem key={key} value={key}>
-                      <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )} />
-            </Grid>
+            {/* ── MÉTHODE DE PAIEMENT — visible seulement si Type = Autre */}
+            {showPaymentMethod && (
+              <Grid item xs={12} md={4}>
+                <Controller name="paymentMethod" control={control} render={({ field }) => (
+                  <TextField
+                    {...field}
+                    value={field.value ?? ''}
+                    fullWidth select label="Méthode de paiement" size="small"
+                    SelectProps={{
+                      renderValue: (val) => {
+                        const pm = paymentMethodConfig[val as string] ?? paymentMethodConfig.ESPECES;
+                        return <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />;
+                      },
+                    }}
+                  >
+                    {Object.entries(paymentMethodConfig).map(([key, pm]) => (
+                      <MenuItem key={key} value={key}>
+                        <ColoredOptionLabel icon={pm.icon} label={pm.label} color={pm.color} bg={pm.bg} />
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )} />
+              </Grid>
+            )}
           </Grid>
         </Box>
 
