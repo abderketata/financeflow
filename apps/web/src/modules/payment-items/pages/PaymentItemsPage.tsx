@@ -28,7 +28,6 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
-import { StatusChip } from '@/components/ui/StatusChip';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
 import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
@@ -358,7 +357,98 @@ export default function PaymentItemsPage() {
           <Grid container spacing={2}>
             <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche : référence, tireur, tiré…" /></Grid>
             <Grid item xs={12} md={2}><TextField fullWidth select label="Type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem><MenuItem value="CHEQUE">Chèque</MenuItem><MenuItem value="TRAITE">Traite</MenuItem><MenuItem value="AUTRE">Autre</MenuItem></TextField></Grid>
-            <Grid item xs={12} md={2}><TextField fullWidth select label="Statut" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} size="small"><MenuItem value="">Tous</MenuItem>{paymentItemStatusOptions.map((status) => <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>)}</TextField></Grid>
+            <Grid item xs={12} md={2}>
+              <Box sx={{ position: 'relative' }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Statut"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                  SelectProps={{
+                    displayEmpty: true,
+                    renderValue: (value) => {
+                      if (!value) {
+                        return (
+                          <Typography sx={{ fontSize: '0.84rem', color: 'text.secondary', fontWeight: 500, lineHeight: 1.35 }}>
+                            Tous les statuts
+                          </Typography>
+                        );
+                      }
+
+                      const label = getPaymentItemStatusLabel(value as string) as string;
+                      const sc = statusConfig[label] ?? {
+                        color: brandColors.slate[500],
+                        bg: brandColors.slate[100],
+                        icon: CheckCircleOutlineRoundedIcon,
+                      };
+
+                      return <ColoredChip icon={sc.icon} label={label} color={sc.color} bg={sc.bg} />;
+                    },
+                  }}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: '22px',
+                      py: 1.05,
+                      pr: statusFilter ? 8 : 4.5,
+                    },
+                  }}
+                >
+                  <MenuItem value="">
+                    <Typography sx={{ fontSize: '0.84rem', color: 'text.secondary', fontWeight: 500 }}>
+                      Tous les statuts
+                    </Typography>
+                  </MenuItem>
+                  {paymentItemStatusOptions.map((status) => {
+                    const sc = statusConfig[status.value] ?? {
+                      color: brandColors.slate[500],
+                      bg: brandColors.slate[100],
+                      icon: CheckCircleOutlineRoundedIcon,
+                    };
+
+                    return (
+                      <MenuItem key={status.value} value={status.value}>
+                        <ColoredChip icon={sc.icon} label={status.label} color={sc.color} bg={sc.bg} />
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+
+                {statusFilter && (
+                  <Tooltip title="Vider le statut" arrow>
+                    <IconButton
+                      size="small"
+                      onClick={() => setStatusFilter('')}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        right: 28,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 24,
+                        height: 24,
+                        color: brandColors.debit,
+                        backgroundColor: alpha(brandColors.debit, 0.08),
+                        border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
+                        '&:hover': {
+                          backgroundColor: alpha(brandColors.debit, 0.14),
+                          borderColor: alpha(brandColors.debit, 0.24),
+                        },
+                      }}
+                    >
+                      <CloseRoundedIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            </Grid>
             <Grid item xs={12} md={4}>
               <ClientAutocompleteField
                 value={selectedClient}
