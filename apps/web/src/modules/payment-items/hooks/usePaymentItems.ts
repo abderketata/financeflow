@@ -8,7 +8,11 @@ export const usePaymentItems = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey,
     enabled: options?.enabled,
-    queryFn: () => paymentItemService.list({ populate: '*' })
+    // Only fetch non-deleted items (soft delete: supprimer = false)
+    queryFn: () => paymentItemService.list({
+      populate: '*',
+      filters: { supprimer: { $eq: false } },
+    })
   });
 
 export const useCreatePaymentItem = () => {
@@ -27,6 +31,16 @@ export const useUpdatePaymentItem = () => {
   });
 };
 
+/** Soft delete: sets supprimer = true instead of physically removing the record. */
+export const useSoftDeletePaymentItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => paymentItemService.update(id, { supprimer: true } as any),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey })
+  });
+};
+
+/** Physical delete — kept for internal use only, not exposed to the UI. */
 export const useDeletePaymentItem = () => {
   const queryClient = useQueryClient();
   return useMutation({

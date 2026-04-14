@@ -29,7 +29,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
-import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
+import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
@@ -103,6 +103,7 @@ export default function PaymentItemsPage() {
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const deleteMutation = useDeletePaymentItem();
+  const softDeleteMutation = useSoftDeletePaymentItem();
   const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
     queryKey: ['clients', 'payment-items-filter-lookup', debouncedClientSearchInput],
     queryFn: () => clientService.lookup(debouncedClientSearchInput, 50),
@@ -373,6 +374,7 @@ export default function PaymentItemsPage() {
               ...values,
               referenceNumber: buildPaymentItemReference(values.type, values.direction),
               paymentMethod: values.type === 'AUTRE' ? (values.paymentMethod || null) : null,
+              supprimer: false,
             };
 
             if (editing) {
@@ -388,13 +390,14 @@ export default function PaymentItemsPage() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Supprimer ce paiement ?"
-        description="Cette action est irréversible."
-        loading={deleteMutation.isPending}
+        title="Archiver ce paiement ?"
+        description="Ce paiement sera masqué de la liste. Il ne sera pas supprimé définitivement de la base de données."
+        confirmLabel="Archiver"
+        loading={softDeleteMutation.isPending}
         onClose={() => setDeleting(null)}
         onConfirm={async () => {
           if (!deleting) return;
-          await deleteMutation.mutateAsync(deleting.id);
+          await softDeleteMutation.mutateAsync(deleting.id);
           setDeleting(null);
         }}
       />

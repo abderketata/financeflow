@@ -78,6 +78,7 @@ export interface PaymentItem {
   alertEnabled?: boolean;
   alertDaysBefore?: number;
   paymentMethod?: PaymentMethod;
+  supprimer?: boolean;
   notes?: string;
   client?: Client | null;
   account?: BankAccount | null;
