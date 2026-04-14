@@ -369,6 +369,7 @@ export default function PaymentItemsPage() {
           initialAccount={editing ? getPaymentItemAccount(editing) : null}
           companyName={settings?.companyName || ''}
           loading={createMutation.isPending || updateMutation.isPending}
+          onCancel={() => { setOpenForm(false); setEditing(null); }}
           onSubmit={async (values) => {
             const payload = {
               ...values,

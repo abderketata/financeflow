@@ -142,6 +142,7 @@ interface PaymentItemFormProps {
   initialAccount?: BankAccount | null;
   companyName: string;
   loading?: boolean;
+  onCancel?: () => void;
   onSubmit: (values: PaymentItemFormValues) => void | Promise<void>;
 }
 
@@ -173,6 +174,7 @@ export function PaymentItemForm({
   initialAccount,
   companyName,
   loading,
+  onCancel,
   onSubmit,
 }: PaymentItemFormProps) {
   const isEditMode = Boolean(defaultValues);
@@ -668,8 +670,19 @@ export function PaymentItemForm({
           )} />
         </Box>
 
-        {/* ── Bouton ─────────────────────────────────────────── */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 0.5 }}>
+        {/* ── Boutons ────────────────────────────────────────── */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pt: 0.5 }}>
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outlined"
+              disabled={loading}
+              onClick={onCancel}
+              sx={{ minWidth: 110, fontWeight: 600 }}
+            >
+              Annuler
+            </Button>
+          )}
           <Button
             type="submit"
             variant="contained"
