@@ -130,6 +130,28 @@ export const actionIconButton = (color: string): SxProps<Theme> => ({
   },
 });
 
+/** Standardized clear button style (red X) for all clearable fields. */
+export const clearButtonStyle: SxProps<Theme> = {
+  width: 24,
+  height: 24,
+  color: '#DC2626',
+  backgroundColor: alpha('#DC2626', 0.08),
+  border: `1px solid ${alpha('#DC2626', 0.14)}`,
+  '&:hover': {
+    backgroundColor: alpha('#DC2626', 0.14),
+    borderColor: alpha('#DC2626', 0.24),
+  },
+};
+
+/** Standardized clear button style for absolutely positioned clear buttons. */
+export const clearButtonAbsoluteStyle: SxProps<Theme> = {
+  position: 'absolute',
+  right: 28,
+  top: '50%',
+  transform: 'translateY(-50%)',
+  ...clearButtonStyle,
+};
+
 export const numericFont = '"DM Mono", "Roboto Mono", monospace';
 export const headingFont = '"Plus Jakarta Sans", "Inter", sans-serif';
 
@@ -479,14 +501,27 @@ export const theme = createTheme({
       },
       styleOverrides: {
         root: {
-          '& .MuiAutocomplete-popupIndicator, & .MuiAutocomplete-clearIndicator': {
+          '& .MuiAutocomplete-popupIndicator': {
             color: slate[400],
             borderRadius: 8,
             transition: 'all 0.18s ease',
           },
-          '& .MuiAutocomplete-popupIndicator:hover, & .MuiAutocomplete-clearIndicator:hover': {
+          '& .MuiAutocomplete-popupIndicator:hover': {
             backgroundColor: alpha(blue[500], 0.08),
             color: blue[600],
+          },
+          '& .MuiAutocomplete-clearIndicator': {
+            width: 24,
+            height: 24,
+            color: '#DC2626',
+            backgroundColor: alpha('#DC2626', 0.08),
+            border: `1px solid ${alpha('#DC2626', 0.14)}`,
+            borderRadius: 8,
+            transition: 'all 0.18s ease',
+            '&:hover': {
+              backgroundColor: alpha('#DC2626', 0.14),
+              borderColor: alpha('#DC2626', 0.24),
+            },
           },
         },
         paper: {

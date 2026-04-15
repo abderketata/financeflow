@@ -1,7 +1,7 @@
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { Box, IconButton, InputAdornment, TextField, Typography, alpha } from '@mui/material';
-import { brandColors } from '@/app/theme';
+import { brandColors, clearButtonStyle } from '@/app/theme';
 
 interface SearchFieldProps {
   value: string;
@@ -52,21 +52,7 @@ export function SearchField({ value, onChange, placeholder = 'Rechercher...', on
         ),
         endAdornment: value ? (
           <InputAdornment position="end">
-            <IconButton
-              size="small"
-              onClick={() => onChange('')}
-              sx={{
-                width: 24,
-                height: 24,
-                color: brandColors.debit,
-                backgroundColor: alpha(brandColors.debit, 0.08),
-                border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-                '&:hover': {
-                  backgroundColor: alpha(brandColors.debit, 0.14),
-                  borderColor: alpha(brandColors.debit, 0.24),
-                },
-              }}
-            >
+            <IconButton size="small" onClick={() => onChange('')} sx={clearButtonStyle}>
               <CloseRoundedIcon sx={{ fontSize: 14 }} />
             </IconButton>
           </InputAdornment>

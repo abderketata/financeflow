@@ -37,7 +37,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Client, PaymentItem } from '@/types/domain';
 import { ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
-import { actionIconButton, brandColors, numericFont } from '@/app/theme';
+import { actionIconButton, brandColors, clearButtonAbsoluteStyle, clearButtonStyle, numericFont } from '@/app/theme';
 import {
   buildPaymentItemReference,
   getPaymentItemAccount,
@@ -411,21 +411,7 @@ export default function PaymentItemsPage() {
                         event.preventDefault();
                         event.stopPropagation();
                       }}
-                      sx={{
-                        position: 'absolute',
-                        right: 28,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 24,
-                        height: 24,
-                        color: brandColors.debit,
-                        backgroundColor: alpha(brandColors.debit, 0.08),
-                        border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-                        '&:hover': {
-                          backgroundColor: alpha(brandColors.debit, 0.14),
-                          borderColor: alpha(brandColors.debit, 0.24),
-                        },
-                      }}
+                      sx={clearButtonAbsoluteStyle}
                     >
                       <CloseRoundedIcon sx={{ fontSize: 14 }} />
                     </IconButton>
@@ -503,21 +489,7 @@ export default function PaymentItemsPage() {
                         event.preventDefault();
                         event.stopPropagation();
                       }}
-                      sx={{
-                        position: 'absolute',
-                        right: 28,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 24,
-                        height: 24,
-                        color: brandColors.debit,
-                        backgroundColor: alpha(brandColors.debit, 0.08),
-                        border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-                        '&:hover': {
-                          backgroundColor: alpha(brandColors.debit, 0.14),
-                          borderColor: alpha(brandColors.debit, 0.24),
-                        },
-                      }}
+                      sx={clearButtonAbsoluteStyle}
                     >
                       <CloseRoundedIcon sx={{ fontSize: 14 }} />
                     </IconButton>
@@ -559,21 +531,7 @@ export default function PaymentItemsPage() {
                         event.preventDefault();
                         event.stopPropagation();
                       }}
-                      sx={{
-                        position: 'absolute',
-                        right: 28,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: 24,
-                        height: 24,
-                        color: brandColors.debit,
-                        backgroundColor: alpha(brandColors.debit, 0.08),
-                        border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-                        '&:hover': {
-                          backgroundColor: alpha(brandColors.debit, 0.14),
-                          borderColor: alpha(brandColors.debit, 0.24),
-                        },
-                      }}
+                      sx={clearButtonAbsoluteStyle}
                     >
                       <CloseRoundedIcon sx={{ fontSize: 14 }} />
                     </IconButton>
@@ -620,18 +578,7 @@ export default function PaymentItemsPage() {
                       setDateTo('');
                       setDateError('');
                     }}
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: '8px',
-                      color: brandColors.debit,
-                      backgroundColor: alpha(brandColors.debit, 0.08),
-                      border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-                      '&:hover': {
-                        backgroundColor: alpha(brandColors.debit, 0.14),
-                        borderColor: alpha(brandColors.debit, 0.24),
-                      },
-                    }}
+                    sx={clearButtonStyle}
                   >
                     <CloseRoundedIcon sx={{ fontSize: 14 }} />
                   </IconButton>

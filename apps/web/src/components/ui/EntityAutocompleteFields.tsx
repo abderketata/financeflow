@@ -1,6 +1,5 @@
 import AccountBalanceRoundedIcon from '@mui/icons-material/AccountBalanceRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import {
@@ -88,17 +87,6 @@ const sharedOptionBoxSx = {
   transition: 'all 0.18s ease',
 } as const;
 
-const clearIndicatorSx = {
-  width: 24,
-  height: 24,
-  color: brandColors.debit,
-  backgroundColor: alpha(brandColors.debit, 0.08),
-  border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
-  '&:hover': {
-    backgroundColor: alpha(brandColors.debit, 0.14),
-    borderColor: alpha(brandColors.debit, 0.24),
-  },
-} as const;
 
 
 interface BankAutocompleteFieldProps {
@@ -132,8 +120,6 @@ export function BankAutocompleteField({
       isOptionEqualToValue={(option, selected) => option.id === selected.id}
       noOptionsText="Aucune banque trouvée"
       size={size}
-      clearIcon={<CloseRoundedIcon sx={{ fontSize: 14 }} />}
-      componentsProps={{ clearIndicator: { sx: clearIndicatorSx } }}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
@@ -238,8 +224,6 @@ export function ClientAutocompleteField({
       noOptionsText={noOptionsText}
       size={size}
       disableClearable={disableClearable}
-      clearIcon={disableClearable ? undefined : <CloseRoundedIcon sx={{ fontSize: 14 }} />}
-      componentsProps={disableClearable ? undefined : { clearIndicator: { sx: clearIndicatorSx } }}
       onInputChange={(_, nextValue, reason) => onInputChange(nextValue, reason)}
       onClose={onClose}
       renderOption={(props, option) => {
@@ -344,8 +328,6 @@ export function AccountAutocompleteField({
       disabled={disabled}
       noOptionsText={noOptionsText}
       size={size}
-      clearIcon={<CloseRoundedIcon sx={{ fontSize: 14 }} />}
-      componentsProps={{ clearIndicator: { sx: clearIndicatorSx } }}
       renderOption={(props, option) => (
         <li {...props} key={option.id}>
           <Stack direction="row" alignItems="center" spacing={1.2} sx={{ width: '100%' }}>
