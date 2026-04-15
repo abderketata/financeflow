@@ -124,7 +124,6 @@ export interface AppSetting {
   currency: string;
   alertDaysBefore: number;
   weekStartsOn: 0 | 1;
-  locale: string;
 }
 
 export interface ChartPoint {

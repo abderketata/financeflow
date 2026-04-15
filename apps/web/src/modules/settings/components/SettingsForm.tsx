@@ -1,7 +1,27 @@
-import { Button, Grid, MenuItem, TextField } from '@mui/material';
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import AttachMoneyRoundedIcon from '@mui/icons-material/AttachMoneyRounded';
+import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
+import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded';
+import { Box, Button, Grid, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SettingsFormValues, settingsSchema } from '@/modules/settings/schemas/settings.schema';
+import { brandColors } from '@/app/theme';
+
+const currencyOptions = [
+  { value: 'TND', label: 'Dinar Tunisien (TND)' },
+  { value: 'EUR', label: 'Euro (EUR)' },
+  { value: 'USD', label: 'Dollar US (USD)' },
+  { value: 'GBP', label: 'Livre Sterling (GBP)' },
+  { value: 'MAD', label: 'Dirham Marocain (MAD)' },
+  { value: 'DZD', label: 'Dinar Algérien (DZD)' },
+];
+
+const weekStartOptions = [
+  { value: 1, label: 'Lundi' },
+  { value: 0, label: 'Dimanche' },
+];
 
 interface SettingsFormProps {
   defaultValues?: Partial<SettingsFormValues>;
@@ -13,42 +33,192 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
   const { control, handleSubmit, formState: { errors } } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
+      companyName: '',
       currency: 'TND',
       alertDaysBefore: 3,
       weekStartsOn: 1,
-      locale: 'fr-FR',
-      ...defaultValues
-    }
+      ...defaultValues,
+    },
   });
 
   return (
     <form onSubmit={handleSubmit((values) => onSubmit(values))}>
-      <Grid container spacing={2} sx={{ mt: 0.5 }}>
-        <Grid item xs={12} md={6}>
-          <Controller name="currency" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Devise" error={!!errors.currency} helperText={errors.currency?.message} />
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="alertDaysBefore" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth type="number" label="Jours avant échéance" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} error={!!errors.alertDaysBefore} helperText={errors.alertDaysBefore?.message} />
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="weekStartsOn" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth select label="Début de semaine" value={field.value} onChange={(e) => field.onChange(Number(e.target.value) as 0 | 1)}>
-              <MenuItem value={1}>Lundi</MenuItem>
-              <MenuItem value={0}>Dimanche</MenuItem>
-            </TextField>
-          )} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Controller name="locale" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Locale" error={!!errors.locale} helperText={errors.locale?.message} />
-          )} />
-        </Grid>
+      <Grid container spacing={2.5}>
+        {/* Nom de la société */}
         <Grid item xs={12}>
-          <Button type="submit" variant="contained" disabled={loading}>Enregistrer</Button>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: alpha(brandColors.blue[500], 0.08),
+                color: brandColors.blue[600],
+              }}
+            >
+              <BusinessRoundedIcon sx={{ fontSize: 18 }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.9rem' }}>
+              Nom de la société
+            </Typography>
+          </Stack>
+          <Controller
+            name="companyName"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                size="small"
+                placeholder="Ex: CRM Finance Société"
+                error={!!errors.companyName}
+                helperText={errors.companyName?.message}
+              />
+            )}
+          />
+        </Grid>
+
+        {/* Devise par défaut */}
+        <Grid item xs={12} md={6}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: alpha(brandColors.credit, 0.08),
+                color: brandColors.credit,
+              }}
+            >
+              <AttachMoneyRoundedIcon sx={{ fontSize: 18 }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.9rem' }}>
+              Devise par défaut
+            </Typography>
+          </Stack>
+          <Controller
+            name="currency"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                select
+                size="small"
+                error={!!errors.currency}
+                helperText={errors.currency?.message}
+              >
+                {currencyOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+        </Grid>
+
+        {/* Jours avant échéance */}
+        <Grid item xs={12} md={6}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: alpha(brandColors.warning, 0.08),
+                color: brandColors.warning,
+              }}
+            >
+              <NotificationsActiveRoundedIcon sx={{ fontSize: 18 }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.9rem' }}>
+              Jours avant échéance (alertes)
+            </Typography>
+          </Stack>
+          <Controller
+            name="alertDaysBefore"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                type="number"
+                size="small"
+                placeholder="Ex: 3"
+                inputProps={{ min: 0, max: 30 }}
+                onChange={(e) => field.onChange(Number(e.target.value))}
+                error={!!errors.alertDaysBefore}
+                helperText={errors.alertDaysBefore?.message || 'Nombre de jours avant l\'échéance pour déclencher une alerte'}
+              />
+            )}
+          />
+        </Grid>
+
+        {/* Début de semaine */}
+        <Grid item xs={12} md={6}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: alpha(brandColors.alert, 0.08),
+                color: brandColors.alert,
+              }}
+            >
+              <CalendarTodayRoundedIcon sx={{ fontSize: 18 }} />
+            </Box>
+            <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.9rem' }}>
+              Début de semaine
+            </Typography>
+          </Stack>
+          <Controller
+            name="weekStartsOn"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                fullWidth
+                select
+                size="small"
+                onChange={(e) => field.onChange(Number(e.target.value) as 0 | 1)}
+              >
+                {weekStartOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
+          />
+        </Grid>
+
+        {/* Bouton Enregistrer */}
+        <Grid item xs={12}>
+          <Box sx={{ pt: 1.5 }}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              startIcon={<SaveRoundedIcon />}
+              sx={{ minWidth: 180 }}
+            >
+              {loading ? 'Enregistrement...' : 'Enregistrer les paramètres'}
+            </Button>
+          </Box>
         </Grid>
       </Grid>
     </form>
