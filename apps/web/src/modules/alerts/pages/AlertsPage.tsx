@@ -1,6 +1,6 @@
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import MarkEmailReadRoundedIcon from '@mui/icons-material/MarkEmailReadRounded';
-import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
 import {
@@ -20,7 +20,9 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { useAlerts, useDeleteAlert, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import { AlertPaymentDetailsDialog } from '@/modules/alerts/components/AlertPaymentDetailsDialog';
+import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import { Alert } from '@/types/domain';
 import { formatDate } from '@/utils/format';
 import { actionIconButton, brandColors, iconBox } from '@/app/theme';
 import { useState } from 'react';
@@ -30,8 +32,8 @@ type AlertFilter = 'all' | 'unread' | 'read';
 export default function AlertsPage() {
   const { data = [], isLoading, isError, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
-  const deleteMutation = useDeleteAlert();
   const [filter, setFilter] = useState<AlertFilter>('all');
+  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
 
   const filteredAlerts = data.filter((alert) => {
     if (filter === 'unread') return !alert.isRead;
@@ -155,14 +157,32 @@ export default function AlertsPage() {
                         </IconButton>
                       </Tooltip>
                     )}
-                    <Tooltip title="Supprimer">
-                      <IconButton
+                    <Tooltip title="Afficher les détails du paiement associé">
+                      <Button
                         size="small"
-                        onClick={() => deleteMutation.mutate(alert.id)}
-                        sx={actionIconButton(brandColors.debit)}
+                        variant="outlined"
+                        startIcon={<VisibilityRoundedIcon sx={{ fontSize: 16 }} />}
+                        onClick={() => setSelectedAlert(alert)}
+                        sx={{
+                          minWidth: 'auto',
+                          px: 1.25,
+                          py: 0.55,
+                          borderRadius: '10px',
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.76rem',
+                          whiteSpace: 'nowrap',
+                          color: brandColors.blue[600],
+                          borderColor: alpha(brandColors.blue[600], 0.2),
+                          backgroundColor: alpha(brandColors.blue[600], 0.03),
+                          '&:hover': {
+                            borderColor: alpha(brandColors.blue[600], 0.35),
+                            backgroundColor: alpha(brandColors.blue[600], 0.08),
+                          },
+                        }}
                       >
-                        <DeleteOutlineRoundedIcon fontSize="small" />
-                      </IconButton>
+                        Détails paiement
+                      </Button>
                     </Tooltip>
                   </Stack>
                 </Box>
@@ -177,6 +197,12 @@ export default function AlertsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertPaymentDetailsDialog
+        open={Boolean(selectedAlert)}
+        alert={selectedAlert}
+        onClose={() => setSelectedAlert(null)}
+      />
     </>
   );
 }

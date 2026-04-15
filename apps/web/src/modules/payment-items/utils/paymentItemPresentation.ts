@@ -65,11 +65,41 @@ export const getPaymentItemClientSecondary = (client?: Client | null) => {
   return client?.code || '';
 };
 
-export const getPaymentItemAccount = (item?: Partial<PaymentItem> | null): BankAccount | null =>
-  item?.account || item?.bankAccount || null;
+export const getPaymentItemAccount = (item?: Partial<PaymentItem> | null): BankAccount | null => {
+  const rawItem = item as any;
+  return rawItem?.data?.attributes?.account
+    || rawItem?.data?.account
+    || rawItem?.attributes?.account
+    || rawItem?.account
+    || rawItem?.data?.attributes?.bankAccount
+    || rawItem?.data?.bankAccount
+    || rawItem?.attributes?.bankAccount
+    || rawItem?.bankAccount
+    || null;
+};
 
-export const getPaymentItemAccountPrimary = (account?: BankAccount | null) =>
-  account?.label?.trim() || account?.rib?.trim() || account?.accountNumber?.trim() || '—';
+export const getPaymentItemNotes = (item?: Partial<PaymentItem> | null) => {
+  const rawItem = item as any;
+  return rawItem?.data?.attributes?.notes?.trim()
+    || rawItem?.attributes?.notes?.trim()
+    || rawItem?.notes?.trim()
+    || rawItem?.data?.notes?.trim()
+    || '';
+};
+
+export const getPaymentItemAccountPrimary = (account?: BankAccount | null) => {
+  const rawAccount = account as any;
+  return rawAccount?.label?.trim()
+    || rawAccount?.attributes?.label?.trim()
+    || rawAccount?.data?.attributes?.label?.trim()
+    || rawAccount?.rib?.trim()
+    || rawAccount?.attributes?.rib?.trim()
+    || rawAccount?.data?.attributes?.rib?.trim()
+    || rawAccount?.accountNumber?.trim()
+    || rawAccount?.attributes?.accountNumber?.trim()
+    || rawAccount?.data?.attributes?.accountNumber?.trim()
+    || '—';
+};
 
 export const getPaymentItemAccountSecondary = (account?: BankAccount | null) => {
   if (!account) {

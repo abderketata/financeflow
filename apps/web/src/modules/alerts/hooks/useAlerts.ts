@@ -10,6 +10,14 @@ export const useAlerts = () =>
     queryFn: () => alertService.list({ populate: '*' })
   });
 
+export const useAlertPaymentItems = (alertId?: number, enabled = true) =>
+  useQuery({
+    queryKey: [...queryKey, 'payment-items', alertId],
+    enabled: enabled && Boolean(alertId),
+    staleTime: 30_000,
+    queryFn: () => alertService.getPaymentItems(alertId!)
+  });
+
 export const useUpdateAlert = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -114,6 +114,7 @@ export interface Alert {
   isRead: boolean;
   triggerDate?: string;
   paymentItem?: PaymentItem | null;
+  paymentItems?: RelationCollection<PaymentItem>;
   createdAt?: string;
   updatedAt?: string;
 }

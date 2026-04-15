@@ -3,6 +3,32 @@ import { PaymentItem } from '@/types/domain';
 
 const rawService = createCrudService<PaymentItem>('/payment-items');
 
+const isObject = (value: unknown): value is Record<string, any> =>
+  typeof value === 'object' && value !== null;
+
+const normalizeStrapiValue = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeStrapiValue);
+  }
+
+  if (!isObject(value)) {
+    return value;
+  }
+
+  if ('data' in value) {
+    return normalizeStrapiValue(value.data);
+  }
+
+  if ('attributes' in value && isObject(value.attributes)) {
+    return {
+      id: value.id,
+      ...Object.fromEntries(Object.entries(value.attributes).map(([key, entry]) => [key, normalizeStrapiValue(entry)])),
+    };
+  }
+
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeStrapiValue(entry)]));
+};
+
 // ── Payment method value mappings ────────────────────────────────────
 // Backend stores French labels; frontend uses uppercase keys.
 const PM_TO_BACKEND: Record<string, string> = {
@@ -20,9 +46,10 @@ const PM_FROM_BACKEND: Record<string, string> = {
  * Normalize a Strapi payment-item record into the frontend domain shape.
  * Strapi uses `echeance` (due date) and `methodPayment` (French label) for payment method.
  */
-function normalizeFromBackend(item: any): PaymentItem {
+export function normalizePaymentItemFromBackend(item: any): PaymentItem {
   if (!item) return item;
-  const { echeance, methodPayment, paymentMethod, ...rest } = item;
+  const normalizedItem = normalizeStrapiValue(item);
+  const { echeance, methodPayment, paymentMethod, ...rest } = normalizedItem;
   const rawPm = paymentMethod || methodPayment;
   return {
     ...rest,
@@ -49,19 +76,19 @@ function normalizeToBackend(payload: any): any {
 export const paymentItemService = {
   async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
     const items = await rawService.list(params, options);
-    return items.map(normalizeFromBackend);
+    return items.map(normalizePaymentItemFromBackend);
   },
   async get(id: number, params?: Record<string, unknown>) {
     const item = await rawService.get(id, params);
-    return item ? normalizeFromBackend(item) : null;
+    return item ? normalizePaymentItemFromBackend(item) : null;
   },
   async create(payload: Partial<PaymentItem>) {
     const item = await rawService.create(normalizeToBackend(payload));
-    return item ? normalizeFromBackend(item) : null;
+    return item ? normalizePaymentItemFromBackend(item) : null;
   },
   async update(id: number, payload: Partial<PaymentItem>) {
     const item = await rawService.update(id, normalizeToBackend(payload));
-    return item ? normalizeFromBackend(item) : null;
+    return item ? normalizePaymentItemFromBackend(item) : null;
   },
   async remove(id: number) {
     return rawService.remove(id);
