@@ -121,7 +121,7 @@ export interface Alert {
 export interface AppSetting {
   id: Identifier;
   companyName?: string;
-  currency: string;
+  defaultCurrency: string;
   defaultAlertDays: number;
   weekStartsOn: 'MONDAY' | 'SUNDAY';
 }

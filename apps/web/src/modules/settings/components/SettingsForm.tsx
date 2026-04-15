@@ -34,7 +34,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       companyName: '',
-      currency: 'TND',
+      defaultCurrency: 'TND',
       defaultAlertDays: 3,
       weekStartsOn: 'MONDAY',
       ...defaultValues,
@@ -103,7 +103,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
             </Typography>
           </Stack>
           <Controller
-            name="currency"
+            name="defaultCurrency"
             control={control}
             render={({ field }) => (
               <TextField
@@ -111,8 +111,8 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
                 fullWidth
                 select
                 size="small"
-                error={!!errors.currency}
-                helperText={errors.currency?.message}
+                error={!!errors.defaultCurrency}
+                helperText={errors.defaultCurrency?.message}
               >
                 {currencyOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
