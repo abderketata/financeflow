@@ -526,24 +526,60 @@ export default function PaymentItemsPage() {
               </Box>
             </Grid>
             <Grid item xs={12} md={4}>
-              <ClientAutocompleteField
-                value={selectedClient}
-                inputValue={clientSearchInput}
-                options={clientFilterOptions}
-                loading={isClientLookupLoading}
-                label="Client"
-                placeholder="Rechercher par nom, société ou code…"
-                onInputChange={(value, reason) => {
-                  if (reason === 'input') { setClientSearchInput(value); return; }
-                  if (reason === 'clear') { setClientSearchInput(''); return; }
-                  setClientSearchInput(value);
-                }}
-                onChange={(value) => {
-                  setSelectedClient(value);
-                  setClientSearchInput(value ? getClientLabel(value) : '');
-                }}
-                noOptionsText="Aucun client trouvé"
-              />
+              <Box sx={{ position: 'relative' }}>
+                <ClientAutocompleteField
+                  value={selectedClient}
+                  inputValue={clientSearchInput}
+                  options={clientFilterOptions}
+                  loading={isClientLookupLoading}
+                  label="Client"
+                  placeholder="Rechercher par nom, société ou code…"
+                  disableClearable
+                  onInputChange={(value, reason) => {
+                    if (reason === 'input') { setClientSearchInput(value); return; }
+                    if (reason === 'clear') { setClientSearchInput(''); return; }
+                    setClientSearchInput(value);
+                  }}
+                  onChange={(value) => {
+                    setSelectedClient(value);
+                    setClientSearchInput(value ? getClientLabel(value) : '');
+                  }}
+                  noOptionsText="Aucun client trouvé"
+                />
+
+                {selectedClient && (
+                  <Tooltip title="Vider le client" arrow>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setSelectedClient(null);
+                        setClientSearchInput('');
+                      }}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        right: 28,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 24,
+                        height: 24,
+                        color: brandColors.debit,
+                        backgroundColor: alpha(brandColors.debit, 0.08),
+                        border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
+                        '&:hover': {
+                          backgroundColor: alpha(brandColors.debit, 0.14),
+                          borderColor: alpha(brandColors.debit, 0.24),
+                        },
+                      }}
+                    >
+                      <CloseRoundedIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
             </Grid>
             <Grid item xs={12} md={3}>
               <TextField

@@ -91,7 +91,6 @@ const sharedOptionBoxSx = {
 const clearIndicatorSx = {
   width: 24,
   height: 24,
-  borderRadius: '6px',
   color: brandColors.debit,
   backgroundColor: alpha(brandColors.debit, 0.08),
   border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
@@ -193,6 +192,7 @@ interface ClientAutocompleteFieldProps {
   size?: 'small' | 'medium';
   allowAddNew?: boolean;
   onAddNew?: () => void;
+  disableClearable?: boolean;
 }
 
 export function ClientAutocompleteField({
@@ -211,6 +211,7 @@ export function ClientAutocompleteField({
   size = 'small',
   allowAddNew,
   onAddNew,
+  disableClearable,
 }: ClientAutocompleteFieldProps) {
   const resolvedOptions = allowAddNew ? [...options, ADD_CLIENT_SENTINEL] : options;
 
@@ -236,8 +237,9 @@ export function ClientAutocompleteField({
       loading={loading}
       noOptionsText={noOptionsText}
       size={size}
-      clearIcon={<CloseRoundedIcon sx={{ fontSize: 14 }} />}
-      componentsProps={{ clearIndicator: { sx: clearIndicatorSx } }}
+      disableClearable={disableClearable}
+      clearIcon={disableClearable ? undefined : <CloseRoundedIcon sx={{ fontSize: 14 }} />}
+      componentsProps={disableClearable ? undefined : { clearIndicator: { sx: clearIndicatorSx } }}
       onInputChange={(_, nextValue, reason) => onInputChange(nextValue, reason)}
       onClose={onClose}
       renderOption={(props, option) => {
