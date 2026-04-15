@@ -122,8 +122,8 @@ export interface AppSetting {
   id: Identifier;
   companyName?: string;
   currency: string;
-  alertDaysBefore: number;
-  weekStartsOn: 0 | 1;
+  defaultAlertDays: number;
+  weekStartsOn: 'MONDAY' | 'SUNDAY';
 }
 
 export interface ChartPoint {

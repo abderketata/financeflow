@@ -614,7 +614,7 @@ export default function PaymentItemsPage() {
             account: getPaymentItemAccount(editing)?.id,
           } as any : undefined}
           defaultCurrency={defaultCurrency}
-          defaultAlertDays={settings?.alertDaysBefore}
+          defaultAlertDays={settings?.defaultAlertDays}
           initialClient={editing?.client ?? null}
           initialAccount={editing ? getPaymentItemAccount(editing) : null}
           companyName={settings?.companyName || ''}

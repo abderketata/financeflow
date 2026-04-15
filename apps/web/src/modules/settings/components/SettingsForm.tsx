@@ -19,8 +19,8 @@ const currencyOptions = [
 ];
 
 const weekStartOptions = [
-  { value: 1, label: 'Lundi' },
-  { value: 0, label: 'Dimanche' },
+  { value: 'MONDAY', label: 'Lundi' },
+  { value: 'SUNDAY', label: 'Dimanche' },
 ];
 
 interface SettingsFormProps {
@@ -35,8 +35,8 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
     defaultValues: {
       companyName: '',
       currency: 'TND',
-      alertDaysBefore: 3,
-      weekStartsOn: 1,
+      defaultAlertDays: 3,
+      weekStartsOn: 'MONDAY',
       ...defaultValues,
     },
   });
@@ -146,7 +146,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
             </Typography>
           </Stack>
           <Controller
-            name="alertDaysBefore"
+            name="defaultAlertDays"
             control={control}
             render={({ field }) => (
               <TextField
@@ -157,8 +157,8 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
                 placeholder="Ex: 3"
                 inputProps={{ min: 0, max: 30 }}
                 onChange={(e) => field.onChange(Number(e.target.value))}
-                error={!!errors.alertDaysBefore}
-                helperText={errors.alertDaysBefore?.message}
+                error={!!errors.defaultAlertDays}
+                helperText={errors.defaultAlertDays?.message}
               />
             )}
           />
@@ -194,7 +194,6 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
                 fullWidth
                 select
                 size="small"
-                onChange={(e) => field.onChange(Number(e.target.value) as 0 | 1)}
               >
                 {weekStartOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
