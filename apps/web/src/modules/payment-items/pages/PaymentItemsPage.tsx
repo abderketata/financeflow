@@ -585,14 +585,19 @@ export default function PaymentItemsPage() {
                       setDateError('');
                     }}
                     sx={{
-                      border: `1px solid`,
-                      borderColor: 'divider',
+                      width: 24,
+                      height: 24,
                       borderRadius: '8px',
-                      color: 'text.secondary',
-                      '&:hover': { borderColor: 'error.main', color: 'error.main', backgroundColor: 'error.50' },
+                      color: brandColors.debit,
+                      backgroundColor: alpha(brandColors.debit, 0.08),
+                      border: `1px solid ${alpha(brandColors.debit, 0.14)}`,
+                      '&:hover': {
+                        backgroundColor: alpha(brandColors.debit, 0.14),
+                        borderColor: alpha(brandColors.debit, 0.24),
+                      },
                     }}
                   >
-                    <CloseRoundedIcon sx={{ fontSize: 16 }} />
+                    <CloseRoundedIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Tooltip>
               </Grid>
