@@ -82,7 +82,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
         </Grid>
 
         {/* Devise par défaut */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
             <Box
               sx={{
@@ -125,7 +125,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
         </Grid>
 
         {/* Jours avant échéance */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
             <Box
               sx={{
@@ -142,7 +142,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
               <NotificationsActiveRoundedIcon sx={{ fontSize: 18 }} />
             </Box>
             <Typography sx={{ fontWeight: 600, color: 'text.primary', fontSize: '0.9rem' }}>
-              Jours avant échéance (alertes)
+              Jours avant échéance
             </Typography>
           </Stack>
           <Controller
@@ -158,14 +158,14 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
                 inputProps={{ min: 0, max: 30 }}
                 onChange={(e) => field.onChange(Number(e.target.value))}
                 error={!!errors.alertDaysBefore}
-                helperText={errors.alertDaysBefore?.message || 'Nombre de jours avant l\'échéance pour déclencher une alerte'}
+                helperText={errors.alertDaysBefore?.message}
               />
             )}
           />
         </Grid>
 
         {/* Début de semaine */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1 }}>
             <Box
               sx={{
@@ -208,7 +208,7 @@ export function SettingsForm({ defaultValues, loading, onSubmit }: SettingsFormP
 
         {/* Bouton Enregistrer */}
         <Grid item xs={12}>
-          <Box sx={{ pt: 1.5 }}>
+          <Box sx={{ pt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               type="submit"
               variant="contained"
