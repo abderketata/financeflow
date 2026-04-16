@@ -8,13 +8,19 @@ interface AppTextFieldProps {
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'numeric' | 'email-address';
   error?: string;
+  multiline?: boolean;
 }
 
-export function AppTextField({ label, error, ...props }: AppTextFieldProps) {
+export function AppTextField({ label, error, multiline, ...props }: AppTextFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput {...props} style={[styles.input, error ? styles.inputError : null]} />
+      <TextInput
+        {...props}
+        multiline={multiline}
+        style={[styles.input, multiline && styles.inputMultiline, error ? styles.inputError : null]}
+        textAlignVertical={multiline ? 'top' : 'auto'}
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -38,6 +44,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12
   },
+  inputMultiline: {
+    minHeight: 72
+  },
   inputError: {
     borderColor: '#dc2626'
   },
@@ -47,4 +56,3 @@ const styles = StyleSheet.create({
     fontSize: 12
   }
 });
-

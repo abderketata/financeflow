@@ -5,14 +5,29 @@ export type PaymentDirection = 'IN' | 'OUT';
 export type PaymentItemStatus = 'Reçu' | 'Déposé' | 'Payé' | 'Rejeté' | 'Annulé' | 'En retard';
 export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 
+export type ClientType = 'INDIVIDUAL' | 'COMPANY';
+export type RelationCollection<T> = T[] | { data?: T[] | null } | null;
+
 export interface Client {
   id: Identifier;
-  name: string;
+  /** Nom de compatibilité – calculé côté présentation */
+  name?: string;
   code?: string;
+  type?: ClientType | string;
+  fullName?: string | null;
+  companyName?: string | null;
   phone?: string;
   email?: string;
   address?: string;
+  identityNumber?: string | null;
+  taxNumber?: string | null;
   notes?: string;
+  isActive?: boolean;
+  accounts?: RelationCollection<BankAccount>;
+  paymentItems?: RelationCollection<PaymentItem>;
+  transactions?: RelationCollection<Transaction>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Bank {
@@ -78,9 +93,15 @@ export interface AlertItem {
 export interface AppSetting {
   id: Identifier;
   currency: string;
+  /** Alias web : defaultCurrency → currency */
+  defaultCurrency?: string;
   alertDaysBefore: number;
+  /** Alias web : defaultAlertDays → alertDaysBefore */
+  defaultAlertDays?: number;
   weekStartsOn: 0 | 1;
   locale: string;
+  /** Nom de la société (présent dans le Web) */
+  companyName?: string;
 }
 
 export interface DashboardSummary {

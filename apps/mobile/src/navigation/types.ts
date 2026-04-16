@@ -9,5 +9,6 @@ export type MobileStackParamList = {
   TransactionList: undefined;
   TransactionForm: { transaction?: Transaction } | undefined;
   AlertList: undefined;
+  Settings: undefined;
 };
 

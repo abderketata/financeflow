@@ -9,6 +9,7 @@ import { PaymentItemFormScreen } from '@/modules/payment-items/screens/PaymentIt
 import { TransactionListScreen } from '@/modules/transactions/screens/TransactionListScreen';
 import { TransactionFormScreen } from '@/modules/transactions/screens/TransactionFormScreen';
 import { AlertListScreen } from '@/modules/alerts/screens/AlertListScreen';
+import { SettingsScreen } from '@/modules/settings/screens/SettingsScreen';
 import { MobileStackParamList } from '@/navigation/types';
 
 const Tab = createBottomTabNavigator();
@@ -22,6 +23,7 @@ function MainTabs() {
       <Tab.Screen name="PaymentItemList" component={PaymentItemListScreen as React.ComponentType<any>} options={{ title: 'Paiements' }} />
       <Tab.Screen name="TransactionList" component={TransactionListScreen as React.ComponentType<any>} options={{ title: 'Opérations' }} />
       <Tab.Screen name="AlertList" component={AlertListScreen as React.ComponentType<any>} options={{ title: 'Alertes' }} />
+      <Tab.Screen name="Settings" component={SettingsScreen as React.ComponentType<any>} options={{ title: 'Paramètres' }} />
     </Tab.Navigator>
   );
 }
@@ -37,7 +39,7 @@ export function AppNavigator() {
       <Stack.Screen name="TransactionList" component={TransactionListScreen} options={{ title: 'Opérations' }} />
       <Stack.Screen name="TransactionForm" component={TransactionFormScreen} options={{ title: 'Opération' }} />
       <Stack.Screen name="AlertList" component={AlertListScreen} options={{ title: 'Alertes' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Paramètres' }} />
     </Stack.Navigator>
   );
 }
-

@@ -1,13 +1,25 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
-export function FilterChips({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
+// FilterChips — support labelMap optionnel pour affichage traduit des valeurs
+export function FilterChips({
+  options,
+  value,
+  onChange,
+  labelMap,
+}: {
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  labelMap?: Record<string, string>;
+}) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
       {options.map((option) => {
         const selected = option === value;
+        const label = labelMap?.[option] ?? (option || 'Tous');
         return (
           <Pressable key={option} style={[styles.chip, selected ? styles.selected : null]} onPress={() => onChange(selected ? '' : option)}>
-            <Text style={[styles.label, selected ? styles.selectedLabel : null]}>{option || 'Tous'}</Text>
+            <Text style={[styles.label, selected ? styles.selectedLabel : null]}>{label}</Text>
           </Pressable>
         );
       })}
@@ -38,4 +50,3 @@ const styles = StyleSheet.create({
     color: '#fff'
   }
 });
-
