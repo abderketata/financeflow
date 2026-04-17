@@ -149,6 +149,12 @@ function getTodayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+// ── Reference payment mask helpers (max 8 digits, format: XXXX XXXX) ──
+function formatRefDisplay(clean: string): string {
+  const digits = clean.replace(/\D/g, '').slice(0, 8);
+  return digits.length > 4 ? `${digits.slice(0, 4)} ${digits.slice(4)}` : digits;
+}
+
 // ── Amount formatting helpers ──────────────────────────────────────────
 /** Inserts a space every 3 digits in the integer part, keeps decimals intact. */
 function formatAmountDisplay(value: string): string {
@@ -218,6 +224,12 @@ export function PaymentItemForm({
     const v = defaultValues?.amount;
     return v != null && v !== 0 ? formatAmountDisplay(String(v)) : '';
   });
+
+  // ── Reference payment display mask ────────────────────
+  const refPayInputRef = useRef<HTMLInputElement>(null);
+  const [refPayDisplay, setRefPayDisplay] = useState(() =>
+    formatRefDisplay(defaultValues?.referencePayment ?? '')
+  );
 
   // Clear paymentMethod when type is not AUTRE
   useEffect(() => {
@@ -483,18 +495,51 @@ export function PaymentItemForm({
               <Grid item xs={12} md={6}>
                 <Controller name="referencePayment" control={control} render={({ field }) => (
                   <TextField
-                    {...field}
-                    value={field.value ?? ''}
+                    value={refPayDisplay}
+                    inputRef={refPayInputRef}
                     fullWidth
                     required
                     label="Référence de paiement"
                     size="small"
-                    placeholder="N° de chèque / traite..."
+                    placeholder="9999 9999"
                     error={!!errors.referencePayment}
-                    helperText={errors.referencePayment?.message}
+                    helperText={errors.referencePayment?.message ?? '8 chiffres max'}
+                    inputProps={{ inputMode: 'numeric', maxLength: 9 }}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><TagRoundedIcon sx={inputIconSx} /></InputAdornment>,
                     }}
+                    onChange={(e) => {
+                      const input = e.target as HTMLInputElement;
+                      const cursorPos = input.selectionStart ?? 0;
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      const formatted = formatRefDisplay(digits);
+
+                      // Adjust cursor: count non-space chars before old cursor
+                      const rawBefore = e.target.value.slice(0, cursorPos);
+                      const digitsBefore = rawBefore.replace(/\D/g, '').length;
+                      let newCursor = 0;
+                      let counted = 0;
+                      for (let i = 0; i < formatted.length; i++) {
+                        if (counted === digitsBefore) break;
+                        if (formatted[i] !== ' ') counted++;
+                        newCursor = i + 1;
+                      }
+
+                      setRefPayDisplay(formatted);
+                      field.onChange(digits); // store clean value
+                      requestAnimationFrame(() => {
+                        refPayInputRef.current?.setSelectionRange(newCursor, newCursor);
+                      });
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      const pasted = e.clipboardData.getData('text');
+                      const digits = pasted.replace(/\D/g, '').slice(0, 8);
+                      const formatted = formatRefDisplay(digits);
+                      setRefPayDisplay(formatted);
+                      field.onChange(digits);
+                    }}
+                    onBlur={field.onBlur}
                   />
                 )} />
               </Grid>

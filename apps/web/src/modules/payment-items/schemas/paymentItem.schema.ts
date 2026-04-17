@@ -14,7 +14,11 @@ export const paymentItemSchema = z.object({
   alertDaysBefore: z.coerce.number().min(0, 'Valeur invalide').optional(),
   paymentMethod: z.enum(['ESPECES', 'VIREMENT', 'CARTE']).optional().nullable(),
   notes: z.string().optional(),
-  referencePayment: z.string().optional(),
+  referencePayment: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v.replace(/\s/g, '') : v))
+    .refine((v) => !v || /^\d{0,8}$/.test(v), { message: '8 chiffres maximum (chiffres uniquement)' }),
   client: z.coerce.number({ required_error: 'Le client est requis', invalid_type_error: 'Le client est requis' }).min(1, 'Le client est requis'),
   account: z.coerce.number().min(1).optional().nullable(),
 }).superRefine((data, ctx) => {

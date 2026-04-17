@@ -13,6 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useState } from 'react';
 import { AppTextField } from '@/components/ui/AppTextField';
 import { Screen } from '@/components/ui/Screen';
 import { useCreatePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
@@ -54,6 +55,12 @@ const sel = StyleSheet.create({
 
 function getTodayISO() { return new Date().toISOString().slice(0, 10); }
 
+/** Format: XXXX XXXX — digits only, max 8 */
+function formatRefDisplay(clean: string): string {
+  const digits = clean.replace(/\D/g, '').slice(0, 8);
+  return digits.length > 4 ? `${digits.slice(0, 4)} ${digits.slice(4)}` : digits;
+}
+
 export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenProps<MobileStackParamList, 'PaymentItemForm'>) {
   const current = route.params?.paymentItem;
   const isEdit = Boolean(current);
@@ -88,6 +95,11 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
 
   const watchedType = watch('type');
   const showReferencePayment = watchedType === 'CHEQUE' || watchedType === 'TRAITE';
+
+  // Masked display for referencePayment
+  const [refPayDisplay, setRefPayDisplay] = useState(() =>
+    formatRefDisplay(current?.referencePayment ?? '')
+  );
 
   const onSubmit = async (values: PaymentItemFormValues) => {
     try {
@@ -131,9 +143,15 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
             <Controller name="referencePayment" control={control} render={({ field }) => (
               <AppTextField
                 label={`Référence de paiement${showReferencePayment ? ' *' : ''}`}
-                value={field.value ?? ''}
-                onChangeText={field.onChange}
-                placeholder="N° de chèque / traite..."
+                value={refPayDisplay}
+                onChangeText={(text) => {
+                  const digits = text.replace(/\D/g, '').slice(0, 8);
+                  setRefPayDisplay(formatRefDisplay(digits));
+                  field.onChange(digits); // valeur propre sans espace
+                }}
+                placeholder="9999 9999"
+                keyboardType="numeric"
+                maxLength={9}
                 error={errors.referencePayment?.message}
               />
             )} />
