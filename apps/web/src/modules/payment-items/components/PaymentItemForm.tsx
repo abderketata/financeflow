@@ -3,6 +3,7 @@ import { Box, Button, Divider, Grid, InputAdornment, MenuItem, Stack, TextField,
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
+import TagRoundedIcon from '@mui/icons-material/TagRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
@@ -195,6 +196,7 @@ export function PaymentItemForm({
         : defaultAlertDays,
       notes: '',
       paymentMethod: 'ESPECES',
+      referencePayment: '',
       client: undefined,
       account: undefined,
       ...defaultValues,
@@ -203,6 +205,7 @@ export function PaymentItemForm({
 
   const watchedDirection = watch('direction');
   const watchedType = watch('type');
+  const showReferencePayment = watchedType === 'CHEQUE' || watchedType === 'TRAITE';
   const watchedClientId = watch('client');
   const watchedAlertEnabled = watch('alertEnabled');
   const watchedDueDate = watch('dueDate');
@@ -475,9 +478,30 @@ export function PaymentItemForm({
               )} />
             </Grid>
 
+            {/* ── RÉFÉRENCE PAIEMENT — obligatoire si Chèque ou Traite ── */}
+            {showReferencePayment && (
+              <Grid item xs={12} md={6}>
+                <Controller name="referencePayment" control={control} render={({ field }) => (
+                  <TextField
+                    {...field}
+                    value={field.value ?? ''}
+                    fullWidth
+                    required
+                    label="Référence de paiement"
+                    size="small"
+                    placeholder="N° de chèque / traite..."
+                    error={!!errors.referencePayment}
+                    helperText={errors.referencePayment?.message}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start"><TagRoundedIcon sx={inputIconSx} /></InputAdornment>,
+                    }}
+                  />
+                )} />
+              </Grid>
+            )}
+
             {/* ── MÉTHODE DE PAIEMENT — visible seulement si Type = Autre */}
-            {showPaymentMethod && (
-              <Grid item xs={12} md={4}>
+            {showPaymentMethod && (              <Grid item xs={12} md={4}>
                 <Controller name="paymentMethod" control={control} render={({ field }) => (
                   <TextField
                     {...field}

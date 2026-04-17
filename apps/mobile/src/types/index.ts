@@ -51,6 +51,7 @@ export interface PaymentItem {
   id: Identifier;
   referenceNumber: string;
   reference?: string;
+  referencePayment?: string;
   type: PaymentItemType;
   direction: PaymentDirection;
   amount: number;

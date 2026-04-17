@@ -64,7 +64,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
   const updateMutation = useUpdatePaymentItem();
   const isBusy = createMutation.isPending || updateMutation.isPending;
 
-  const { control, handleSubmit, formState: { errors } } = useForm<PaymentItemFormValues>({
+  const { control, handleSubmit, watch, formState: { errors } } = useForm<PaymentItemFormValues>({
     resolver: zodResolver(paymentItemSchema),
     defaultValues: {
       type: current?.type ?? 'CHEQUE',
@@ -79,11 +79,15 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
       alertEnabled: current?.alertEnabled ?? true,
       alertDaysBefore: current?.alertDaysBefore ?? defaultAlertDays,
       notes: current?.notes ?? '',
+      referencePayment: current?.referencePayment ?? '',
       client: current?.client?.id ?? (undefined as any),
       account: getPaymentItemAccount(current)?.id ?? (undefined as any),
     },
   });
 
+
+  const watchedType = watch('type');
+  const showReferencePayment = watchedType === 'CHEQUE' || watchedType === 'TRAITE';
 
   const onSubmit = async (values: PaymentItemFormValues) => {
     try {
@@ -122,9 +126,21 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
             />
           )} />
 
+          {/* Référence paiement — obligatoire si Chèque ou Traite */}
+          {showReferencePayment && (
+            <Controller name="referencePayment" control={control} render={({ field }) => (
+              <AppTextField
+                label={`Référence de paiement${showReferencePayment ? ' *' : ''}`}
+                value={field.value ?? ''}
+                onChangeText={field.onChange}
+                placeholder="N° de chèque / traite..."
+                error={errors.referencePayment?.message}
+              />
+            )} />
+          )}
+
           {/* Direction */}
-          <Text style={styles.fieldLabel}>Sens</Text>
-          <Controller name="direction" control={control} render={({ field }) => (
+          <Text style={styles.fieldLabel}>Sens</Text>          <Controller name="direction" control={control} render={({ field }) => (
             <ButtonSelector
               value={field.value}
               options={['IN', 'OUT']}

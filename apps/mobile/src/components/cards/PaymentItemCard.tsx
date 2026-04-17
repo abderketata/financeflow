@@ -10,10 +10,8 @@ import {
 import { formatCurrency, formatDate } from '@/utils/format';
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  'Reçu':      { bg: '#eff6ff', color: '#2563eb' },
   'Déposé':    { bg: '#fffbeb', color: '#d97706' },
   'Payé':      { bg: '#ecfdf5', color: '#059669' },
-  'Rejeté':    { bg: '#fef2f2', color: '#dc2626' },
   'Annulé':    { bg: '#f1f5f9', color: '#64748b' },
   'En retard': { bg: '#fef2f2', color: '#dc2626' },
 };
@@ -52,6 +50,10 @@ export function PaymentItemCard({ item }: { item: PaymentItem }) {
           {account ? <Text style={styles.meta} numberOfLines={1}>🏦 {account.label}</Text> : null}
         </View>
       )}
+      {/* Référence paiement */}
+      {item.referencePayment ? (
+        <Text style={styles.refPayment} numberOfLines={1}>🔖 {item.referencePayment}</Text>
+      ) : null}
       {/* Statut */}
       <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
         <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
@@ -79,6 +81,7 @@ const styles = StyleSheet.create({
   ref: { fontSize: 14, fontWeight: '800', color: '#0f172a', flex: 1 },
   amount: { fontSize: 15, fontWeight: '800', flexShrink: 0 },
   meta: { fontSize: 12, color: '#64748b', flex: 1 },
+  refPayment: { fontSize: 12, color: '#0f766e', fontWeight: '600' },
   statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, marginTop: 4 },
   statusText: { fontSize: 11, fontWeight: '700' },
 });

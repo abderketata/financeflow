@@ -131,10 +131,11 @@ export default function PaymentItemsPage() {
     if (debouncedSearch.trim()) {
       filters.push({
         $or: [
-          { referenceNumber: { $containsi: debouncedSearch.trim() } },
-          { drawer: { $containsi: debouncedSearch.trim() } },
-          { drawee: { $containsi: debouncedSearch.trim() } },
-        ],
+            { referenceNumber: { $containsi: debouncedSearch.trim() } },
+            { referencePayment: { $containsi: debouncedSearch.trim() } },
+            { drawer: { $containsi: debouncedSearch.trim() } },
+            { drawee: { $containsi: debouncedSearch.trim() } },
+          ],
       });
     }
 
@@ -272,6 +273,17 @@ export default function PaymentItemsPage() {
       ),
     },
     {
+      field: 'referencePayment',
+      headerName: 'Réf. paiement',
+      flex: 1,
+      valueGetter: ({ row }) => (row as any).referencePayment || '—',
+      renderCell: ({ row }) => (
+        <Typography sx={{ fontSize: '0.82rem', color: (row as any).referencePayment ? 'text.primary' : 'text.disabled', fontWeight: (row as any).referencePayment ? 600 : 400 }}>
+          {(row as any).referencePayment || '—'}
+        </Typography>
+      ),
+    },
+    {
       field: 'effectiveDate',
       headerName: 'Échéance / émission',
       flex: 1,
@@ -354,7 +366,7 @@ export default function PaymentItemsPage() {
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche : référence, tireur, tiré…" /></Grid>
+            <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche : référence, réf. paiement, tireur, tiré…" /></Grid>
             <Grid item xs={12} md={2}>
               <Box sx={{ position: 'relative' }}>
                 <TextField
@@ -612,6 +624,7 @@ export default function PaymentItemsPage() {
             status: getPaymentItemStatusLabel(editing.status) as any,
             client: editing.client?.id,
             account: getPaymentItemAccount(editing)?.id,
+            referencePayment: editing.referencePayment ?? '',
           } as any : undefined}
           defaultCurrency={defaultCurrency}
           defaultAlertDays={settings?.defaultAlertDays}

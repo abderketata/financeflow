@@ -22,7 +22,7 @@ import { MobileStackParamList } from '@/navigation/types';
 
 const TYPE_OPTIONS = ['', 'CHEQUE', 'TRAITE', 'AUTRE'];
 const TYPE_LABELS: Record<string, string> = { '': 'Tous', CHEQUE: 'Chèque', TRAITE: 'Traite', AUTRE: 'Autre' };
-const STATUS_OPTIONS = ['', 'Reçu', 'Déposé', 'Payé', 'Rejeté', 'Annulé', 'En retard'];
+const STATUS_OPTIONS = ['', 'Déposé', 'Payé', 'Annulé', 'En retard'];
 const DIR_OPTIONS = ['', 'IN', 'OUT'];
 const DIR_LABELS: Record<string, string> = { '': 'Tous sens', IN: '↑ Entrant', OUT: '↓ Sortant' };
 
@@ -40,12 +40,13 @@ export function PaymentItemListScreen({ navigation }: NativeStackScreenProps<Mob
     return data.filter((item) => {
       if (q) {
         const hay = [
-          getPaymentItemReference(item),
-          String(getPaymentItemStatusLabel(item.status)),
-          item.drawer,
-          item.drawee,
-          item.client?.name,
-        ].join(' ').toLowerCase();
+            getPaymentItemReference(item),
+            String(getPaymentItemStatusLabel(item.status)),
+            item.referencePayment,
+            item.drawer,
+            item.drawee,
+            item.client?.name,
+          ].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (typeFilter && item.type !== typeFilter) return false;
@@ -93,7 +94,7 @@ export function PaymentItemListScreen({ navigation }: NativeStackScreenProps<Mob
       <View style={styles.searchRow}>
         <TextInput
           style={styles.search}
-          placeholder="Référence, tireur, tiré, client..."
+          placeholder="Référence, réf. paiement, tireur, tiré..."
           placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
