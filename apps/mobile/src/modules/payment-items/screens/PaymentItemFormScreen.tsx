@@ -71,7 +71,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
       direction: current?.direction ?? 'IN',
       amount: current?.amount ?? (undefined as any),
       currency: current?.currency ?? defaultCurrency,
-      status: (current?.status as any) ?? 'Reçu',
+      status: (current?.status as any) ?? 'Déposé',
       issueDate: current?.issueDate ? current.issueDate.slice(0, 10) : getTodayISO(),
       dueDate: current?.dueDate ? current.dueDate.slice(0, 10) : '',
       drawer: current?.drawer ?? '',
@@ -139,7 +139,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
           <Controller name="status" control={control} render={({ field }) => (
             <ButtonSelector
               value={field.value}
-              options={['Reçu', 'Déposé', 'Payé', 'Rejeté', 'Annulé', 'En retard']}
+              options={['Déposé', 'Payé', 'Annulé', 'En retard']}
               onChange={field.onChange}
             />
           )} />
@@ -174,7 +174,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
             <AppTextField label="ID Client *" value={field.value ? String(field.value) : ''} onChangeText={field.onChange as any} keyboardType="numeric" placeholder="ID numérique" error={errors.client?.message} />
           )} />
           <Controller name="account" control={control} render={({ field }) => (
-            <AppTextField label="ID Compte *" value={field.value ? String(field.value) : ''} onChangeText={field.onChange as any} keyboardType="numeric" placeholder="ID numérique" error={errors.account?.message} />
+            <AppTextField label="ID Compte" value={field.value ? String(field.value) : ''} onChangeText={field.onChange as any} keyboardType="numeric" placeholder="ID numérique (optionnel)" error={errors.account?.message} />
           )} />
 
           {/* Alerte */}

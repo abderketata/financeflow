@@ -13,21 +13,19 @@ const paymentItemTypePrefixMap: Record<PaymentItemType, string> = {
 };
 
 export const paymentItemStatusOptions: Array<{ value: PaymentItemStatus; label: PaymentItemStatus }> = [
-  { value: 'Reçu', label: 'Reçu' },
   { value: 'Déposé', label: 'Déposé' },
   { value: 'Payé', label: 'Payé' },
-  { value: 'Rejeté', label: 'Rejeté' },
   { value: 'Annulé', label: 'Annulé' },
   { value: 'En retard', label: 'En retard' },
 ];
 
 const legacyStatusMap: Record<string, PaymentItemStatus> = {
-  PENDING: 'Reçu',
-  DRAFT: 'Reçu',
-  RECEIVED: 'Reçu',
+  PENDING: 'Déposé',
+  DRAFT: 'Déposé',
+  RECEIVED: 'Déposé',
   DEPOSITED: 'Déposé',
   PAID: 'Payé',
-  REJECTED: 'Rejeté',
+  REJECTED: 'Annulé',
   CANCELLED: 'Annulé',
   CANCELED: 'Annulé',
   OVERDUE: 'En retard',
@@ -36,7 +34,7 @@ const legacyStatusMap: Record<string, PaymentItemStatus> = {
 
 export const getPaymentItemStatusLabel = (status?: string | null): PaymentItemStatus | string => {
   if (!status?.trim()) {
-    return 'Reçu';
+    return 'Déposé';
   }
 
   return legacyStatusMap[status.trim().toUpperCase()] || status.trim();
@@ -122,6 +120,6 @@ export const getPaymentItemCurrency = (item?: Partial<PaymentItem> | null, defau
 
 export const isPaymentItemClosedStatus = (status?: string | null) => {
   const resolved = getPaymentItemStatusLabel(status);
-  return resolved === 'Payé' || resolved === 'Annulé' || resolved === 'Rejeté';
+  return resolved === 'Payé' || resolved === 'Annulé';
 };
 

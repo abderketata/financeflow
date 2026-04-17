@@ -15,7 +15,7 @@ export const paymentItemSchema = z.object({
   paymentMethod: z.enum(['ESPECES', 'VIREMENT', 'CARTE']).optional().nullable(),
   notes: z.string().optional(),
   client: z.coerce.number({ required_error: 'Le client est requis', invalid_type_error: 'Le client est requis' }).min(1, 'Le client est requis'),
-  account: z.coerce.number({ required_error: 'Le compte est requis', invalid_type_error: 'Le compte est requis' }).min(1, 'Le compte est requis'),
+  account: z.coerce.number().min(1).optional().nullable(),
 });
 
 export type PaymentItemFormValues = z.infer<typeof paymentItemSchema>;

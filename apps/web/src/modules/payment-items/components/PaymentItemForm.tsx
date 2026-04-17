@@ -91,10 +91,8 @@ const typeConfig: Record<string, { label: string; color: string; bg: string; ico
 
 // ── Status visual config ─────────────────────────────────────────────────
 const statusConfig: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
-  'Reçu':       { color: '#2563EB', bg: '#EFF6FF', icon: CheckCircleRoundedIcon },
   'Déposé':     { color: '#D97706', bg: '#FFFBEB', icon: AccountBalanceWalletRoundedIcon },
   'Payé':       { color: '#059669', bg: '#ECFDF5', icon: PaidRoundedIcon },
-  'Rejeté':     { color: '#DC2626', bg: '#FEF2F2', icon: CancelRoundedIcon },
   'Annulé':     { color: '#64748B', bg: '#F1F5F9', icon: BlockRoundedIcon },
   'En retard':  { color: '#DC2626', bg: '#FEF2F2', icon: WarningAmberRoundedIcon },
 };
@@ -186,7 +184,7 @@ export function PaymentItemForm({
       direction: 'IN',
       amount: 0,
       currency: defaultCurrency,
-      status: 'Reçu',
+      status: 'Déposé',
       issueDate: isEditMode ? (defaultValues?.issueDate || '') : getTodayISO(),
       dueDate: '',
       drawer: '',

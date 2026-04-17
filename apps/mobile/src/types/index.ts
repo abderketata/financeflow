@@ -2,7 +2,7 @@ export type Identifier = number;
 
 export type PaymentItemType = 'CHEQUE' | 'TRAITE' | 'AUTRE';
 export type PaymentDirection = 'IN' | 'OUT';
-export type PaymentItemStatus = 'Reçu' | 'Déposé' | 'Payé' | 'Rejeté' | 'Annulé' | 'En retard';
+export type PaymentItemStatus = 'Déposé' | 'Payé' | 'Annulé' | 'En retard';
 export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 
 export type ClientType = 'INDIVIDUAL' | 'COMPANY';
