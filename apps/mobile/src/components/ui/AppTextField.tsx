@@ -7,6 +7,7 @@ interface AppTextFieldProps {
   placeholder?: string;
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'numeric' | 'email-address';
+  maxLength?: number;
   error?: string;
   multiline?: boolean;
 }

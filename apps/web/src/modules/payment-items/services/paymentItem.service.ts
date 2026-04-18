@@ -61,10 +61,13 @@ export function normalizePaymentItemFromBackend(item: any): PaymentItem {
 /**
  * Map frontend fields back to Strapi field names.
  * Converts uppercase enum keys to French labels expected by the backend.
+ * Le nettoyage des champs système Strapi est centralisé dans `services/api/crud.ts`
+ * afin que createdBy/updatedBy soient toujours résolus côté backend via le JWT.
  */
 function normalizeToBackend(payload: any): any {
   if (!payload) return payload;
   const { dueDate, paymentMethod, ...rest } = payload;
+
   const backendPm = paymentMethod ? (PM_TO_BACKEND[paymentMethod] ?? null) : null;
   return {
     ...rest,
