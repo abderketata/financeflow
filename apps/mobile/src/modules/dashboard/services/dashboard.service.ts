@@ -1,8 +1,7 @@
 import { AlertItem, DashboardSummary, PaymentItem, Transaction } from '@/types';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
-import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus } from '@/modules/payment-items/utils/paymentItemPresentation';
-import { transactionService } from '@/modules/transactions/services/transaction.service';
+import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus, mapPaymentItemsToTransactions } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 const startOfMonthNative = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonthNative = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -34,13 +33,16 @@ export const dashboardService = {
     const weekStart = startOfWeekNative(now);
     const weekEnd = endOfWeekNative(now);
 
-    const [transactions, paymentItems, alerts] = await Promise.all([
-      transactionService.list({ populate: '*' }),
+    // Reuse payment-items data instead of calling /api/transactions
+    const [paymentItems, alerts] = await Promise.all([
       paymentItemService.list({ populate: '*' }),
       alertService.list({ populate: '*' })
     ]);
 
-    const monthTransactions = transactions.filter((item) => {
+    const transactions = mapPaymentItemsToTransactions(paymentItems as any);
+    const typedTransactions = transactions as unknown as Transaction[];
+
+    const monthTransactions = typedTransactions.filter((item) => {
       const date = new Date(item.operationDate);
       return date >= monthStart && date <= monthEnd;
     });

@@ -1,4 +1,4 @@
-import { BankAccount, Client, PaymentItem, PaymentItemStatus, PaymentItemType } from '@/types';
+import { BankAccount, Client, PaymentItem, PaymentItemStatus, PaymentItemType, TransactionOperationType, Transaction } from '@/types';
 
 export const paymentItemTypeOptions: Array<{ value: PaymentItemType; label: string }> = [
   { value: 'CHEQUE', label: 'Chèque' },
@@ -64,5 +64,27 @@ export const getPaymentItemEffectiveDate = (item?: Partial<PaymentItem> | null) 
 export const isPaymentItemClosedStatus = (status?: string | null) => {
   const resolved = getPaymentItemStatusLabel(status);
   return resolved === 'Payé' || resolved === 'Annulé' || resolved === 'Rejeté';
+};
+
+// Map payment-items into a Transaction-like shape used by dashboard (mobile)
+export const mapPaymentItemsToTransactions = (items: Array<Partial<PaymentItem> | any>): Transaction[] => {
+  return (items || []).map((raw) => {
+    const node = raw as any;
+    const attrs = node?.data?.attributes || node?.attributes || node || {};
+
+    const amount = Number(attrs?.amount || 0) || 0;
+    const direction = (attrs?.direction || 'IN') as 'IN' | 'OUT';
+    const operationType = (direction === 'IN' ? 'CREDIT' : 'DEBIT') as TransactionOperationType;
+
+    const operationDate = attrs?.dueDate || attrs?.issueDate || attrs?.paymentDate || attrs?.receptionDate || attrs?.createdAt || '';
+
+    return {
+      id: attrs?.id || node?.id || 0,
+      label: attrs?.referenceNumber || attrs?.reference || '',
+      operationType,
+      amount,
+      operationDate
+    };
+  });
 };
 

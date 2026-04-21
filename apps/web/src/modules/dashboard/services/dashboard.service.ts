@@ -3,8 +3,7 @@ import { fr } from 'date-fns/locale';
 import { Alert, DashboardSummary, PaymentItem, Transaction } from '@/types/domain';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
-import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus } from '@/modules/payment-items/utils/paymentItemPresentation';
-import { transactionService } from '@/modules/transactions/services/transaction.service';
+import { getPaymentItemEffectiveDate, isPaymentItemClosedStatus, mapPaymentItemsToTransactions } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 const sumByType = (items: Transaction[], operationType: 'DEBIT' | 'CREDIT') =>
   items
@@ -19,11 +18,13 @@ export const dashboardService = {
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-    const [transactions, paymentItems, alerts] = await Promise.all([
-      transactionService.list({ populate: '*' }),
+    // Avoid calling /api/transactions. Reuse payment-items and map them to a transaction-like shape
+    const [paymentItems, alerts] = await Promise.all([
       paymentItemService.list({ populate: '*' }),
       alertService.list({ populate: '*' })
     ]);
+
+    const transactions = mapPaymentItemsToTransactions(paymentItems as any);
 
     const monthTransactions = transactions.filter((item) => {
       const date = new Date(item.operationDate);
