@@ -7,8 +7,7 @@ const queryKey = ['alerts'];
 export const useAlerts = () =>
   useQuery({
     queryKey,
-    // use the specialised list for the /alerts page which applies the 'Déposé' exclusion
-    queryFn: () => (alertService as any).listForAlertsPage({ populate: '*' })
+    queryFn: () => alertService.list({ populate: '*' })
   });
 
 export const useAlertPaymentItems = (alertId?: number, enabled = true) =>
