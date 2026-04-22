@@ -32,7 +32,7 @@ type AlertFilter = 'all' | 'unread' | 'read';
 export default function AlertsPage() {
   const { data = [], isLoading, isError, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
-  const [filter, setFilter] = useState<AlertFilter>('all');
+  const [filter, setFilter] = useState<AlertFilter>('unread');
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
 
   const filteredAlerts = data.filter((alert) => {

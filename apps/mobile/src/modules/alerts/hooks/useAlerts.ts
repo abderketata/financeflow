@@ -4,7 +4,7 @@ import { alertService } from '@/modules/alerts/services/alert.service';
 
 const queryKey = ['mobile-alerts'];
 
-export const useAlerts = () => useQuery({ queryKey, queryFn: () => alertService.list({ populate: '*' }) });
+export const useAlerts = () => useQuery({ queryKey, queryFn: () => (alertService as any).listForAlertsPage({ populate: '*' }) });
 
 export const useUpdateAlert = () => {
   const queryClient = useQueryClient();

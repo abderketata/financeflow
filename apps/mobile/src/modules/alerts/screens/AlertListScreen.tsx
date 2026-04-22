@@ -19,7 +19,7 @@ const FILTER_LABELS: Record<string, string> = {
 export function AlertListScreen() {
   const { data = [], isLoading, isError, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
-  const [filter, setFilter] = useState<AlertFilter>('all');
+  const [filter, setFilter] = useState<AlertFilter>('unread');
 
   const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
 
