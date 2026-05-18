@@ -149,10 +149,12 @@ function getTodayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// ── Reference payment mask helpers (max 8 digits, format: XXXX XXXX) ──
+// ── Reference payment mask helpers (max 12 digits, format: XXXX XXXX XXXX) ──
 function formatRefDisplay(clean: string): string {
-  const digits = clean.replace(/\D/g, '').slice(0, 8);
-  return digits.length > 4 ? `${digits.slice(0, 4)} ${digits.slice(4)}` : digits;
+  const digits = clean.replace(/\D/g, '').slice(0, 12);
+  if (digits.length > 8) return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8)}`;
+  if (digits.length > 4) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return digits;
 }
 
 // ── Amount formatting helpers ──────────────────────────────────────────
@@ -501,17 +503,17 @@ export function PaymentItemForm({
                     required
                     label="Référence de paiement"
                     size="small"
-                    placeholder="9999 9999"
+                    placeholder="9999 9999 9999"
                     error={!!errors.referencePayment}
-                    helperText={errors.referencePayment?.message ?? '8 chiffres max'}
-                    inputProps={{ inputMode: 'numeric', maxLength: 9 }}
+                    helperText={errors.referencePayment?.message ?? '12 chiffres max'}
+                    inputProps={{ inputMode: 'numeric', maxLength: 14 }}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><TagRoundedIcon sx={inputIconSx} /></InputAdornment>,
                     }}
                     onChange={(e) => {
                       const input = e.target as HTMLInputElement;
                       const cursorPos = input.selectionStart ?? 0;
-                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 12);
                       const formatted = formatRefDisplay(digits);
 
                       // Adjust cursor: count non-space chars before old cursor
@@ -534,7 +536,7 @@ export function PaymentItemForm({
                     onPaste={(e) => {
                       e.preventDefault();
                       const pasted = e.clipboardData.getData('text');
-                      const digits = pasted.replace(/\D/g, '').slice(0, 8);
+                      const digits = pasted.replace(/\D/g, '').slice(0, 12);
                       const formatted = formatRefDisplay(digits);
                       setRefPayDisplay(formatted);
                       field.onChange(digits);
