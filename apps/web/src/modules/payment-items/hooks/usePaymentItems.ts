@@ -50,6 +50,7 @@ export const usePaymentItemsPage = (options?: { enabled?: boolean; params?: Reco
         populate: '*',
         ...(options?.params ?? {}),
         filters: mergedFilters,
+        sort: ['id:desc'],
       }, { signal });
     }
   });
