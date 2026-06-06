@@ -5,6 +5,8 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
+import { addWeeks, endOfWeek, format, isSameWeek, startOfWeek, startOfYear } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   Box,
   Card,
@@ -15,6 +17,7 @@ import {
   Typography,
   alpha,
 } from '@mui/material';
+import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -25,12 +28,45 @@ import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
+import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { brandColors, iconBox, numericFont, headingFont } from '@/app/theme';
+import { brandColors, iconBox, numericFont } from '@/app/theme';
 
 export default function DashboardPage() {
-  const { data, isLoading, isError, refetch } = useDashboard();
+  const currentDate = useMemo(() => new Date(), []);
+  const currentWeekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+  const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
+  const { data, isLoading, isError, refetch } = useDashboard(selectedWeekStart);
   const defaultCurrency = useDefaultCurrency();
+
+  const firstNavigableWeek = useMemo(() => startOfWeek(startOfYear(currentDate), { weekStartsOn: 1 }), [currentDate]);
+  const lastNavigableWeek = useMemo(() => startOfWeek(new Date(currentDate.getFullYear(), 11, 31), { weekStartsOn: 1 }), [currentDate]);
+  const selectedWeekEnd = useMemo(() => endOfWeek(selectedWeekStart, { weekStartsOn: 1 }), [selectedWeekStart]);
+  const isCurrentWeek = isSameWeek(selectedWeekStart, currentWeekStart, { weekStartsOn: 1 });
+  const canGoPrevious = selectedWeekStart.getTime() > firstNavigableWeek.getTime();
+  const canGoNext = selectedWeekStart.getTime() < lastNavigableWeek.getTime();
+
+  const selectedWeekLabel = useMemo(() => {
+    const sameMonth = selectedWeekStart.getMonth() === selectedWeekEnd.getMonth() && selectedWeekStart.getFullYear() === selectedWeekEnd.getFullYear();
+
+    if (sameMonth) {
+      return `${format(selectedWeekStart, 'd', { locale: fr })}–${format(selectedWeekEnd, 'd MMM yyyy', { locale: fr })}`;
+    }
+
+    return `${format(selectedWeekStart, 'd MMM', { locale: fr })} – ${format(selectedWeekEnd, 'd MMM yyyy', { locale: fr })}`;
+  }, [selectedWeekEnd, selectedWeekStart]);
+
+  const renderWeekNavigator = () => (
+    <WeekNavigator
+      weekLabel={selectedWeekLabel}
+      onPrevious={() => setSelectedWeekStart((value) => addWeeks(value, -1))}
+      onNext={() => setSelectedWeekStart((value) => addWeeks(value, 1))}
+      onCurrentWeek={() => setSelectedWeekStart(currentWeekStart)}
+      disablePrevious={!canGoPrevious}
+      disableNext={!canGoNext}
+      isCurrentWeek={isCurrentWeek}
+    />
+  );
 
   if (isLoading) return <LoadingState message="Chargement du tableau de bord..." />;
   if (isError || !data) return <ErrorState onRetry={() => refetch()} message="Impossible de charger le dashboard." />;
@@ -99,25 +135,33 @@ export default function DashboardPage() {
       <Grid container spacing={2.5}>
         {/* Weekly chart */}
         <Grid item xs={12} lg={7}>
-          <WeeklyOperationsChart data={data.weeklyChart} currency={defaultCurrency} />
+          <WeeklyOperationsChart
+            data={data.weeklyChart}
+            currency={defaultCurrency}
+            subtitle={`Comparatif crédits vs débits • ${selectedWeekLabel}`}
+            headerAction={renderWeekNavigator()}
+          />
         </Grid>
 
         {/* Upcoming payments */}
         <Grid item xs={12} lg={5}>
           <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: '22px 24px !important' }}>
-              <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                <Box sx={iconBox(brandColors.info, 38)}>
-                  <ReceiptLongRoundedIcon fontSize="small" />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '0.95rem' }}>
-                    Échéances de la semaine
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {data.upcomingPaymentItems.length} élément{data.upcomingPaymentItems.length !== 1 ? 's' : ''}
-                  </Typography>
-                </Box>
+              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <Box sx={iconBox(brandColors.info, 38)}>
+                    <ReceiptLongRoundedIcon fontSize="small" />
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" sx={{ fontSize: '0.95rem' }}>
+                      Échéances de la semaine
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {selectedWeekLabel} • {data.upcomingPaymentItems.length} élément{data.upcomingPaymentItems.length !== 1 ? 's' : ''}
+                    </Typography>
+                  </Box>
+                </Stack>
+                {renderWeekNavigator()}
               </Stack>
               <Divider sx={{ mb: 1.5, borderColor: alpha(brandColors.slate[200], 0.6) }} />
 

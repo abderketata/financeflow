@@ -133,8 +133,7 @@ export const mapPaymentItemsToTransactions = (items: Array<Partial<PaymentItem> 
     const direction = (attrs?.direction || 'IN') as 'IN' | 'OUT';
     const operationType = (direction === 'IN' ? 'CREDIT' : 'DEBIT') as TransactionOperationType;
 
-    const operationDate =
-      attrs?.dueDate || attrs?.issueDate || attrs?.paymentDate || attrs?.receptionDate || attrs?.createdAt || '';
+    const operationDate = attrs?.dueDate || attrs?.echeance || '';
 
     return {
       id: attrs?.id || node?.id || 0,

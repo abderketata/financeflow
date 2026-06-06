@@ -15,6 +15,9 @@ import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
   if (!active || !payload?.length) return null;
+
+  const tooltipLabel = payload[0]?.payload?.tooltipLabel ?? label;
+
   return (
     <Box
       sx={{
@@ -26,7 +29,7 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
       }}
     >
       <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.82rem', color: brandColors.slate[800], mb: 0.8 }}>
-        {label}
+        {tooltipLabel}
       </Typography>
       {payload.map((entry: any) => (
         <Stack key={entry.name} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.3 }}>
@@ -34,7 +37,7 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
           <Typography sx={{ fontSize: '0.78rem', color: brandColors.slate[500] }}>
             {entry.name}:{' '}
             <Box component="span" sx={{ fontFamily: numericFont, fontWeight: 600, color: brandColors.slate[800] }}>
-              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(entry.value)}
+              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Number(entry.value ?? 0))}
             </Box>
           </Typography>
         </Stack>

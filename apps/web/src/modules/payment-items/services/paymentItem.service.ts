@@ -3,6 +3,22 @@ import { PaymentItem } from '@/types/domain';
 
 const rawService = createCrudService<PaymentItem>('/payment-items');
 
+const ACTIVE_PAYMENT_ITEMS_FILTER = { supprimer: { $eq: false } };
+
+const buildActivePaymentItemsParams = (params?: Record<string, unknown>) => {
+  const callerFilters = (params?.filters as Record<string, unknown> | undefined) ?? {};
+  const hasAndFilters = Array.isArray((callerFilters as { $and?: unknown[] }).$and);
+
+  return {
+    ...(params ?? {}),
+    filters: Object.keys(callerFilters).length
+      ? hasAndFilters
+        ? { $and: [ACTIVE_PAYMENT_ITEMS_FILTER, ...(((callerFilters as { $and?: Record<string, unknown>[] }).$and) ?? [])] }
+        : { ...ACTIVE_PAYMENT_ITEMS_FILTER, ...callerFilters }
+      : ACTIVE_PAYMENT_ITEMS_FILTER,
+  };
+};
+
 const isObject = (value: unknown): value is Record<string, any> =>
   typeof value === 'object' && value !== null;
 
@@ -79,6 +95,10 @@ function normalizeToBackend(payload: any): any {
 export const paymentItemService = {
   async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
     const items = await rawService.list(params, options);
+    return items.map(normalizePaymentItemFromBackend);
+  },
+  async listActive(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
+    const items = await rawService.list(buildActivePaymentItemsParams(params), options);
     return items.map(normalizePaymentItemFromBackend);
   },
   async get(id: number, params?: Record<string, unknown>) {

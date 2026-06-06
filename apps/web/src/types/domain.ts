@@ -130,6 +130,7 @@ export interface AppSetting {
 
 export interface ChartPoint {
   label: string;
+  tooltipLabel?: string;
   credit: number;
   debit: number;
 }
