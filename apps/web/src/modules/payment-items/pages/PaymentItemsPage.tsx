@@ -17,6 +17,7 @@ import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlin
 import LocalAtmRoundedIcon from '@mui/icons-material/LocalAtmRounded';
 import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
+import type { GridPaginationModel } from '@mui/x-data-grid';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
@@ -29,7 +30,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
-import { usePaymentItems, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
+import { usePaymentItemsPage, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
@@ -97,6 +98,7 @@ export default function PaymentItemsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
+  const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
 
   const debouncedSearch = useDebouncedValue(search, 400);
   const debouncedClientSearchInput = useDebouncedValue(clientSearchInput, 350);
@@ -161,17 +163,28 @@ export default function PaymentItemsPage() {
       });
     }
 
-    if (!filters.length) return undefined;
-    return { filters: filters.length === 1 ? filters[0] : { $and: filters } };
-  }, [debouncedSearch, typeFilter, statusFilter, selectedClient?.id, datesValid, dateFrom, dateTo]);
+    return {
+      pagination: {
+        page: paginationModel.page + 1,
+        pageSize: paginationModel.pageSize,
+      },
+      ...(filters.length ? { filters: filters.length === 1 ? filters[0] : { $and: filters } } : {}),
+    };
+  }, [debouncedSearch, typeFilter, statusFilter, selectedClient?.id, datesValid, dateFrom, dateTo, paginationModel.page, paginationModel.pageSize]);
 
-  const { data = [], isLoading, isError, refetch, isFetching } = usePaymentItems({ params: queryParams });
+  const { data, isLoading, isError, refetch, isFetching } = usePaymentItemsPage({ params: queryParams });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const deleteMutation = useDeletePaymentItem();
   const softDeleteMutation = useSoftDeletePaymentItem();
+
+  const rows = data?.data ?? [];
+  const pagination = data?.pagination;
+  const rowCount = pagination?.total ?? 0;
+  const currentPage = Math.max((pagination?.page ?? 1) - 1, 0);
+  const currentPageSize = pagination?.pageSize ?? paginationModel.pageSize;
 
   // Client lookup: limit to 10 on initial load, dynamic on search
   const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
@@ -187,8 +200,10 @@ export default function PaymentItemsPage() {
       : [selectedClient, ...remoteClients];
   }, [remoteClients, selectedClient]);
 
-  // No local filtering — all filtering is server-side
-  const filteredRows = data;
+  // No local filtering — all filtering and pagination are server-side
+  const filteredRows = rows;
+
+  const resetPagination = () => setPaginationModel((current) => ({ ...current, page: 0 }));
 
   const columns: GridColDef<PaymentItem>[] = [
     {
@@ -352,7 +367,7 @@ export default function PaymentItemsPage() {
     }
   ];
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading && !data) return <LoadingState />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
 
   return (
@@ -360,13 +375,13 @@ export default function PaymentItemsPage() {
       <PageHeader
         title="Chèques / Traites"
         subtitle="Suivi des échéances, statuts, montants et relations clients/comptes"
-        count={data.length}
+        count={rowCount}
         action={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setOpenForm(true); }}>Ajouter un paiement</Button>}
       />
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}><SearchField value={search} onChange={setSearch} placeholder="Recherche : référence, réf. paiement, tireur, tiré…" /></Grid>
+              <Grid item xs={12} md={4}><SearchField value={search} onChange={(value) => { setSearch(value); resetPagination(); }} placeholder="Recherche : référence, réf. paiement, tireur, tiré…" /></Grid>
             <Grid item xs={12} md={2}>
               <Box sx={{ position: 'relative' }}>
                 <TextField
@@ -374,7 +389,7 @@ export default function PaymentItemsPage() {
                   select
                   label="Type"
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  onChange={(e) => { setTypeFilter(e.target.value); resetPagination(); }}
                   InputLabelProps={{ shrink: true }}
                   size="small"
                   SelectProps={{
@@ -418,7 +433,7 @@ export default function PaymentItemsPage() {
                   <Tooltip title="Vider le type" arrow>
                     <IconButton
                       size="small"
-                      onClick={() => setTypeFilter('')}
+                      onClick={() => { setTypeFilter(''); resetPagination(); }}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -438,7 +453,7 @@ export default function PaymentItemsPage() {
                   select
                   label="Statut"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => { setStatusFilter(e.target.value); resetPagination(); }}
                   InputLabelProps={{ shrink: true }}
                   size="small"
                   SelectProps={{
@@ -496,7 +511,7 @@ export default function PaymentItemsPage() {
                   <Tooltip title="Vider le statut" arrow>
                     <IconButton
                       size="small"
-                      onClick={() => setStatusFilter('')}
+                      onClick={() => { setStatusFilter(''); resetPagination(); }}
                       onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -527,6 +542,7 @@ export default function PaymentItemsPage() {
                   onChange={(value) => {
                     setSelectedClient(value);
                     setClientSearchInput(value ? getClientLabel(value) : '');
+                    resetPagination();
                   }}
                   noOptionsText="Aucun client trouvé"
                 />
@@ -538,6 +554,7 @@ export default function PaymentItemsPage() {
                       onClick={() => {
                         setSelectedClient(null);
                         setClientSearchInput('');
+                        resetPagination();
                       }}
                       onMouseDown={(event) => {
                         event.preventDefault();
@@ -557,7 +574,10 @@ export default function PaymentItemsPage() {
                 type="date"
                 label="Date min"
                 value={dateFrom}
-                onChange={(e) => handleDateFromChange(e.target.value)}
+                onChange={(e) => {
+                  handleDateFromChange(e.target.value);
+                  setPaginationModel((current) => ({ ...current, page: 0 }));
+                }}
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ onClick: (e) => (e.target as HTMLInputElement).showPicker?.() }}
                 size="small"
@@ -571,7 +591,10 @@ export default function PaymentItemsPage() {
                 type="date"
                 label="Date max"
                 value={dateTo}
-                onChange={(e) => handleDateToChange(e.target.value)}
+                onChange={(e) => {
+                  handleDateToChange(e.target.value);
+                  setPaginationModel((current) => ({ ...current, page: 0 }));
+                }}
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ onClick: (e) => (e.target as HTMLInputElement).showPicker?.() }}
                 size="small"
@@ -589,6 +612,7 @@ export default function PaymentItemsPage() {
                       setDateFrom('');
                       setDateTo('');
                       setDateError('');
+                      resetPagination();
                     }}
                     sx={clearButtonStyle}
                   >
@@ -609,7 +633,25 @@ export default function PaymentItemsPage() {
         <CardContent sx={{ p: { xs: 2, md: 3.5 }, '&:last-child': { pb: { xs: 2, md: 3.5 } } }}>
           {filteredRows.length ? (
             <div style={{ height: 620 }}>
-              <DataGrid rows={filteredRows} columns={columns} disableRowSelectionOnClick />
+              <DataGrid
+                rows={filteredRows}
+                columns={columns}
+                disableRowSelectionOnClick
+                paginationMode="server"
+                rowCount={rowCount}
+                pageSizeOptions={[10, 25, 50, 100]}
+                paginationModel={{ page: currentPage, pageSize: currentPageSize }}
+                onPaginationModelChange={(model) => {
+                  setPaginationModel((current) => {
+                    if (current.page === model.page && current.pageSize === model.pageSize) {
+                      return current;
+                    }
+
+                    return model;
+                  });
+                }}
+                loading={isLoading || isFetching}
+              />
             </div>
           ) : (
             <EmptyState title="Aucun élément trouvé" />

@@ -8,6 +8,18 @@ export interface StrapiCollectionResponse<T> {
   meta?: Record<string, unknown>;
 }
 
+export interface StrapiPaginationMeta {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: StrapiPaginationMeta;
+}
+
 export interface StrapiSingleResponse<T> {
   data: StrapiEntity<T> | T | null;
   meta?: Record<string, unknown>;

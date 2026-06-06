@@ -1,5 +1,8 @@
 import { createCrudService } from '@/services/api/crud';
+import { api } from '@/services/api/client';
+import { PaginatedResult, StrapiCollectionResponse, StrapiPaginationMeta } from '@/types/api';
 import { PaymentItem } from '@/types/domain';
+import { unwrapCollection } from '@/utils/strapi';
 
 const rawService = createCrudService<PaymentItem>('/payment-items');
 
@@ -92,6 +95,24 @@ function normalizeToBackend(payload: any): any {
   };
 }
 
+const EMPTY_PAGINATION: StrapiPaginationMeta = {
+  page: 1,
+  pageSize: 25,
+  pageCount: 0,
+  total: 0,
+};
+
+const normalizePaginationMeta = (meta?: Record<string, unknown>): StrapiPaginationMeta => {
+  const pagination = (meta?.pagination as Partial<StrapiPaginationMeta> | undefined) ?? {};
+
+  return {
+    page: Number(pagination.page ?? EMPTY_PAGINATION.page),
+    pageSize: Number(pagination.pageSize ?? EMPTY_PAGINATION.pageSize),
+    pageCount: Number(pagination.pageCount ?? EMPTY_PAGINATION.pageCount),
+    total: Number(pagination.total ?? EMPTY_PAGINATION.total),
+  };
+};
+
 export const paymentItemService = {
   async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
     const items = await rawService.list(params, options);
@@ -100,6 +121,17 @@ export const paymentItemService = {
   async listActive(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
     const items = await rawService.list(buildActivePaymentItemsParams(params), options);
     return items.map(normalizePaymentItemFromBackend);
+  },
+  async listPage(params?: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<PaginatedResult<PaymentItem>> {
+    const { data } = await api.get<StrapiCollectionResponse<PaymentItem>>('/payment-items', {
+      params,
+      signal: options?.signal,
+    });
+
+    return {
+      data: unwrapCollection<PaymentItem>(data).map(normalizePaymentItemFromBackend),
+      pagination: normalizePaginationMeta(data.meta),
+    };
   },
   async get(id: number, params?: Record<string, unknown>) {
     const item = await rawService.get(id, params);

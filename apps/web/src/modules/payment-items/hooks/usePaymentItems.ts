@@ -1,8 +1,21 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { PaginatedResult } from '@/types/api';
 import { PaymentItem } from '@/types/domain';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
 
 const queryKey = ['payment-items'];
+
+const mergePaymentItemFilters = (callerFilters: Record<string, unknown>) => {
+  if (!Object.keys(callerFilters).length) {
+    return { supprimer: { $eq: false } };
+  }
+
+  if (Array.isArray(callerFilters.$and)) {
+    return { $and: [{ supprimer: { $eq: false } }, ...callerFilters.$and] };
+  }
+
+  return { supprimer: { $eq: false }, ...callerFilters };
+};
 
 export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
   useQuery({
@@ -13,20 +26,27 @@ export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<s
     // Always filter out soft-deleted items; merge with any additional caller params
     queryFn: ({ signal }) => {
       const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
-      let mergedFilters: Record<string, unknown>;
-
-      if (!Object.keys(callerFilters).length) {
-        // No caller filters — simple supprimer guard
-        mergedFilters = { supprimer: { $eq: false } };
-      } else if (Array.isArray(callerFilters.$and)) {
-        // Caller already uses $and — inject supprimer into the same array (flatten)
-        mergedFilters = { $and: [{ supprimer: { $eq: false } }, ...callerFilters.$and] };
-      } else {
-        // Caller uses $or or plain field filters — merge at top level (implicit AND)
-        mergedFilters = { supprimer: { $eq: false }, ...callerFilters };
-      }
+      const mergedFilters = mergePaymentItemFilters(callerFilters);
 
       return paymentItemService.list({
+        populate: '*',
+        ...(options?.params ?? {}),
+        filters: mergedFilters,
+      }, { signal });
+    }
+  });
+
+export const usePaymentItemsPage = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
+  useQuery<PaginatedResult<PaymentItem>>({
+    queryKey: [...queryKey, 'page', options?.params ?? {}],
+    enabled: options?.enabled,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => {
+      const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
+      const mergedFilters = mergePaymentItemFilters(callerFilters);
+
+      return paymentItemService.listPage({
         populate: '*',
         ...(options?.params ?? {}),
         filters: mergedFilters,
