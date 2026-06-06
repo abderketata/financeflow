@@ -1,14 +1,17 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { getStoredToken, getStoredUser, summarizeToken } from '@/services/api/authStorage';
+import { handleUnauthorizedSession } from '@/services/api/authSession';
 
 const extra = (Constants.expoConfig?.extra || Constants.manifest?.extra || {}) as { apiBaseUrl?: string };
 const baseURL = (extra.apiBaseUrl || 'http://51.75.24.113:1334').replace(/\/$/, '');
 const PAYMENT_ITEMS_ENDPOINT_PATTERN = /(^|\/)payment-items(\/|$)/;
+const AUTH_LOGIN_ENDPOINT_PATTERN = /(^|\/)auth\/local(\/|$)/;
 
 const isPaymentItemsDebugEnabled = () => typeof __DEV__ !== 'undefined' && __DEV__;
 
 const isPaymentItemsRequest = (url?: string) => Boolean(url && PAYMENT_ITEMS_ENDPOINT_PATTERN.test(url));
+const isAuthLoginRequest = (url?: string) => Boolean(url && AUTH_LOGIN_ENDPOINT_PATTERN.test(url));
 
 const getHeaderValue = (headers: unknown, key: string) => {
   if (!headers || typeof headers !== 'object') {
@@ -32,9 +35,11 @@ export const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const token = await getStoredToken();
 
-  if (token) {
+  if (token && !isAuthLoginRequest(config.url)) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
   }
 
   if (isPaymentItemsDebugEnabled() && isPaymentItemsRequest(config.url)) {
@@ -68,7 +73,7 @@ api.interceptors.response.use(
 
     return response;
   },
-  (error) => {
+  async (error) => {
     if (isPaymentItemsDebugEnabled() && isPaymentItemsRequest(error?.config?.url)) {
       logPaymentItemsRequest('error', {
         endpoint: `${error?.config?.baseURL ?? ''}${error?.config?.url ?? ''}`,
@@ -76,6 +81,10 @@ api.interceptors.response.use(
         status: error?.response?.status,
         data: error?.response?.data,
       });
+    }
+
+    if (error?.response?.status === 401) {
+      await handleUnauthorizedSession();
     }
 
     return Promise.reject(error?.response?.data ?? error);

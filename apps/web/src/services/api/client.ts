@@ -1,8 +1,11 @@
 import axios from 'axios';
 import qs from 'qs';
+import { handleUnauthorizedSession } from '@/services/api/authSession';
+import { getStoredToken, getStoredUser } from '@/services/api/authStorage';
 
 const baseURL = (__API_BASE_URL__ || 'http://51.75.24.113:1334').replace(/\/$/, '');
 const PAYMENT_ITEMS_ENDPOINT_PATTERN = /(^|\/)payment-items(\/|$)/;
+const AUTH_LOGIN_ENDPOINT_PATTERN = /(^|\/)auth\/local(\/|$)/;
 
 const isPaymentItemsDebugEnabled = () => {
   if (typeof window === 'undefined') {
@@ -13,18 +16,8 @@ const isPaymentItemsDebugEnabled = () => {
 };
 
 const isPaymentItemsRequest = (url?: string) => Boolean(url && PAYMENT_ITEMS_ENDPOINT_PATTERN.test(url));
+const isAuthLoginRequest = (url?: string) => Boolean(url && AUTH_LOGIN_ENDPOINT_PATTERN.test(url));
 
-const parseJson = <T>(value: string | null): T | null => {
-  if (!value) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-};
 
 const decodeJwtPayload = (token: string | null) => {
   if (!token) {
@@ -45,7 +38,7 @@ const getPaymentItemsAuthSummary = (token: string | null) => ({
   bearerPresent: Boolean(token),
   probableAuthKind: token ? 'users-permissions (/auth/local)' : 'none',
   tokenPreview: token ? `${token.slice(0, 16)}…` : null,
-  storedUser: parseJson('localStorage' in window ? window.localStorage.getItem('financeflow_user') : null),
+  storedUser: getStoredUser(),
   jwtPayload: decodeJwtPayload(token),
 });
 
@@ -72,10 +65,12 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('financeflow_token');
+  const token = getStoredToken();
 
-  if (token) {
+  if (token && !isAuthLoginRequest(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (config.headers?.Authorization) {
+    delete config.headers.Authorization;
   }
 
   if (isPaymentItemsDebugEnabled() && isPaymentItemsRequest(config.url)) {
@@ -116,6 +111,10 @@ api.interceptors.response.use(
         status: error?.response?.status,
         data: error?.response?.data,
       });
+    }
+
+    if (error?.response?.status === 401) {
+      handleUnauthorizedSession();
     }
 
     return Promise.reject(error?.response?.data ?? error);

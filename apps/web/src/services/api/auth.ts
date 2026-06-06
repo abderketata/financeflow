@@ -1,9 +1,7 @@
 import { api } from '@/services/api/client';
+import { clearStoredSession, getStoredToken, getStoredUser, setStoredSession } from '@/services/api/authStorage';
 import { LoginPayload, LoginResponse } from '@/types/api';
 import { AuthUser } from '@/types/domain';
-
-const TOKEN_KEY = 'financeflow_token';
-const USER_KEY = 'financeflow_user';
 
 const getLoginErrorMessage = (error: unknown) => {
   if (typeof error === 'string' && error.trim()) {
@@ -57,20 +55,17 @@ export const loginUser = async (credentials: LoginPayload): Promise<string> => {
 export const authService = {
   async login(payload: LoginPayload) {
     const { data } = await api.post<LoginResponse>('/auth/local', payload);
-    localStorage.setItem(TOKEN_KEY, data.jwt);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    setStoredSession(data.jwt, data.user);
     return data;
   },
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearStoredSession();
   },
   getToken() {
-    return localStorage.getItem(TOKEN_KEY);
+    return getStoredToken();
   },
   getUser(): AuthUser | null {
-    const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
+    return getStoredUser<AuthUser>();
   }
 };
 

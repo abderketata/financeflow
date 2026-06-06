@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { banksQueryOptions, banksQueryKey } from '@/modules/banks/hooks/useBanks';
+import { banksQueryOptions } from '@/modules/banks/hooks/useBanks';
+import { subscribeToAuthSessionInvalidation } from '@/services/api/authSession';
 import { authService } from '@/services/api/auth';
 import { AuthUser } from '@/types/domain';
 
@@ -25,6 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void queryClient.ensureQueryData(banksQueryOptions);
   }, [queryClient]);
 
+  useEffect(() => subscribeToAuthSessionInvalidation(() => {
+    setUser(null);
+  }), []);
+
   const value = useMemo<AuthContextValue>(() => ({
     user,
     isAuthenticated: Boolean(authService.getToken()),
@@ -35,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     logout() {
       authService.logout();
-      queryClient.removeQueries({ queryKey: banksQueryKey });
+      queryClient.clear();
       setUser(null);
     }
   }), [queryClient, user]);
