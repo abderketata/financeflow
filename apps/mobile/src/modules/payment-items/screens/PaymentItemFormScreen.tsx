@@ -68,7 +68,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
   const isEdit = Boolean(current);
   const defaultCurrency = useDefaultCurrency();
   const { data: settings } = useSettings();
-  const defaultAlertDays = settings?.alertDaysBefore ?? 3;
+  const defaultAlertDays = settings?.defaultAlertDays ?? settings?.alertDaysBefore ?? 3;
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const isBusy = createMutation.isPending || updateMutation.isPending;

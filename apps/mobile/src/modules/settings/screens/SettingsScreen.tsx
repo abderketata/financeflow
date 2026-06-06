@@ -76,7 +76,7 @@ const CURRENCY_LABELS: Record<string, string> = {
   MAD: 'MAD — Dirham Marocain',
   DZD: 'DZD — Dinar Algérien',
 };
-const WEEK_START_LABELS: Record<string, string> = { '1': 'Lundi', '0': 'Dimanche' };
+const WEEK_START_LABELS: Record<string, string> = { MONDAY: 'Lundi', SUNDAY: 'Dimanche' };
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 export function SettingsScreen() {
@@ -88,10 +88,9 @@ export function SettingsScreen() {
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       companyName: '',
-      currency: 'TND',
-      alertDaysBefore: 3,
-      weekStartsOn: 1,
-      locale: 'fr-FR',
+      defaultCurrency: 'TND',
+      defaultAlertDays: 3,
+      weekStartsOn: 'MONDAY',
     },
   });
 
@@ -100,10 +99,9 @@ export function SettingsScreen() {
     if (data) {
       reset({
         companyName: data.companyName ?? '',
-        currency: data.currency ?? 'TND',
-        alertDaysBefore: data.alertDaysBefore ?? 3,
-        weekStartsOn: data.weekStartsOn ?? 1,
-        locale: data.locale ?? 'fr-FR',
+        defaultCurrency: data.defaultCurrency ?? data.currency ?? 'TND',
+        defaultAlertDays: data.defaultAlertDays ?? data.alertDaysBefore ?? 3,
+        weekStartsOn: data.weekStartsOn ?? 'MONDAY',
       });
     }
   }, [data]);
@@ -149,7 +147,7 @@ export function SettingsScreen() {
             <Text style={styles.sectionTitle}>💰 Devise</Text>
             <Text style={styles.sectionSubtitle}>Utilisée pour tous les montants affichés</Text>
             <View style={styles.divider} />
-            <Controller name="currency" control={control} render={({ field }) => (
+            <Controller name="defaultCurrency" control={control} render={({ field }) => (
               <OptionSelector
                 label="Devise par défaut"
                 value={field.value}
@@ -158,7 +156,7 @@ export function SettingsScreen() {
                 onChange={field.onChange}
               />
             )} />
-            {errors.currency ? <Text style={styles.fieldError}>{errors.currency.message}</Text> : null}
+            {errors.defaultCurrency ? <Text style={styles.fieldError}>{errors.defaultCurrency.message}</Text> : null}
           </View>
 
           {/* Alertes */}
@@ -166,14 +164,14 @@ export function SettingsScreen() {
             <Text style={styles.sectionTitle}>🔔 Alertes</Text>
             <Text style={styles.sectionSubtitle}>Délai de notification avant échéance</Text>
             <View style={styles.divider} />
-            <Controller name="alertDaysBefore" control={control} render={({ field }) => (
+            <Controller name="defaultAlertDays" control={control} render={({ field }) => (
               <AppTextField
                 label="Jours avant échéance (0–30)"
                 value={field.value !== undefined ? String(field.value) : ''}
                 onChangeText={field.onChange as any}
                 keyboardType="numeric"
                 placeholder="3"
-                error={errors.alertDaysBefore?.message}
+                error={errors.defaultAlertDays?.message}
               />
             )} />
           </View>
@@ -187,7 +185,7 @@ export function SettingsScreen() {
               <OptionSelector
                 label="Début de semaine"
                 value={field.value}
-                options={[1, 0]}
+                options={['MONDAY', 'SUNDAY']}
                 labels={WEEK_START_LABELS}
                 onChange={field.onChange}
               />

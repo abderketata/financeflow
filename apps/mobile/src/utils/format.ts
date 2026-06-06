@@ -12,3 +12,5 @@ export const formatDate = (value?: string | null) => {
   return date.toLocaleDateString('fr-FR');
 };
 
+export const normalizeText = (value?: string | null) => (value ?? '').toLowerCase().trim();
+

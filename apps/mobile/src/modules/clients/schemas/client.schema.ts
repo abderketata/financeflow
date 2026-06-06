@@ -39,6 +39,7 @@ export const clientSchema = z.object({
     ),
   notes: optionalText,
   isActive: z.boolean().default(true),
+  accountIds: z.array(z.number()).default([]),
 }).refine(
   (values) => values.type !== 'COMPANY' || (values.companyName && values.companyName.length > 0),
   { message: 'La raison sociale est requise pour une société', path: ['companyName'] },

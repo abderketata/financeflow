@@ -38,7 +38,7 @@ export function DashboardScreen() {
     const run = async () => {
       if (!data || !settings) return;
       await initNotifications();
-      await scheduleDueAlerts(data.upcomingPaymentItems, settings.alertDaysBefore || 3);
+      await scheduleDueAlerts(data.upcomingPaymentItems, settings.defaultAlertDays ?? settings.alertDaysBefore ?? 3);
     };
     run();
   }, [data, settings]);
@@ -46,7 +46,7 @@ export function DashboardScreen() {
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => refetch()} message="Impossible de charger le dashboard." />;
 
-  const defaultCurrency = settings?.currency ?? 'TND';
+  const defaultCurrency = settings?.defaultCurrency ?? settings?.currency ?? 'TND';
 
   const kpis: KpiItem[] = [
     { label: 'Crédits du mois',   value: formatCurrency(data.monthlyCredits, defaultCurrency),  color: '#16a34a', bg: '#f0fdf4', icon: '📈' },

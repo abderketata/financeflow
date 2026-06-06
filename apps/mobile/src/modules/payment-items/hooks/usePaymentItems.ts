@@ -9,9 +9,16 @@ export const usePaymentItems = (options?: { params?: Record<string, unknown> }) 
     queryKey: [...QUERY_KEY, options?.params ?? null],
     queryFn: () => {
       const callerFilters = ((options?.params?.filters ?? {}) as Record<string, unknown>);
-      const mergedFilters = Object.keys(callerFilters).length
-        ? { supprimer: { $eq: false }, ...callerFilters }
-        : { supprimer: { $eq: false } };
+      let mergedFilters: Record<string, unknown>;
+
+      if (!Object.keys(callerFilters).length) {
+        mergedFilters = { supprimer: { $eq: false } };
+      } else if (Array.isArray(callerFilters.$and)) {
+        mergedFilters = { $and: [{ supprimer: { $eq: false } }, ...callerFilters.$and] };
+      } else {
+        mergedFilters = { supprimer: { $eq: false }, ...callerFilters };
+      }
+
       return paymentItemService.list({ populate: '*', ...(options?.params ?? {}), filters: mergedFilters });
     },
   });

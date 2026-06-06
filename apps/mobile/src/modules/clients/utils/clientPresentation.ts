@@ -1,6 +1,8 @@
 import { Client, BankAccount, PaymentItem, Transaction, RelationCollection, ClientType } from '@/types';
+import { getPaymentItemAccount, getPaymentItemReference } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { normalizeClientIdentityNumber } from './identityNumber';
 import { formatClientTaxNumber, normalizeClientTaxNumber } from './taxNumber';
+import { normalizeText } from '@/utils/format';
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -72,20 +74,94 @@ export const getClientAccounts = (client: Client): BankAccount[] => toRelationAr
 export const getClientPaymentItems = (client: Client): PaymentItem[] => toRelationArray(client.paymentItems);
 export const getClientTransactions = (client: Client): Transaction[] => toRelationArray(client.transactions);
 
+export const getBankAccountCurrentBalance = (account: Partial<BankAccount>) =>
+  Number(account.currentBalance ?? account.balance ?? 0);
+
+export const getBankAccountOpeningBalance = (account: Partial<BankAccount>) =>
+  Number(account.openingBalance ?? 0);
+
+export const getPaymentItemCurrency = (item: Partial<PaymentItem>, defaultCurrency = 'TND') => item.currency || getPaymentItemAccount(item)?.currency || defaultCurrency;
+
+export const getTransactionCurrency = (transaction: Partial<Transaction>, defaultCurrency = 'TND') => transaction.currency || transaction.bankAccount?.currency || defaultCurrency;
+
 export const getClientMetrics = (client: Client) => {
   const accounts = getClientAccounts(client);
   const paymentItems = getClientPaymentItems(client);
   const transactions = getClientTransactions(client);
+
+   const transactionVolume = transactions.reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount ?? 0)), 0);
+   const creditTotal = transactions
+     .filter((transaction) => transaction.operationType === 'CREDIT')
+     .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0);
+   const debitTotal = transactions
+     .filter((transaction) => transaction.operationType === 'DEBIT')
+     .reduce((sum, transaction) => sum + Number(transaction.amount ?? 0), 0);
+
   return {
     accountsCount: accounts.length,
     paymentItemsCount: paymentItems.length,
     transactionsCount: transactions.length,
+    transactionVolume,
+    creditTotal,
+    debitTotal,
   };
 };
 
 export const getClientActivitySummary = (client: Client): string => {
   const m = getClientMetrics(client);
   return `${m.accountsCount} compte${m.accountsCount > 1 ? 's' : ''} • ${m.paymentItemsCount} paiement${m.paymentItemsCount > 1 ? 's' : ''} • ${m.transactionsCount} trans`;
+};
+
+export const buildClientSearchHaystack = (client: Client) => {
+  const accounts = getClientAccounts(client);
+  const paymentItems = getClientPaymentItems(client);
+  const transactions = getClientTransactions(client);
+
+  return [
+    getClientDisplayName(client),
+    getClientSecondaryName(client),
+    client.code,
+    client.type,
+    client.phone,
+    client.email,
+    client.address,
+    client.identityNumber,
+    client.taxNumber,
+    client.notes,
+    ...accounts.flatMap((account) => [
+      account.label,
+      account.accountNumber,
+      account.iban,
+      account.rib,
+      account.currency,
+      account.bank?.name,
+      account.status,
+    ]),
+    ...paymentItems.flatMap((paymentItem) => [
+      getPaymentItemReference(paymentItem),
+      paymentItem.type,
+      paymentItem.direction,
+      paymentItem.status,
+      paymentItem.notes,
+      paymentItem.drawer,
+      paymentItem.drawee,
+      paymentItem.bankName,
+      getPaymentItemAccount(paymentItem)?.label,
+      getPaymentItemAccount(paymentItem)?.accountNumber,
+      getPaymentItemAccount(paymentItem)?.rib,
+      paymentItem.instrumentAccountNumber,
+    ]),
+    ...transactions.flatMap((transaction) => [
+      transaction.label,
+      transaction.operationType,
+      transaction.category,
+      transaction.paymentMethod,
+      transaction.status,
+      transaction.notes,
+    ]),
+  ]
+    .map((entry) => normalizeText(typeof entry === 'number' ? String(entry) : entry))
+    .join(' ');
 };
 
 export const normalizeClientEntity = (client: Client): Client => ({
@@ -113,6 +189,7 @@ export const getClientFormDefaults = (client?: Partial<Client> | null) => {
       taxNumber: '',
       notes: '',
       isActive: true,
+      accountIds: [],
     };
   }
 
@@ -128,6 +205,7 @@ export const getClientFormDefaults = (client?: Partial<Client> | null) => {
     taxNumber: formatClientTaxNumber(client.taxNumber),
     notes: client.notes || '',
     isActive: client.isActive ?? true,
+    accountIds: getClientAccounts(client as Client).map((account) => account.id),
   };
 };
 

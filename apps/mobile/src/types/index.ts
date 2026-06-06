@@ -3,6 +3,7 @@ export type Identifier = number;
 export type PaymentItemType = 'CHEQUE' | 'TRAITE' | 'AUTRE';
 export type PaymentDirection = 'IN' | 'OUT';
 export type PaymentItemStatus = 'Déposé' | 'Payé' | 'Annulé' | 'En retard';
+export type PaymentMethod = 'ESPECES' | 'VIREMENT' | 'CARTE';
 export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 
 export type ClientType = 'INDIVIDUAL' | 'COMPANY';
@@ -41,10 +42,18 @@ export interface BankAccount {
   id: Identifier;
   label: string;
   accountNumber: string;
+  rib?: string;
+  iban?: string;
   balance?: number;
+  openingBalance?: number;
+  currentBalance?: number;
   currency?: string;
+  status?: string;
+  isActive?: boolean;
   bank?: Bank | null;
   client?: Client | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PaymentItem {
@@ -59,14 +68,22 @@ export interface PaymentItem {
   currency?: string;
   issueDate?: string;
   dueDate?: string;
+  receptionDate?: string;
+  paymentDate?: string;
   drawer?: string;
   drawee?: string;
+  bankName?: string;
+  instrumentAccountNumber?: string;
   alertEnabled?: boolean;
   alertDaysBefore?: number;
+  paymentMethod?: PaymentMethod;
+  supprimer?: boolean;
   notes?: string;
   client?: Client | null;
   account?: BankAccount | null;
   bankAccount?: BankAccount | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {
@@ -75,10 +92,18 @@ export interface Transaction {
   operationType: TransactionOperationType;
   amount: number;
   operationDate: string;
+  valueDate?: string;
+  category?: string;
+  currency?: string;
+  paymentMethod?: string;
+  status?: string;
+  isReconciled?: boolean;
   notes?: string;
   client?: Client | null;
   bankAccount?: BankAccount | null;
   paymentItem?: PaymentItem | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AlertItem {
@@ -88,21 +113,27 @@ export interface AlertItem {
   isRead: boolean;
   triggerDate?: string;
   paymentItem?: PaymentItem | null;
+  paymentItems?: RelationCollection<PaymentItem>;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AppSetting {
   id: Identifier;
-  currency: string;
-  /** Alias web : defaultCurrency → currency */
-  defaultCurrency?: string;
-  alertDaysBefore: number;
-  /** Alias web : defaultAlertDays → alertDaysBefore */
-  defaultAlertDays?: number;
-  weekStartsOn: 0 | 1;
-  locale: string;
-  /** Nom de la société (présent dans le Web) */
+  defaultCurrency: string;
+  defaultAlertDays: number;
+  weekStartsOn: 'MONDAY' | 'SUNDAY';
   companyName?: string;
+  currency?: string;
+  alertDaysBefore?: number;
+  locale?: string;
+}
+
+export interface ChartPoint {
+  label: string;
+  tooltipLabel?: string;
+  credit: number;
+  debit: number;
 }
 
 export interface DashboardSummary {
@@ -111,6 +142,8 @@ export interface DashboardSummary {
   dueThisWeekCount: number;
   overdueCount: number;
   unreadAlertsCount: number;
+  weeklyChart: ChartPoint[];
+  monthlyChart: ChartPoint[];
   upcomingPaymentItems: PaymentItem[];
 }
 

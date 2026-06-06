@@ -50,20 +50,77 @@ export const buildPaymentItemReference = (
 ) => `${paymentItemTypePrefixMap[type]}-${direction}-${year}`;
 
 export const getPaymentItemClientPrimary = (client?: Client | null) =>
-  client?.name?.trim() || client?.code || '—';
+  client?.companyName?.trim() || client?.fullName?.trim() || client?.name?.trim() || client?.code || '—';
 
-export const getPaymentItemAccount = (item?: Partial<PaymentItem> | null): BankAccount | null =>
-  item?.account || item?.bankAccount || null;
+export const getPaymentItemClientSecondary = (client?: Client | null) => {
+  const companyName = client?.companyName?.trim();
+  const fullName = client?.fullName?.trim();
 
-export const getPaymentItemAccountPrimary = (account?: BankAccount | null) =>
-  account?.label?.trim() || account?.accountNumber?.trim() || '—';
+  if (companyName && fullName && companyName !== fullName) {
+    return fullName;
+  }
+
+  return client?.code || '';
+};
+
+export const getPaymentItemAccount = (item?: Partial<PaymentItem> | null): BankAccount | null => {
+  const rawItem = item as any;
+  return rawItem?.data?.attributes?.account
+    || rawItem?.data?.account
+    || rawItem?.attributes?.account
+    || rawItem?.account
+    || rawItem?.data?.attributes?.bankAccount
+    || rawItem?.data?.bankAccount
+    || rawItem?.attributes?.bankAccount
+    || rawItem?.bankAccount
+    || null;
+};
+
+export const getPaymentItemNotes = (item?: Partial<PaymentItem> | null) => {
+  const rawItem = item as any;
+  return rawItem?.data?.attributes?.notes?.trim()
+    || rawItem?.attributes?.notes?.trim()
+    || rawItem?.notes?.trim()
+    || rawItem?.data?.notes?.trim()
+    || '';
+};
+
+export const getPaymentItemAccountPrimary = (account?: BankAccount | null) => {
+  const rawAccount = account as any;
+  return rawAccount?.label?.trim()
+    || rawAccount?.attributes?.label?.trim()
+    || rawAccount?.data?.attributes?.label?.trim()
+    || rawAccount?.rib?.trim()
+    || rawAccount?.attributes?.rib?.trim()
+    || rawAccount?.data?.attributes?.rib?.trim()
+    || rawAccount?.accountNumber?.trim()
+    || rawAccount?.attributes?.accountNumber?.trim()
+    || rawAccount?.data?.attributes?.accountNumber?.trim()
+    || '—';
+};
+
+export const getPaymentItemAccountSecondary = (account?: BankAccount | null) => {
+  if (!account) {
+    return '';
+  }
+
+  const values = [account.accountNumber?.trim(), account.rib?.trim()].filter(Boolean) as string[];
+  const primary = getPaymentItemAccountPrimary(account);
+  return values.find((value) => value !== primary) || '';
+};
 
 export const getPaymentItemEffectiveDate = (item?: Partial<PaymentItem> | null) =>
   item?.dueDate || item?.issueDate || '';
 
+export const getPaymentItemEffectiveDateLabel = (item?: Partial<PaymentItem> | null) =>
+  item?.dueDate ? 'Échéance' : 'Émission';
+
+export const getPaymentItemCurrency = (item?: Partial<PaymentItem> | null, defaultCurrency = 'TND') =>
+  item?.currency || getPaymentItemAccount(item)?.currency || defaultCurrency;
+
 export const isPaymentItemClosedStatus = (status?: string | null) => {
   const resolved = getPaymentItemStatusLabel(status);
-  return resolved === 'Payé' || resolved === 'Annulé' || resolved === 'Rejeté';
+  return resolved === 'Payé' || resolved === 'Annulé';
 };
 
 // Map payment-items into a Transaction-like shape used by dashboard (mobile)
@@ -72,7 +129,7 @@ export const mapPaymentItemsToTransactions = (items: Array<Partial<PaymentItem> 
     const node = raw as any;
     const attrs = node?.data?.attributes || node?.attributes || node || {};
 
-    const amount = Number(attrs?.amount || 0) || 0;
+    const amount = Number(attrs?.amount || attrs?.montant || 0) || 0;
     const direction = (attrs?.direction || 'IN') as 'IN' | 'OUT';
     const operationType = (direction === 'IN' ? 'CREDIT' : 'DEBIT') as TransactionOperationType;
 
