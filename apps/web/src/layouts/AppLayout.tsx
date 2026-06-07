@@ -41,7 +41,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getBusinessRefreshKey, useBusinessNavigate } from '@/app/businessNavigation';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { GlobalSearch } from '@/components/ui/GlobalSearch';
-import { useAlerts } from '@/modules/alerts/hooks/useAlerts';
+import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
 import { useAuth } from '@/providers/AuthProvider';
 import { formatDate } from '@/utils/format';
 import { brandColors, headingFont, premiumShadows } from '@/app/theme';
@@ -92,7 +92,9 @@ export function AppLayout() {
   const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null);
   const { logout, user } = useAuth();
   const { data: alerts = [] } = useAlerts();
+  const updateAlert = useUpdateAlert();
 
+  const totalAlerts = alerts.length;
   const unreadAlerts = alerts.filter((alert) => !alert.isRead).length;
   const drawerWidth = collapsed && !isMobile ? DRAWER_COLLAPSED : DRAWER_FULL;
   const menuRefreshKey = getBusinessRefreshKey(location.state);
@@ -245,8 +247,8 @@ export function AppLayout() {
                           },
                         }}
                       >
-                        {isAlerts && unreadAlerts > 0 ? (
-                          <Badge badgeContent={unreadAlerts} color="error" max={99} sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 16, height: 16 } }}>
+                        {isAlerts && totalAlerts > 0 ? (
+                          <Badge badgeContent={totalAlerts} color="error" max={99} sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 16, height: 16 } }}>
                             {item.icon}
                           </Badge>
                         ) : (
@@ -355,7 +357,7 @@ export function AppLayout() {
         </Box>
       </Box>
     ),
-    [location.pathname, navigateWithRefresh, user, logout, isCollapsed, isMobile, unreadAlerts, toggleCollapse]
+    [location.pathname, navigateWithRefresh, user, logout, isCollapsed, isMobile, totalAlerts, toggleCollapse]
   );
 
   return (
@@ -430,7 +432,7 @@ export function AppLayout() {
                 '&:hover': { backgroundColor: brandColors.slate[50], borderColor: brandColors.slate[300], transform: 'translateY(-1px)' },
               }}
             >
-              <Badge badgeContent={unreadAlerts} color="error" max={99}>
+              <Badge badgeContent={totalAlerts} color="error" max={99}>
                 <NotificationsNoneRoundedIcon sx={{ color: brandColors.slate[500], fontSize: 20 }} />
               </Badge>
             </IconButton>
@@ -498,12 +500,20 @@ export function AppLayout() {
                   Notifications
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {unreadAlerts > 0 ? `${unreadAlerts} non lue${unreadAlerts > 1 ? 's' : ''}` : 'Tout est à jour'}
+                  {totalAlerts > 0 ? `${totalAlerts} alerte${totalAlerts > 1 ? 's' : ''}` : 'Aucune alerte'}
                 </Typography>
               </Box>
               {unreadAlerts > 0 && (
                 <Tooltip title="Tout marquer comme lu">
-                  <IconButton size="small" sx={{ color: brandColors.blue[600] }}>
+                  <IconButton
+                    size="small"
+                    sx={{ color: brandColors.blue[600] }}
+                    onClick={() => {
+                      alerts.filter((alert) => !alert.isRead).forEach((alert) => {
+                        updateAlert.mutate({ id: alert.id, payload: { isRead: true } });
+                      });
+                    }}
+                  >
                     <MarkEmailReadRoundedIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>

@@ -106,7 +106,7 @@ export function AlertListScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Alertes</Text>
-          <Text style={styles.subtitle}>{data.length} alerte(s) · {unreadCount} non lue(s)</Text>
+          <Text style={styles.subtitle}>{data.length} alerte(s)</Text>
         </View>
         {unreadCount > 0 && (
           <Pressable style={styles.markAllBtn} onPress={markAllRead}>
