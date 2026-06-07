@@ -26,6 +26,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
+import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/components/MonthlyCreditDebitComparisonChart';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
@@ -238,6 +239,11 @@ export default function DashboardPage() {
         {/* Monthly chart */}
         <Grid item xs={12}>
           <MonthlyOperationsChart data={data.monthlyChart} currency={defaultCurrency} />
+        </Grid>
+
+        {/* Monthly credit / debit comparison chart */}
+        <Grid item xs={12}>
+          <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={defaultCurrency} />
         </Grid>
       </Grid>
     </>

@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/components/MonthlyCreditDebitComparisonChart';
 import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { initNotifications } from '@/services/notifications/expoNotifications';
@@ -65,6 +66,8 @@ export function DashboardScreen() {
         <View style={styles.kpiGrid}>
           {kpis.map((item) => <KpiCard key={item.label} item={item} />)}
         </View>
+
+        <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={defaultCurrency} />
 
         <Text style={styles.sectionTitle}>📋 Échéances de la semaine ({data.upcomingPaymentItems.length})</Text>
         {data.upcomingPaymentItems.length ? (
