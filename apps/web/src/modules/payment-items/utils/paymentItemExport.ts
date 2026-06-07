@@ -32,11 +32,12 @@ const EXPORT_COLUMNS = [
 const PDF_MARGIN_X = 24;
 const PDF_HEADER_BASE_Y = 26;
 const PDF_HEADER_MAX_WIDTH = 770;
-const PDF_TABLE_TOP_GAP = 10;
+const PDF_TABLE_TOP_GAP = 6;
 const PDF_FOOTER_Y_OFFSET = 16;
 const PDF_TOP_CARD_GAP = 14;
-const PDF_SUMMARY_CARD_GAP = 12;
-const PDF_SUMMARY_CARD_HEIGHT = 52;
+const PDF_SUMMARY_CARD_GAP = 10;
+const PDF_SUMMARY_CARD_HEIGHT = 36;
+const PDF_SUMMARY_CARD_PADDING_X = 10;
 const PDF_FILTER_BOX_PADDING = 10;
 
 let pdfLogoDataUrlPromise: Promise<string | null> | null = null;
@@ -404,11 +405,11 @@ const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
   const filtersHeight = (filterLines.length * 11) + (PDF_FILTER_BOX_PADDING * 2);
   const headerBottom = PDF_HEADER_BASE_Y
     + topSectionHeight
-    + 12
+    + 8
     + PDF_SUMMARY_CARD_HEIGHT
-    + 12
+    + 8
     + filtersHeight
-    + 14;
+    + 12;
 
   return {
     pageWidth,
@@ -440,19 +441,37 @@ const drawSummaryCard = (
     valueColor: [number, number, number];
   },
 ) => {
+  const cardCenterY = y + (PDF_SUMMARY_CARD_HEIGHT / 2) + 3;
+  const labelText = label.toUpperCase();
+  const labelFit = getFittedSingleLineText(doc, labelText, Math.max(72, width * 0.42), {
+    fontStyle: 'bold',
+    initialFontSize: 8,
+    minFontSize: 7,
+  });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(labelFit.fontSize);
+  const labelWidth = doc.getTextWidth(labelFit.text);
+  const valueMaxWidth = Math.max(70, width - (PDF_SUMMARY_CARD_PADDING_X * 2) - labelWidth - 10);
+  const valueFit = getFittedSingleLineText(doc, value, valueMaxWidth, {
+    fontStyle: 'bold',
+    initialFontSize: 10.6,
+    minFontSize: 8.6,
+  });
+
   doc.setFillColor(...options.fillColor);
   doc.setDrawColor(...options.borderColor);
   doc.setLineWidth(0.8);
-  doc.roundedRect(x, y, width, PDF_SUMMARY_CARD_HEIGHT, 10, 10, 'FD');
+  doc.roundedRect(x, y, width, PDF_SUMMARY_CARD_HEIGHT, 9, 9, 'FD');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
+  doc.setFontSize(labelFit.fontSize);
   doc.setTextColor(71, 85, 105);
-  doc.text(label.toUpperCase(), x + 12, y + 16);
+  doc.text(labelFit.text, x + PDF_SUMMARY_CARD_PADDING_X, cardCenterY);
 
-  doc.setFontSize(12.5);
+  doc.setFontSize(valueFit.fontSize);
   doc.setTextColor(...options.valueColor);
-  doc.text(value, x + 12, y + 35);
+  doc.text(valueFit.text, x + width - PDF_SUMMARY_CARD_PADDING_X, cardCenterY, { align: 'right' });
 };
 
 const getPdfTableColumnStyles = (contentWidth: number) => {
@@ -530,7 +549,7 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   doc.setFontSize(userLine.fontSize);
   doc.text(userLine.text, metaBoxX + 12, currentY + 43);
 
-  currentY += topSectionHeight + 12;
+  currentY += topSectionHeight + 8;
 
   drawSummaryCard(doc, PDF_MARGIN_X, currentY, summaryCardWidth, 'Total lignes', String(model.totalLines), {
     fillColor: [248, 250, 252],
@@ -548,7 +567,7 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
     valueColor: [185, 28, 28],
   });
 
-  currentY += PDF_SUMMARY_CARD_HEIGHT + 12;
+  currentY += PDF_SUMMARY_CARD_HEIGHT + 8;
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
