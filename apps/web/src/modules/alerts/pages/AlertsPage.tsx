@@ -1,8 +1,11 @@
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import MarkEmailReadRoundedIcon from '@mui/icons-material/MarkEmailReadRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
-import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import DoneAllRoundedIcon from '@mui/icons-material/DoneAllRounded';
+import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
+import SendRoundedIcon from '@mui/icons-material/SendRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import {
   Box,
   Button,
@@ -22,26 +25,91 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AlertPaymentDetailsDialog } from '@/modules/alerts/components/AlertPaymentDetailsDialog';
 import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
-import { Alert } from '@/types/domain';
+import { Alert, PaymentItem } from '@/types/domain';
 import { formatDate } from '@/utils/format';
 import { actionIconButton, brandColors, iconBox } from '@/app/theme';
-import { useState } from 'react';
+import { getPaymentItemClientPrimary, getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { useMemo, useState } from 'react';
 
 type AlertFilter = 'all' | 'unread' | 'read';
+type AlertSort = 'recent' | 'urgent';
+
+const getAlertPaymentItems = (alert: Alert) => {
+  if (Array.isArray(alert.paymentItems)) {
+    return alert.paymentItems.filter(Boolean);
+  }
+
+  if (alert.paymentItems?.data) {
+    return alert.paymentItems.data.filter(Boolean);
+  }
+
+  return alert.paymentItem ? [alert.paymentItem] : [];
+};
+
+const getPrimaryAlertPaymentItem = (alert: Alert): PaymentItem | null => getAlertPaymentItems(alert)[0] ?? null;
+
+const getAlertScheduledAt = (alert: Alert) => {
+  const paymentItem = getPrimaryAlertPaymentItem(alert);
+  return alert.scheduledAt || alert.triggerDate || paymentItem?.dueDate || paymentItem?.paymentDate || paymentItem?.createdAt || null;
+};
+
+const getAlertSentAt = (alert: Alert) => alert.sentAt || alert.createdAt || alert.updatedAt || null;
+
+const getAlertTimestamp = (value?: string | null, fallback = Number.POSITIVE_INFINITY) => {
+  if (!value) {
+    return fallback;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : fallback;
+};
+
+const getAlertAssociatedLabel = (alert: Alert) => {
+  const paymentItem = getPrimaryAlertPaymentItem(alert);
+  if (!paymentItem) {
+    return 'Paiement non lié';
+  }
+
+  const clientLabel = getPaymentItemClientPrimary(paymentItem.client);
+  const reference = getPaymentItemReference(paymentItem);
+  return clientLabel !== '—' ? `${clientLabel} · ${reference}` : reference;
+};
 
 export default function AlertsPage() {
   const { data = [], isLoading, isError, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
-  const [filter, setFilter] = useState<AlertFilter>('unread');
+  const [filter, setFilter] = useState<AlertFilter>('all');
+  const [sort, setSort] = useState<AlertSort>('urgent');
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
 
-  const filteredAlerts = data.filter((alert) => {
-    if (filter === 'unread') return !alert.isRead;
-    if (filter === 'read') return alert.isRead;
-    return true;
-  });
+  const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
+  const readCount = Math.max(data.length - unreadCount, 0);
 
-  const unreadCount = data.filter((a) => !a.isRead).length;
+  const filteredAlerts = useMemo(() => {
+    const filtered = data.filter((alert) => {
+      if (filter === 'unread') return !alert.isRead;
+      if (filter === 'read') return alert.isRead;
+      return true;
+    });
+
+    return filtered.sort((left, right) => {
+      if (left.isRead !== right.isRead) {
+        return Number(left.isRead) - Number(right.isRead);
+      }
+
+      if (sort === 'urgent') {
+        const leftUrgency = getAlertTimestamp(getAlertScheduledAt(left));
+        const rightUrgency = getAlertTimestamp(getAlertScheduledAt(right));
+        if (leftUrgency !== rightUrgency) {
+          return leftUrgency - rightUrgency;
+        }
+      }
+
+      const leftRecent = getAlertTimestamp(getAlertSentAt(left), 0);
+      const rightRecent = getAlertTimestamp(getAlertSentAt(right), 0);
+      return rightRecent - leftRecent;
+    });
+  }, [data, filter, sort]);
 
   if (isLoading) return <LoadingState message="Chargement des alertes..." />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
@@ -70,18 +138,38 @@ export default function AlertsPage() {
         }
       />
 
-      {/* Filter chips */}
-      <Stack direction="row" spacing={1} sx={{ mb: 2.5 }}>
-        {(['all', 'unread', 'read'] as AlertFilter[]).map((f) => (
-          <Chip
-            key={f}
-            label={f === 'all' ? 'Toutes' : f === 'unread' ? `Non lues (${unreadCount})` : 'Lues'}
-            onClick={() => setFilter(f)}
-            color={filter === f ? 'primary' : 'default'}
-            variant={filter === f ? 'filled' : 'outlined'}
-            sx={{ fontWeight: 600 }}
-          />
-        ))}
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} sx={{ mb: 2.5 }}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {([
+            { value: 'all', label: `Toutes (${data.length})` },
+            { value: 'unread', label: `Non lues (${unreadCount})` },
+            { value: 'read', label: `Lues (${readCount})` },
+          ] as Array<{ value: AlertFilter; label: string }>).map((item) => (
+            <Chip
+              key={item.value}
+              label={item.label}
+              onClick={() => setFilter(item.value)}
+              color={filter === item.value ? 'primary' : 'default'}
+              variant={filter === item.value ? 'filled' : 'outlined'}
+              sx={{ fontWeight: 600 }}
+            />
+          ))}
+        </Stack>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {([
+            { value: 'urgent', label: 'Plus urgentes' },
+            { value: 'recent', label: 'Plus récentes' },
+          ] as Array<{ value: AlertSort; label: string }>).map((item) => (
+            <Chip
+              key={item.value}
+              label={item.label}
+              onClick={() => setSort(item.value)}
+              color={sort === item.value ? 'secondary' : 'default'}
+              variant={sort === item.value ? 'filled' : 'outlined'}
+              sx={{ fontWeight: 600 }}
+            />
+          ))}
+        </Stack>
       </Stack>
 
       <Card>
@@ -128,35 +216,63 @@ export default function AlertsPage() {
                       </Typography>
                       <Chip
                         size="small"
-                        label={alert.isRead ? 'Lue' : 'Non lue'}
+                        label={alert.isRead ? 'Lu' : 'Non lu'}
                         color={alert.isRead ? 'success' : 'warning'}
                         sx={{ height: 20, fontSize: '0.68rem' }}
                       />
+                      {getPrimaryAlertPaymentItem(alert) ? (
+                        <Chip
+                          size="small"
+                          label={String(getPaymentItemStatusLabel(getPrimaryAlertPaymentItem(alert)?.status))}
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+                        />
+                      ) : null}
                     </Stack>
-                    <Typography sx={{ color: 'text.secondary', fontSize: '0.84rem', lineHeight: 1.5, mb: 0.5 }}>
+                    <Typography sx={{ color: alert.isRead ? 'text.secondary' : 'text.primary', fontSize: '0.84rem', lineHeight: 1.5, mb: 1 }}>
                       {alert.message}
                     </Typography>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <AccessTimeRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {formatDate(alert.triggerDate || alert.createdAt)}
-                      </Typography>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <ScheduleRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Échéance : {formatDate(getAlertScheduledAt(alert))}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <SendRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Envoi : {formatDate(getAlertSentAt(alert))}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <BusinessRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {getAlertAssociatedLabel(alert)}
+                        </Typography>
+                      </Stack>
+                      {getPrimaryAlertPaymentItem(alert) ? (
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <ReceiptLongRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            Paiement : {getPaymentItemReference(getPrimaryAlertPaymentItem(alert))}
+                          </Typography>
+                        </Stack>
+                      ) : null}
                     </Stack>
                   </Box>
 
                   {/* Actions */}
                   <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-                    {!alert.isRead && (
-                      <Tooltip title="Marquer comme lue">
-                        <IconButton
-                          size="small"
-                          onClick={() => updateMutation.mutate({ id: alert.id, payload: { isRead: true } })}
-                          sx={actionIconButton(brandColors.blue[600])}
-                        >
-                          <MarkEmailReadRoundedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    <Tooltip title={alert.isRead ? 'Marquer comme non lue' : 'Marquer comme lue'}>
+                      <IconButton
+                        size="small"
+                        onClick={() => updateMutation.mutate({ id: alert.id, payload: { isRead: !alert.isRead } })}
+                        sx={actionIconButton(alert.isRead ? brandColors.slate[500] : brandColors.blue[600])}
+                      >
+                        <MarkEmailReadRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Afficher les détails du paiement associé">
                       <Button
                         size="small"
@@ -191,7 +307,7 @@ export default function AlertsPage() {
           ) : (
             <EmptyState
               title="Aucune alerte"
-              message={filter === 'unread' ? 'Toutes vos alertes ont été lues' : 'Toutes vos notifications sont à jour'}
+              message={filter === 'unread' ? 'Toutes vos alertes ont été lues' : filter === 'read' ? 'Aucune alerte lue à afficher' : 'Aucune alerte disponible pour le moment'}
               icon={<NotificationsActiveRoundedIcon />}
             />
           )}

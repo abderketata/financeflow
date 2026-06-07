@@ -1,14 +1,42 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AlertItem } from '@/types';
+import { AlertItem, PaymentItem } from '@/types';
 import { formatDate } from '@/utils/format';
+import { getPaymentItemClientPrimary, getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 interface AlertCardProps {
   item: AlertItem;
-  onMarkRead?: () => void;
+  onToggleRead?: () => void;
   onViewPayment?: () => void;
 }
 
-export function AlertCard({ item, onMarkRead, onViewPayment }: AlertCardProps) {
+const getAlertPaymentItems = (alert: AlertItem) => {
+  if (Array.isArray(alert.paymentItems)) {
+    return alert.paymentItems.filter(Boolean);
+  }
+
+  if (alert.paymentItems?.data) {
+    return alert.paymentItems.data.filter(Boolean);
+  }
+
+  return alert.paymentItem ? [alert.paymentItem] : [];
+};
+
+const getPrimaryAlertPaymentItem = (alert: AlertItem): PaymentItem | null => getAlertPaymentItems(alert)[0] ?? null;
+
+const getAlertScheduledAt = (alert: AlertItem) => {
+  const paymentItem = getPrimaryAlertPaymentItem(alert);
+  return alert.scheduledAt || alert.triggerDate || paymentItem?.dueDate || paymentItem?.paymentDate || paymentItem?.createdAt || null;
+};
+
+const getAlertSentAt = (alert: AlertItem) => alert.sentAt || alert.createdAt || alert.updatedAt || null;
+
+export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps) {
+  const paymentItem = getPrimaryAlertPaymentItem(item);
+  const paymentStatus = paymentItem ? String(getPaymentItemStatusLabel(paymentItem.status)) : null;
+  const associatedLabel = paymentItem
+    ? `${getPaymentItemClientPrimary(paymentItem.client)} · ${getPaymentItemReference(paymentItem)}`
+    : 'Paiement non lié';
+
   return (
     <View style={[styles.card, !item.isRead && styles.cardUnread]}>
       {!item.isRead && <View style={styles.unreadBar} />}
@@ -17,17 +45,22 @@ export function AlertCard({ item, onMarkRead, onViewPayment }: AlertCardProps) {
           <Text style={[styles.title, !item.isRead && styles.titleUnread]} numberOfLines={2}>{item.title}</Text>
           <View style={[styles.badge, item.isRead ? styles.badgeRead : styles.badgeUnread]}>
             <Text style={[styles.badgeText, item.isRead ? styles.badgeReadText : styles.badgeUnreadText]}>
-              {item.isRead ? 'Lue' : 'Non lue'}
+              {item.isRead ? 'Lu' : 'Non lu'}
             </Text>
           </View>
         </View>
         <Text style={styles.message}>{item.message}</Text>
-        <Text style={styles.date}>🕐 {formatDate(item.triggerDate || item.createdAt)}</Text>
-        {(onMarkRead || onViewPayment) && (
+        <Text style={styles.meta}>📅 Échéance : {formatDate(getAlertScheduledAt(item))}</Text>
+        <Text style={styles.meta}>✉️ Envoi : {formatDate(getAlertSentAt(item))}</Text>
+        <Text style={styles.meta}>👤 {associatedLabel}</Text>
+        {paymentStatus ? <Text style={styles.meta}>💳 Statut paiement : {paymentStatus}</Text> : null}
+        {(onToggleRead || onViewPayment) && (
           <View style={styles.actions}>
-            {!item.isRead && onMarkRead && (
-              <Pressable style={[styles.actionBtn, styles.markReadBtn]} onPress={onMarkRead}>
-                <Text style={styles.markReadText}>✓ Marquer lue</Text>
+            {onToggleRead && (
+              <Pressable style={[styles.actionBtn, item.isRead ? styles.markUnreadBtn : styles.markReadBtn]} onPress={onToggleRead}>
+                <Text style={[styles.markReadText, item.isRead ? styles.markUnreadText : null]}>
+                  {item.isRead ? '↺ Marquer non lue' : '✓ Marquer lue'}
+                </Text>
               </Pressable>
             )}
             {onViewPayment && (
@@ -68,11 +101,13 @@ const styles = StyleSheet.create({
   badgeUnreadText: { color: '#d97706' },
   badgeReadText: { color: '#16a34a' },
   message: { fontSize: 13, color: '#334155', lineHeight: 18 },
-  date: { fontSize: 11, color: '#94a3b8' },
+  meta: { fontSize: 11, color: '#64748b', lineHeight: 16 },
   actions: { flexDirection: 'row', gap: 8, marginTop: 6 },
   actionBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
   markReadBtn: { backgroundColor: '#eff6ff' },
+  markUnreadBtn: { backgroundColor: '#f1f5f9' },
   markReadText: { fontSize: 12, fontWeight: '700', color: '#2563eb' },
+  markUnreadText: { color: '#475569' },
   viewBtn: { backgroundColor: '#f1f5f9' },
   viewBtnText: { fontSize: 12, fontWeight: '700', color: '#475569' },
 });

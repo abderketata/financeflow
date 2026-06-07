@@ -113,6 +113,8 @@ export interface Alert {
   title: string;
   message: string;
   isRead: boolean;
+  scheduledAt?: string;
+  sentAt?: string;
   triggerDate?: string;
   paymentItem?: PaymentItem | null;
   paymentItems?: RelationCollection<PaymentItem>;

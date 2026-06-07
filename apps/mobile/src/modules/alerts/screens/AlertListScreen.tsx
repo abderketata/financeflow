@@ -7,27 +7,81 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import { AlertItem, PaymentItem } from '@/types';
 
 type AlertFilter = 'all' | 'unread' | 'read';
+type AlertSort = 'recent' | 'urgent';
 
-const FILTER_LABELS: Record<string, string> = {
-  all: 'Toutes',
-  unread: 'Non lues',
-  read: 'Lues',
+
+const SORT_LABELS: Record<AlertSort, string> = {
+  urgent: 'Plus urgentes',
+  recent: 'Plus récentes',
+};
+
+const getAlertPaymentItems = (alert: AlertItem) => {
+  if (Array.isArray(alert.paymentItems)) {
+    return alert.paymentItems.filter(Boolean);
+  }
+
+  if (alert.paymentItems?.data) {
+    return alert.paymentItems.data.filter(Boolean);
+  }
+
+  return alert.paymentItem ? [alert.paymentItem] : [];
+};
+
+const getPrimaryAlertPaymentItem = (alert: AlertItem): PaymentItem | null => getAlertPaymentItems(alert)[0] ?? null;
+
+const getAlertScheduledAt = (alert: AlertItem) => {
+  const paymentItem = getPrimaryAlertPaymentItem(alert);
+  return alert.scheduledAt || alert.triggerDate || paymentItem?.dueDate || paymentItem?.paymentDate || paymentItem?.createdAt || null;
+};
+
+const getAlertSentAt = (alert: AlertItem) => alert.sentAt || alert.createdAt || alert.updatedAt || null;
+
+const getAlertTimestamp = (value?: string | null, fallback = Number.POSITIVE_INFINITY) => {
+  if (!value) {
+    return fallback;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : fallback;
 };
 
 export function AlertListScreen() {
   const { data = [], isLoading, isError, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
-  const [filter, setFilter] = useState<AlertFilter>('unread');
+  const [filter, setFilter] = useState<AlertFilter>('all');
+  const [sort, setSort] = useState<AlertSort>('urgent');
 
   const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
+  const readCount = Math.max(data.length - unreadCount, 0);
 
-  const filteredAlerts = useMemo(() => data.filter((alert) => {
-    if (filter === 'unread') return !alert.isRead;
-    if (filter === 'read') return alert.isRead;
-    return true;
-  }), [data, filter]);
+  const filteredAlerts = useMemo(() => {
+    const filtered = data.filter((alert) => {
+      if (filter === 'unread') return !alert.isRead;
+      if (filter === 'read') return alert.isRead;
+      return true;
+    });
+
+    return filtered.sort((left, right) => {
+      if (left.isRead !== right.isRead) {
+        return Number(left.isRead) - Number(right.isRead);
+      }
+
+      if (sort === 'urgent') {
+        const leftUrgency = getAlertTimestamp(getAlertScheduledAt(left));
+        const rightUrgency = getAlertTimestamp(getAlertScheduledAt(right));
+        if (leftUrgency !== rightUrgency) {
+          return leftUrgency - rightUrgency;
+        }
+      }
+
+      const leftRecent = getAlertTimestamp(getAlertSentAt(left), 0);
+      const rightRecent = getAlertTimestamp(getAlertSentAt(right), 0);
+      return rightRecent - leftRecent;
+    });
+  }, [data, filter, sort]);
 
   const markAllRead = () => {
     data.filter((a) => !a.isRead).forEach((a) => {
@@ -41,11 +95,11 @@ export function AlertListScreen() {
   const filterOptions = [
     'Toutes',
     `Non lues (${unreadCount})`,
-    'Lues',
+    `Lues (${readCount})`,
   ];
   const filterValue =
     filter === 'unread' ? `Non lues (${unreadCount})` :
-    filter === 'read'   ? 'Lues' : 'Toutes';
+    filter === 'read'   ? `Lues (${readCount})` : 'Toutes';
 
   return (
     <Screen>
@@ -67,9 +121,15 @@ export function AlertListScreen() {
           value={filterValue}
           onChange={(label) => {
             if (label.startsWith('Non lues')) setFilter('unread');
-            else if (label === 'Lues') setFilter('read');
+            else if (label.startsWith('Lues')) setFilter('read');
             else setFilter('all');
           }}
+        />
+        <FilterChips
+          options={['urgent', 'recent']}
+          value={sort}
+          onChange={(value) => setSort((value as AlertSort) || 'urgent')}
+          labelMap={SORT_LABELS}
         />
       </View>
 
@@ -79,13 +139,13 @@ export function AlertListScreen() {
         renderItem={({ item }) => (
           <AlertCard
             item={item}
-            onMarkRead={!item.isRead ? () => updateMutation.mutate({ id: item.id, payload: { isRead: true } }) : undefined}
+            onToggleRead={() => updateMutation.mutate({ id: item.id, payload: { isRead: !item.isRead } })}
           />
         )}
         ListEmptyComponent={
           <EmptyState
             title="Aucune alerte"
-            message={filter === 'unread' ? 'Toutes vos alertes ont été lues.' : 'Aucune alerte à afficher.'}
+            message={filter === 'unread' ? 'Toutes vos alertes ont été lues.' : filter === 'read' ? 'Aucune alerte lue à afficher.' : 'Aucune alerte à afficher.'}
           />
         }
         contentContainerStyle={styles.list}
