@@ -1,4 +1,6 @@
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import TableViewRoundedIcon from '@mui/icons-material/TableViewRounded';
+import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
@@ -30,20 +32,21 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
-import { usePaymentItemsPage, useCreatePaymentItem, useDeletePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
+import { usePaymentItemsPage, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
+import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
+import { exportPaymentItemsToExcel, exportPaymentItemsToPdf } from '@/modules/payment-items/utils/paymentItemExport';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Client, PaymentItem } from '@/types/domain';
 import { ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
-import { formatCurrency, formatDate, normalizeText } from '@/utils/format';
+import { formatCurrency, formatDate } from '@/utils/format';
 import { actionIconButton, brandColors, clearButtonAbsoluteStyle, clearButtonStyle, numericFont } from '@/app/theme';
+import { useAuth } from '@/providers/AuthProvider';
 import {
   buildPaymentItemReference,
   getPaymentItemAccount,
-  getPaymentItemAccountPrimary,
-  getPaymentItemAccountSecondary,
   getPaymentItemClientPrimary,
   getPaymentItemClientSecondary,
   getPaymentItemCurrency,
@@ -87,6 +90,7 @@ function ColoredChip({ icon: Icon, label, color, bg }: { icon: React.ElementType
 }
 
 export default function PaymentItemsPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -98,6 +102,7 @@ export default function PaymentItemsPage() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
+  const [exportFormat, setExportFormat] = useState<'excel' | 'pdf' | null>(null);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
 
   const debouncedSearch = useDebouncedValue(search, 400);
@@ -127,7 +132,7 @@ export default function PaymentItemsPage() {
   };
 
   // ── Server-side query params ──────────────────────────────────────
-  const queryParams = useMemo(() => {
+  const filterQueryParams = useMemo(() => {
     const filters: Record<string, unknown>[] = [];
 
     if (debouncedSearch.trim()) {
@@ -163,21 +168,56 @@ export default function PaymentItemsPage() {
       });
     }
 
-    return {
-      pagination: {
-        page: paginationModel.page + 1,
-        pageSize: paginationModel.pageSize,
-      },
-      ...(filters.length ? { filters: filters.length === 1 ? filters[0] : { $and: filters } } : {}),
-    };
-  }, [debouncedSearch, typeFilter, statusFilter, selectedClient?.id, datesValid, dateFrom, dateTo, paginationModel.page, paginationModel.pageSize]);
+    return filters.length ? { filters: filters.length === 1 ? filters[0] : { $and: filters } } : {};
+  }, [debouncedSearch, typeFilter, statusFilter, selectedClient?.id, datesValid, dateFrom, dateTo]);
+
+  const queryParams = useMemo(() => ({
+    pagination: {
+      page: paginationModel.page + 1,
+      pageSize: paginationModel.pageSize,
+    },
+    ...filterQueryParams,
+  }), [filterQueryParams, paginationModel.page, paginationModel.pageSize]);
+
+  const exportFilterSummary = useMemo(() => {
+    const filters: string[] = ['Portée : liste complète filtrée'];
+
+    if (debouncedSearch.trim()) {
+      filters.push(`Recherche : ${debouncedSearch.trim()}`);
+    }
+
+    if (typeFilter) {
+      filters.push(`Type : ${typeConfig[typeFilter]?.label ?? typeFilter}`);
+    }
+
+    if (statusFilter) {
+      filters.push(`Statut : ${getPaymentItemStatusLabel(statusFilter)}`);
+    }
+
+    if (selectedClient) {
+      filters.push(`Client : ${getClientLabel(selectedClient)}`);
+    }
+
+    if (datesValid) {
+      filters.push(`Période : ${formatDate(dateFrom)} → ${formatDate(dateTo)}`);
+    }
+
+    return filters;
+  }, [debouncedSearch, typeFilter, statusFilter, selectedClient, datesValid, dateFrom, dateTo]);
+
+  const exportUserLabel = useMemo(() => {
+    if (!user) {
+      return 'Utilisateur inconnu';
+    }
+
+    return user.email ? `${user.username} (${user.email})` : user.username;
+  }, [user]);
 
   const { data, isLoading, isError, refetch, isFetching } = usePaymentItemsPage({ params: queryParams });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
-  const deleteMutation = useDeletePaymentItem();
   const softDeleteMutation = useSoftDeletePaymentItem();
 
   const rows = data?.data ?? [];
@@ -204,6 +244,36 @@ export default function PaymentItemsPage() {
   const filteredRows = rows;
 
   const resetPagination = () => setPaginationModel((current) => ({ ...current, page: 0 }));
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    try {
+      setExportFormat(format);
+
+      const items = await paymentItemService.listAllActive({
+        populate: '*',
+        sort: ['id:desc'],
+        ...filterQueryParams,
+      });
+
+      const exportOptions = {
+        userLabel: exportUserLabel,
+        appliedFilters: exportFilterSummary,
+        exportedAt: new Date(),
+      };
+
+      if (format === 'excel') {
+        await exportPaymentItemsToExcel(items, exportOptions);
+        return;
+      }
+
+      await exportPaymentItemsToPdf(items, exportOptions);
+    } catch (error) {
+      console.error(`Erreur lors de l'export ${format}`, error);
+      window.alert(`L'export ${format === 'excel' ? 'Excel' : 'PDF'} a échoué. Veuillez réessayer.`);
+    } finally {
+      setExportFormat(null);
+    }
+  };
 
   const columns: GridColDef<PaymentItem>[] = [
     {
@@ -376,7 +446,38 @@ export default function PaymentItemsPage() {
         title="Chèques / Traites"
         subtitle="Suivi des échéances, statuts, montants et relations clients/comptes"
         count={rowCount}
-        action={<Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setOpenForm(true); }}>Ajouter un paiement</Button>}
+        action={(
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ width: { xs: '100%', md: 'auto' } }}>
+            <Tooltip title="Exporter toute la liste filtrée au format Excel (.xlsx)" arrow>
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={<TableViewRoundedIcon />}
+                  onClick={() => void handleExport('excel')}
+                  disabled={Boolean(exportFormat) || rowCount === 0}
+                >
+                  {exportFormat === 'excel' ? 'Export Excel…' : 'Excel'}
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip title="Exporter toute la liste filtrée au format PDF" arrow>
+              <span>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<PictureAsPdfRoundedIcon />}
+                  onClick={() => void handleExport('pdf')}
+                  disabled={Boolean(exportFormat) || rowCount === 0}
+                >
+                  {exportFormat === 'pdf' ? 'Export PDF…' : 'PDF'}
+                </Button>
+              </span>
+            </Tooltip>
+            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setOpenForm(true); }}>
+              Ajouter un paiement
+            </Button>
+          </Stack>
+        )}
       />
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
