@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type jsPDF from 'jspdf';
+import markUrl from '@/assets/flux-financier-mark.svg';
 import { PaymentItem } from '@/types/domain';
 import { formatCurrency, formatDate } from '@/utils/format';
 import {
@@ -33,6 +34,12 @@ const PDF_HEADER_BASE_Y = 26;
 const PDF_HEADER_MAX_WIDTH = 770;
 const PDF_TABLE_TOP_GAP = 10;
 const PDF_FOOTER_Y_OFFSET = 16;
+const PDF_TOP_CARD_GAP = 16;
+const PDF_SUMMARY_CARD_GAP = 12;
+const PDF_SUMMARY_CARD_HEIGHT = 52;
+const PDF_FILTER_BOX_PADDING = 10;
+
+let pdfLogoDataUrlPromise: Promise<string | null> | null = null;
 
 const STATUS_STYLES: Record<string, { fill: string; font: string }> = {
   'Déposé': { fill: 'FEF3C7', font: 'B45309' },
@@ -110,6 +117,37 @@ const hexToRgb = (hex: string): [number, number, number] => {
     : normalized;
 
   return [0, 2, 4].map((offset) => Number.parseInt(safeHex.slice(offset, offset + 2), 16)) as [number, number, number];
+};
+
+const loadImageAsDataUrl = (src: string) => new Promise<string | null>((resolve) => {
+  const image = new Image();
+
+  image.crossOrigin = 'anonymous';
+  image.decoding = 'async';
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      resolve(null);
+      return;
+    }
+
+    canvas.width = image.naturalWidth || 160;
+    canvas.height = image.naturalHeight || 160;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    resolve(canvas.toDataURL('image/png'));
+  };
+  image.onerror = () => resolve(null);
+  image.src = src;
+});
+
+const getPdfLogoDataUrl = () => {
+  if (!pdfLogoDataUrlPromise) {
+    pdfLogoDataUrlPromise = loadImageAsDataUrl(markUrl);
+  }
+
+  return pdfLogoDataUrlPromise;
 };
 
 const prepareExportModel = (items: PaymentItem[], options: PaymentItemsExportOptions): PreparedExportModel => {
@@ -296,50 +334,176 @@ export const exportPaymentItemsToExcel = async (items: PaymentItem[], options: P
 
 const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
   const pageWidth = doc.internal.pageSize.getWidth();
+  const contentWidth = pageWidth - (PDF_MARGIN_X * 2);
+  const metaBoxWidth = Math.min(230, Math.max(200, contentWidth * 0.3));
+  const metaInnerWidth = metaBoxWidth - 24;
+  const titleMaxWidth = Math.max(240, contentWidth - metaBoxWidth - 176 - PDF_TOP_CARD_GAP);
   const filtersText = `Filtres appliqués : ${model.filtersLabel}`;
-  const filterLines = doc.splitTextToSize(filtersText, Math.min(pageWidth - (PDF_MARGIN_X * 2), PDF_HEADER_MAX_WIDTH));
-  const filtersHeight = filterLines.length * 11;
-  const headerBottom = PDF_HEADER_BASE_Y + 78 + filtersHeight;
+  const dateLines = doc.splitTextToSize(`Date d’édition : ${model.exportedAtLabel}`, metaInnerWidth);
+  const userLines = doc.splitTextToSize(`Utilisateur : ${model.userLabel}`, metaInnerWidth);
+  const titleLines = doc.splitTextToSize(EXPORT_TITLE, Math.min(titleMaxWidth, PDF_HEADER_MAX_WIDTH));
+  const summaryCardWidth = (contentWidth - (PDF_SUMMARY_CARD_GAP * 2)) / 3;
+  const topSectionHeight = Math.max(54, 16 + ((dateLines.length + userLines.length) * 11));
+  const titleHeight = Math.max(24, titleLines.length * 18);
+  const filterLines = doc.splitTextToSize(filtersText, Math.min(contentWidth - (PDF_FILTER_BOX_PADDING * 2), PDF_HEADER_MAX_WIDTH));
+  const filtersHeight = (filterLines.length * 11) + (PDF_FILTER_BOX_PADDING * 2);
+  const headerBottom = PDF_HEADER_BASE_Y
+    + topSectionHeight
+    + 16
+    + titleHeight
+    + 12
+    + PDF_SUMMARY_CARD_HEIGHT
+    + 12
+    + filtersHeight
+    + 14;
 
   return {
     pageWidth,
+    contentWidth,
+    metaBoxWidth,
+    topSectionHeight,
+    dateLines,
+    userLines,
+    titleLines,
+    titleHeight,
+    summaryCardWidth,
     filterLines,
+    filtersHeight,
     headerBottom,
   };
 };
 
-const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel) => {
-  const { pageWidth, filterLines, headerBottom } = getPdfHeaderMetrics(doc, model);
-  const titleY = PDF_HEADER_BASE_Y + 18;
+const drawSummaryCard = (
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  label: string,
+  value: string,
+  options: {
+    fillColor: [number, number, number];
+    borderColor: [number, number, number];
+    valueColor: [number, number, number];
+  },
+) => {
+  doc.setFillColor(...options.fillColor);
+  doc.setDrawColor(...options.borderColor);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(x, y, width, PDF_SUMMARY_CARD_HEIGHT, 10, 10, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text(label.toUpperCase(), x + 12, y + 16);
+
+  doc.setFontSize(12.5);
+  doc.setTextColor(...options.valueColor);
+  doc.text(value, x + 12, y + 35);
+};
+
+const getPdfTableColumnStyles = (contentWidth: number) => {
+  const ratios = [0.12, 0.19, 0.1, 0.08, 0.11, 0.17, 0.11, 0.12] as const;
+  const widths = ratios.map((ratio) => Number((contentWidth * ratio).toFixed(2)));
+  const consumedWidth = widths.reduce((sum, width) => sum + width, 0);
+  widths[widths.length - 1] = Number((widths[widths.length - 1] + (contentWidth - consumedWidth)).toFixed(2));
+
+  return {
+    0: { cellWidth: widths[0], overflow: 'ellipsize' as const },
+    1: { cellWidth: widths[1], overflow: 'linebreak' as const },
+    2: { cellWidth: widths[2], halign: 'center' as const },
+    3: { cellWidth: widths[3], halign: 'center' as const },
+    4: { cellWidth: widths[4], halign: 'right' as const },
+    5: { cellWidth: widths[5], overflow: 'ellipsize' as const },
+    6: { cellWidth: widths[6], halign: 'center' as const },
+    7: { cellWidth: widths[7], halign: 'center' as const },
+  };
+};
+
+const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: string | null) => {
+  const {
+    pageWidth,
+    contentWidth,
+    metaBoxWidth,
+    topSectionHeight,
+    dateLines,
+    userLines,
+    titleLines,
+    titleHeight,
+    summaryCardWidth,
+    filterLines,
+    filtersHeight,
+    headerBottom,
+  } = getPdfHeaderMetrics(doc, model);
+  const brandBoxWidth = Math.min(176, contentWidth - metaBoxWidth - PDF_TOP_CARD_GAP);
+  const metaBoxX = pageWidth - PDF_MARGIN_X - metaBoxWidth;
+  let currentY = PDF_HEADER_BASE_Y;
 
   doc.setFillColor(29, 78, 216);
-  doc.roundedRect(PDF_MARGIN_X, PDF_HEADER_BASE_Y, 170, 28, 6, 6, 'F');
+  doc.setDrawColor(29, 78, 216);
+  doc.roundedRect(PDF_MARGIN_X, currentY, brandBoxWidth, topSectionHeight, 12, 12, 'FD');
+
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, 'PNG', PDF_MARGIN_X + 12, currentY + 10, 34, 34);
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text(APPLICATION_NAME, PDF_MARGIN_X + 12, PDF_HEADER_BASE_Y + 18);
-
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(17);
-  doc.text(EXPORT_TITLE, pageWidth / 2, titleY, { align: 'center' });
-
+  doc.setFontSize(15);
+  doc.text(APPLICATION_NAME, PDF_MARGIN_X + 56, currentY + 24);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
+  doc.text('Export PDF', PDF_MARGIN_X + 56, currentY + 40);
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(metaBoxX, currentY, metaBoxWidth, topSectionHeight, 12, 12, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Date d’édition : ${model.exportedAtLabel}`, PDF_MARGIN_X, PDF_HEADER_BASE_Y + 44);
-  doc.text(`Utilisateur : ${model.userLabel}`, pageWidth - PDF_MARGIN_X, PDF_HEADER_BASE_Y + 44, { align: 'right' });
+  doc.text('INFORMATIONS D’ÉDITION', metaBoxX + 12, currentY + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text(dateLines, metaBoxX + 12, currentY + 31);
+  doc.text(userLines, metaBoxX + 12, currentY + 31 + (dateLines.length * 11));
+
+  currentY += topSectionHeight + 16;
 
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total lignes : ${model.totalLines}`, PDF_MARGIN_X, PDF_HEADER_BASE_Y + 62);
-  doc.setTextColor(22, 101, 52);
-  doc.text(`Total crédits : ${model.totalCreditsLabel}`, pageWidth / 2, PDF_HEADER_BASE_Y + 62, { align: 'center' });
-  doc.setTextColor(185, 28, 28);
-  doc.text(`Total débits : ${model.totalDebitsLabel}`, pageWidth - PDF_MARGIN_X, PDF_HEADER_BASE_Y + 62, { align: 'right' });
+  doc.setFontSize(18);
+  doc.text(titleLines, pageWidth / 2, currentY + 14, { align: 'center' });
 
-  doc.setFont('helvetica', 'normal');
+  currentY += titleHeight + 12;
+
+  drawSummaryCard(doc, PDF_MARGIN_X, currentY, summaryCardWidth, 'Total lignes', String(model.totalLines), {
+    fillColor: [248, 250, 252],
+    borderColor: [226, 232, 240],
+    valueColor: [15, 23, 42],
+  });
+  drawSummaryCard(doc, PDF_MARGIN_X + summaryCardWidth + PDF_SUMMARY_CARD_GAP, currentY, summaryCardWidth, 'Total crédits', model.totalCreditsLabel, {
+    fillColor: [236, 253, 245],
+    borderColor: [167, 243, 208],
+    valueColor: [22, 101, 52],
+  });
+  drawSummaryCard(doc, PDF_MARGIN_X + ((summaryCardWidth + PDF_SUMMARY_CARD_GAP) * 2), currentY, summaryCardWidth, 'Total débits', model.totalDebitsLabel, {
+    fillColor: [254, 242, 242],
+    borderColor: [252, 165, 165],
+    valueColor: [185, 28, 28],
+  });
+
+  currentY += PDF_SUMMARY_CARD_HEIGHT + 12;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(PDF_MARGIN_X, currentY, contentWidth, filtersHeight, 10, 10, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
   doc.setTextColor(71, 85, 105);
-  doc.text(filterLines, PDF_MARGIN_X, PDF_HEADER_BASE_Y + 82);
+  doc.text('FILTRES APPLIQUÉS', PDF_MARGIN_X + PDF_FILTER_BOX_PADDING, currentY + 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.text(filterLines, PDF_MARGIN_X + PDF_FILTER_BOX_PADDING, currentY + 31);
 
   doc.setDrawColor(191, 219, 254);
   doc.setLineWidth(1);
@@ -350,7 +514,8 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel) => {
 
 export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: PaymentItemsExportOptions) => {
   const model = prepareExportModel(items, options);
-  const [{ default: JsPdf }, { default: autoTable }] = await Promise.all([
+  const [logoDataUrl, { default: JsPdf }, { default: autoTable }] = await Promise.all([
+    getPdfLogoDataUrl(),
     import('jspdf'),
     import('jspdf-autotable'),
   ]);
@@ -359,11 +524,14 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
     unit: 'pt',
     format: 'a4',
   });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const contentWidth = pageWidth - (PDF_MARGIN_X * 2);
 
-  const headerBottom = drawPdfHeader(doc, model);
+  const headerBottom = drawPdfHeader(doc, model, logoDataUrl);
 
   autoTable(doc, {
     startY: headerBottom + PDF_TABLE_TOP_GAP,
+    tableWidth: contentWidth,
     margin: {
       top: headerBottom + PDF_TABLE_TOP_GAP,
       left: PDF_MARGIN_X,
@@ -382,13 +550,14 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
       row.status,
     ]),
     styles: {
-      fontSize: 8.8,
-      cellPadding: 5,
+      fontSize: 8.4,
+      cellPadding: { top: 5, right: 6, bottom: 5, left: 6 },
       lineColor: [226, 232, 240],
       lineWidth: 0.5,
       textColor: [15, 23, 42],
       overflow: 'linebreak',
       valign: 'middle',
+      minCellHeight: 24,
     },
     headStyles: {
       fillColor: [37, 99, 235],
@@ -396,20 +565,12 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
+      cellPadding: { top: 6, right: 6, bottom: 6, left: 6 },
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
     },
-    columnStyles: {
-      0: { cellWidth: 78 },
-      1: { cellWidth: 110 },
-      2: { cellWidth: 75 },
-      3: { cellWidth: 58, halign: 'center' },
-      4: { cellWidth: 78, halign: 'right' },
-      5: { cellWidth: 95 },
-      6: { cellWidth: 84, halign: 'center' },
-      7: { cellWidth: 70, halign: 'center' },
-    },
+    columnStyles: getPdfTableColumnStyles(contentWidth),
     didParseCell: (hookData) => {
       if (hookData.section !== 'body') {
         return;
@@ -431,24 +592,24 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
     },
     didDrawPage: (hookData) => {
       if (hookData.pageNumber > 1) {
-        drawPdfHeader(doc, model);
+        drawPdfHeader(doc, model, logoDataUrl);
       }
     },
   });
 
   const pageCount = doc.getNumberOfPages();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const pdfPageWidth = doc.internal.pageSize.getWidth();
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     doc.setPage(pageNumber);
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.6);
-    doc.line(PDF_MARGIN_X, pageHeight - 24, pageWidth - PDF_MARGIN_X, pageHeight - 24);
+    doc.line(PDF_MARGIN_X, pageHeight - 24, pdfPageWidth - PDF_MARGIN_X, pageHeight - 24);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Page ${pageNumber} / ${pageCount}`, pageWidth - PDF_MARGIN_X, pageHeight - PDF_FOOTER_Y_OFFSET, { align: 'right' });
+    doc.text(`Page ${pageNumber} / ${pageCount}`, pdfPageWidth - PDF_MARGIN_X, pageHeight - PDF_FOOTER_Y_OFFSET, { align: 'right' });
   }
 
   downloadBlob([
