@@ -29,12 +29,12 @@ const EXPORT_COLUMNS = [
   { key: 'status', header: 'Statut', width: 16 },
 ] as const;
 
-const PDF_MARGIN_X = 36;
+const PDF_MARGIN_X = 24;
 const PDF_HEADER_BASE_Y = 26;
 const PDF_HEADER_MAX_WIDTH = 770;
 const PDF_TABLE_TOP_GAP = 10;
 const PDF_FOOTER_Y_OFFSET = 16;
-const PDF_TOP_CARD_GAP = 16;
+const PDF_TOP_CARD_GAP = 14;
 const PDF_SUMMARY_CARD_GAP = 12;
 const PDF_SUMMARY_CARD_HEIGHT = 52;
 const PDF_FILTER_BOX_PADDING = 10;
@@ -78,6 +78,7 @@ interface PreparedExportModel {
 }
 
 const safeText = (value?: string | null) => value?.trim() || '—';
+const normalizePdfText = (value: string) => value.replace(/[\u00A0\u202F\u2007]/g, ' ');
 
 const formatSignedAmount = (item: PaymentItem) => {
   const numericAmount = Number(item.amount ?? 0) || 0;
@@ -86,7 +87,7 @@ const formatSignedAmount = (item: PaymentItem) => {
 
   return {
     amountValue: signedAmount,
-    label: `${prefix}${formatCurrency(Math.abs(signedAmount), getPaymentItemCurrency(item))}`,
+    label: normalizePdfText(`${prefix}${formatCurrency(Math.abs(signedAmount), getPaymentItemCurrency(item))}`),
   };
 };
 
@@ -335,22 +336,22 @@ export const exportPaymentItemsToExcel = async (items: PaymentItem[], options: P
 const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - (PDF_MARGIN_X * 2);
-  const metaBoxWidth = Math.min(230, Math.max(200, contentWidth * 0.3));
+  const brandBoxWidth = Math.min(182, Math.max(164, contentWidth * 0.22));
+  const metaBoxWidth = Math.min(228, Math.max(208, contentWidth * 0.28));
   const metaInnerWidth = metaBoxWidth - 24;
-  const titleMaxWidth = Math.max(240, contentWidth - metaBoxWidth - 176 - PDF_TOP_CARD_GAP);
+  const titleMaxWidth = Math.max(220, contentWidth - brandBoxWidth - metaBoxWidth - (PDF_TOP_CARD_GAP * 2));
   const filtersText = `Filtres appliqués : ${model.filtersLabel}`;
   const dateLines = doc.splitTextToSize(`Date d’édition : ${model.exportedAtLabel}`, metaInnerWidth);
   const userLines = doc.splitTextToSize(`Utilisateur : ${model.userLabel}`, metaInnerWidth);
   const titleLines = doc.splitTextToSize(EXPORT_TITLE, Math.min(titleMaxWidth, PDF_HEADER_MAX_WIDTH));
   const summaryCardWidth = (contentWidth - (PDF_SUMMARY_CARD_GAP * 2)) / 3;
-  const topSectionHeight = Math.max(54, 16 + ((dateLines.length + userLines.length) * 11));
-  const titleHeight = Math.max(24, titleLines.length * 18);
+  const metaContentHeight = 24 + ((dateLines.length + userLines.length) * 11);
+  const titleHeight = Math.max(22, titleLines.length * 16);
+  const topSectionHeight = Math.max(58, metaContentHeight + 10, titleHeight + 22);
   const filterLines = doc.splitTextToSize(filtersText, Math.min(contentWidth - (PDF_FILTER_BOX_PADDING * 2), PDF_HEADER_MAX_WIDTH));
   const filtersHeight = (filterLines.length * 11) + (PDF_FILTER_BOX_PADDING * 2);
   const headerBottom = PDF_HEADER_BASE_Y
     + topSectionHeight
-    + 16
-    + titleHeight
     + 12
     + PDF_SUMMARY_CARD_HEIGHT
     + 12
@@ -360,6 +361,7 @@ const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
   return {
     pageWidth,
     contentWidth,
+    brandBoxWidth,
     metaBoxWidth,
     topSectionHeight,
     dateLines,
@@ -402,7 +404,7 @@ const drawSummaryCard = (
 };
 
 const getPdfTableColumnStyles = (contentWidth: number) => {
-  const ratios = [0.12, 0.19, 0.1, 0.08, 0.11, 0.17, 0.11, 0.12] as const;
+  const ratios = [0.125, 0.235, 0.09, 0.075, 0.12, 0.16, 0.1, 0.095] as const;
   const widths = ratios.map((ratio) => Number((contentWidth * ratio).toFixed(2)));
   const consumedWidth = widths.reduce((sum, width) => sum + width, 0);
   widths[widths.length - 1] = Number((widths[widths.length - 1] + (contentWidth - consumedWidth)).toFixed(2));
@@ -413,7 +415,7 @@ const getPdfTableColumnStyles = (contentWidth: number) => {
     2: { cellWidth: widths[2], halign: 'center' as const },
     3: { cellWidth: widths[3], halign: 'center' as const },
     4: { cellWidth: widths[4], halign: 'right' as const },
-    5: { cellWidth: widths[5], overflow: 'ellipsize' as const },
+    5: { cellWidth: widths[5], overflow: 'linebreak' as const },
     6: { cellWidth: widths[6], halign: 'center' as const },
     7: { cellWidth: widths[7], halign: 'center' as const },
   };
@@ -423,6 +425,7 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   const {
     pageWidth,
     contentWidth,
+    brandBoxWidth,
     metaBoxWidth,
     topSectionHeight,
     dateLines,
@@ -434,8 +437,10 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
     filtersHeight,
     headerBottom,
   } = getPdfHeaderMetrics(doc, model);
-  const brandBoxWidth = Math.min(176, contentWidth - metaBoxWidth - PDF_TOP_CARD_GAP);
+  const titleAreaX = PDF_MARGIN_X + brandBoxWidth + PDF_TOP_CARD_GAP;
   const metaBoxX = pageWidth - PDF_MARGIN_X - metaBoxWidth;
+  const titleAreaWidth = Math.max(180, metaBoxX - titleAreaX - PDF_TOP_CARD_GAP);
+  const titleCenterX = titleAreaX + (titleAreaWidth / 2);
   let currentY = PDF_HEADER_BASE_Y;
 
   doc.setFillColor(29, 78, 216);
@@ -443,16 +448,21 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   doc.roundedRect(PDF_MARGIN_X, currentY, brandBoxWidth, topSectionHeight, 12, 12, 'FD');
 
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, 'PNG', PDF_MARGIN_X + 12, currentY + 10, 34, 34);
+    doc.addImage(logoDataUrl, 'PNG', PDF_MARGIN_X + 12, currentY + 12, 32, 32);
   }
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text(APPLICATION_NAME, PDF_MARGIN_X + 56, currentY + 24);
+  doc.text(APPLICATION_NAME, PDF_MARGIN_X + 52, currentY + 24);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text('Export PDF', PDF_MARGIN_X + 56, currentY + 40);
+  doc.text('Export PDF', PDF_MARGIN_X + 52, currentY + 40);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(17);
+  doc.text(titleLines, titleCenterX, currentY + ((topSectionHeight - titleHeight) / 2) + 13, { align: 'center', maxWidth: titleAreaWidth });
 
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -467,26 +477,19 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   doc.text(dateLines, metaBoxX + 12, currentY + 31);
   doc.text(userLines, metaBoxX + 12, currentY + 31 + (dateLines.length * 11));
 
-  currentY += topSectionHeight + 16;
-
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text(titleLines, pageWidth / 2, currentY + 14, { align: 'center' });
-
-  currentY += titleHeight + 12;
+  currentY += topSectionHeight + 12;
 
   drawSummaryCard(doc, PDF_MARGIN_X, currentY, summaryCardWidth, 'Total lignes', String(model.totalLines), {
     fillColor: [248, 250, 252],
     borderColor: [226, 232, 240],
     valueColor: [15, 23, 42],
   });
-  drawSummaryCard(doc, PDF_MARGIN_X + summaryCardWidth + PDF_SUMMARY_CARD_GAP, currentY, summaryCardWidth, 'Total crédits', model.totalCreditsLabel, {
+  drawSummaryCard(doc, PDF_MARGIN_X + summaryCardWidth + PDF_SUMMARY_CARD_GAP, currentY, summaryCardWidth, 'Total crédits', normalizePdfText(model.totalCreditsLabel), {
     fillColor: [236, 253, 245],
     borderColor: [167, 243, 208],
     valueColor: [22, 101, 52],
   });
-  drawSummaryCard(doc, PDF_MARGIN_X + ((summaryCardWidth + PDF_SUMMARY_CARD_GAP) * 2), currentY, summaryCardWidth, 'Total débits', model.totalDebitsLabel, {
+  drawSummaryCard(doc, PDF_MARGIN_X + ((summaryCardWidth + PDF_SUMMARY_CARD_GAP) * 2), currentY, summaryCardWidth, 'Total débits', normalizePdfText(model.totalDebitsLabel), {
     fillColor: [254, 242, 242],
     borderColor: [252, 165, 165],
     valueColor: [185, 28, 28],
@@ -503,7 +506,7 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   doc.text('FILTRES APPLIQUÉS', PDF_MARGIN_X + PDF_FILTER_BOX_PADDING, currentY + 16);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
-  doc.text(filterLines, PDF_MARGIN_X + PDF_FILTER_BOX_PADDING, currentY + 31);
+  doc.text(normalizePdfText(filterLines.join('\n')).split('\n'), PDF_MARGIN_X + PDF_FILTER_BOX_PADDING, currentY + 31);
 
   doc.setDrawColor(191, 219, 254);
   doc.setLineWidth(1);
@@ -544,20 +547,20 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
       row.client,
       row.type,
       row.direction,
-      row.amount,
+      normalizePdfText(row.amount),
       row.referencePayment,
       row.effectiveDate,
       row.status,
     ]),
     styles: {
-      fontSize: 8.4,
-      cellPadding: { top: 5, right: 6, bottom: 5, left: 6 },
+      fontSize: 8.5,
+      cellPadding: { top: 4.5, right: 5.5, bottom: 4.5, left: 5.5 },
       lineColor: [226, 232, 240],
       lineWidth: 0.5,
       textColor: [15, 23, 42],
       overflow: 'linebreak',
       valign: 'middle',
-      minCellHeight: 24,
+      minCellHeight: 22,
     },
     headStyles: {
       fillColor: [37, 99, 235],
@@ -565,7 +568,7 @@ export const exportPaymentItemsToPdf = async (items: PaymentItem[], options: Pay
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
-      cellPadding: { top: 6, right: 6, bottom: 6, left: 6 },
+      cellPadding: { top: 5, right: 5.5, bottom: 5, left: 5.5 },
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
