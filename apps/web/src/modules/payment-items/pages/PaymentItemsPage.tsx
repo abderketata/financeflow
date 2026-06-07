@@ -790,11 +790,14 @@ export default function PaymentItemsPage() {
         <CardContent sx={{ p: { xs: 2, md: 3.5 }, '&:last-child': { pb: { xs: 2, md: 3.5 } } }}>
           {filteredRows.length ? (
             <>
-              <div style={{ height: 620 }}>
+              <Box sx={{ width: '100%' }}>
                 <DataGrid
                   rows={filteredRows}
                   columns={columns}
                   disableRowSelectionOnClick
+                  autoHeight
+                  getRowHeight={() => 'auto'}
+                  columnHeaderHeight={52}
                   paginationMode="server"
                   rowCount={rowCount}
                   pageSizeOptions={[10, 25, 50, 100]}
@@ -810,13 +813,36 @@ export default function PaymentItemsPage() {
                   }}
                   loading={isLoading || isFetching}
                   hideFooter
+                  sx={{
+                    '& .MuiDataGrid-row': {
+                      maxHeight: 'none !important',
+                    },
+                    '& .MuiDataGrid-cell': {
+                      py: 1,
+                      whiteSpace: 'normal !important',
+                      overflow: 'visible',
+                      lineHeight: '1.4 !important',
+                      alignItems: 'center',
+                    },
+                    '& .MuiDataGrid-cellContent': {
+                      whiteSpace: 'normal',
+                      overflow: 'visible',
+                      textOverflow: 'clip',
+                    },
+                    '& .MuiDataGrid-columnHeaders': {
+                      borderRadius: 2,
+                    },
+                    '& .MuiDataGrid-virtualScroller': {
+                      overflowX: 'hidden',
+                    },
+                  }}
                 />
-              </div>
+              </Box>
 
               <Box
                 sx={{
-                  mt: 1.5,
-                  pt: 1.5,
+                  mt: 1,
+                  pt: 1.25,
                   borderTop: '1px solid',
                   borderColor: 'divider',
                   display: 'flex',
