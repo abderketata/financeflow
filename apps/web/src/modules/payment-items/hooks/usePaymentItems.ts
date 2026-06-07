@@ -5,6 +5,12 @@ import { paymentItemService } from '@/modules/payment-items/services/paymentItem
 
 const queryKey = ['payment-items'];
 
+export interface PaymentItemTotals {
+  totalCredits: number;
+  totalDebits: number;
+  balance: number;
+}
+
 const mergePaymentItemFilters = (callerFilters: Record<string, unknown>) => {
   if (!Object.keys(callerFilters).length) {
     return { supprimer: { $eq: false } };
@@ -15,6 +21,23 @@ const mergePaymentItemFilters = (callerFilters: Record<string, unknown>) => {
   }
 
   return { supprimer: { $eq: false }, ...callerFilters };
+};
+
+const buildPaymentItemTotals = (items: PaymentItem[]): PaymentItemTotals => {
+  const totalCredits = items.reduce(
+    (sum, item) => sum + (item.direction === 'IN' ? Number(item.amount ?? 0) || 0 : 0),
+    0,
+  );
+  const totalDebits = items.reduce(
+    (sum, item) => sum + (item.direction === 'OUT' ? Number(item.amount ?? 0) || 0 : 0),
+    0,
+  );
+
+  return {
+    totalCredits,
+    totalDebits,
+    balance: totalCredits - totalDebits,
+  };
 };
 
 export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
@@ -52,6 +75,26 @@ export const usePaymentItemsPage = (options?: { enabled?: boolean; params?: Reco
         filters: mergedFilters,
         sort: ['id:desc'],
       }, { signal });
+    }
+  });
+
+export const usePaymentItemsTotals = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
+  useQuery<PaymentItemTotals>({
+    queryKey: [...queryKey, 'totals', options?.params ?? {}],
+    enabled: options?.enabled,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
+      const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
+      const mergedFilters = mergePaymentItemFilters(callerFilters);
+      const items = await paymentItemService.listAllActive({
+        fields: ['amount', 'direction'],
+        ...(options?.params ?? {}),
+        filters: mergedFilters,
+        sort: ['id:desc'],
+      }, { signal });
+
+      return buildPaymentItemTotals(items);
     }
   });
 

@@ -22,7 +22,7 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import type { GridPaginationModel } from '@mui/x-data-grid';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
+import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TablePagination, TextField, Tooltip, Typography, alpha } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchField } from '@/components/ui/SearchField';
@@ -32,7 +32,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
-import { usePaymentItemsPage, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
+import { usePaymentItemsPage, usePaymentItemsTotals, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
@@ -85,6 +85,39 @@ function ColoredChip({ icon: Icon, label, color, bg }: { icon: React.ElementType
         <Icon sx={{ fontSize: 13 }} />
       </Box>
       <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color }}>{label}</Typography>
+    </Box>
+  );
+}
+
+function TotalMetric({
+  label,
+  value,
+  color,
+  backgroundColor,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  backgroundColor: string;
+}) {
+  return (
+    <Box
+      sx={{
+        minWidth: { xs: '100%', sm: 170 },
+        px: 1.5,
+        py: 1.1,
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: alpha(color, 0.16),
+        backgroundColor,
+      }}
+    >
+      <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', color: 'text.secondary' }}>
+        {label}
+      </Typography>
+      <Typography sx={{ mt: 0.45, fontSize: '0.95rem', fontWeight: 800, fontFamily: numericFont, color }}>
+        {value}
+      </Typography>
     </Box>
   );
 }
@@ -214,6 +247,7 @@ export default function PaymentItemsPage() {
   }, [user]);
 
   const { data, isLoading, isError, refetch, isFetching } = usePaymentItemsPage({ params: queryParams });
+  const { data: totals, isFetching: isTotalsFetching } = usePaymentItemsTotals({ params: filterQueryParams });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
   const createMutation = useCreatePaymentItem();
@@ -242,6 +276,28 @@ export default function PaymentItemsPage() {
 
   // No local filtering — all filtering and pagination are server-side
   const filteredRows = rows;
+
+  const totalsCurrency = defaultCurrency || 'TND';
+  const hasTotals = totals !== undefined;
+  const totalCredits = totals?.totalCredits ?? 0;
+  const totalDebits = totals?.totalDebits ?? 0;
+  const balance = totals?.balance ?? 0;
+
+  const formattedTotals = useMemo(() => {
+    if (!hasTotals) {
+      return {
+        credits: '—',
+        debits: '—',
+        balance: '—',
+      };
+    }
+
+    return {
+      credits: `+${formatCurrency(totalCredits, totalsCurrency)}`,
+      debits: `-${formatCurrency(totalDebits, totalsCurrency)}`,
+      balance: `${balance < 0 ? '-' : ''}${formatCurrency(Math.abs(balance), totalsCurrency)}`,
+    };
+  }, [balance, hasTotals, totalCredits, totalDebits, totalsCurrency]);
 
   const resetPagination = () => setPaginationModel((current) => ({ ...current, page: 0 }));
 
@@ -733,27 +789,103 @@ export default function PaymentItemsPage() {
       <Card>
         <CardContent sx={{ p: { xs: 2, md: 3.5 }, '&:last-child': { pb: { xs: 2, md: 3.5 } } }}>
           {filteredRows.length ? (
-            <div style={{ height: 620 }}>
-              <DataGrid
-                rows={filteredRows}
-                columns={columns}
-                disableRowSelectionOnClick
-                paginationMode="server"
-                rowCount={rowCount}
-                pageSizeOptions={[10, 25, 50, 100]}
-                paginationModel={{ page: currentPage, pageSize: currentPageSize }}
-                onPaginationModelChange={(model) => {
-                  setPaginationModel((current) => {
-                    if (current.page === model.page && current.pageSize === model.pageSize) {
-                      return current;
-                    }
+            <>
+              <div style={{ height: 620 }}>
+                <DataGrid
+                  rows={filteredRows}
+                  columns={columns}
+                  disableRowSelectionOnClick
+                  paginationMode="server"
+                  rowCount={rowCount}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                  paginationModel={{ page: currentPage, pageSize: currentPageSize }}
+                  onPaginationModelChange={(model) => {
+                    setPaginationModel((current) => {
+                      if (current.page === model.page && current.pageSize === model.pageSize) {
+                        return current;
+                      }
+ 
+                      return model;
+                    });
+                  }}
+                  loading={isLoading || isFetching}
+                  hideFooter
+                />
+              </div>
 
-                    return model;
-                  });
+              <Box
+                sx={{
+                  mt: 1.5,
+                  pt: 1.5,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', lg: 'row' },
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'stretch', lg: 'center' },
+                  gap: 1.25,
                 }}
-                loading={isLoading || isFetching}
-              />
-            </div>
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap flexWrap="wrap">
+                    <TotalMetric
+                      label="Total crédits"
+                      value={formattedTotals.credits}
+                      color={brandColors.credit}
+                      backgroundColor="#ECFDF5"
+                    />
+                    <TotalMetric
+                      label="Total débits"
+                      value={formattedTotals.debits}
+                      color={brandColors.debit}
+                      backgroundColor="#FEF2F2"
+                    />
+                    <TotalMetric
+                      label="Solde"
+                      value={formattedTotals.balance}
+                      color={balance >= 0 ? brandColors.credit : brandColors.debit}
+                      backgroundColor={balance >= 0 ? '#EFF6FF' : '#FEF2F2'}
+                    />
+                  </Stack>
+                  {isTotalsFetching && (
+                    <Typography sx={{ mt: 0.75, fontSize: '0.76rem', color: 'text.secondary' }}>
+                      Recalcul des totaux sur l’ensemble des éléments filtrés…
+                    </Typography>
+                  )}
+                </Box>
+
+                <TablePagination
+                  component="div"
+                  count={rowCount}
+                  page={currentPage}
+                  onPageChange={(_event, page) => {
+                    setPaginationModel((current) => ({ ...current, page }));
+                  }}
+                  rowsPerPage={currentPageSize}
+                  onRowsPerPageChange={(event) => {
+                    const nextPageSize = Number.parseInt(event.target.value, 10);
+                    setPaginationModel({ page: 0, pageSize: nextPageSize });
+                  }}
+                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  labelRowsPerPage="Lignes / page"
+                  labelDisplayedRows={({ from, to, count }) => `${from}–${to} sur ${count !== -1 ? count : `plus de ${to}`}`}
+                  sx={{
+                    mr: { xs: -1.5, sm: -2 },
+                    '& .MuiTablePagination-toolbar': {
+                      minHeight: 44,
+                      pl: { xs: 0, sm: 1 },
+                    },
+                    '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                      mb: 0,
+                      fontSize: '0.8rem',
+                    },
+                    '& .MuiTablePagination-input': {
+                      fontSize: '0.8rem',
+                    },
+                  }}
+                />
+              </Box>
+            </>
           ) : (
             <EmptyState title="Aucun élément trouvé" />
           )}
