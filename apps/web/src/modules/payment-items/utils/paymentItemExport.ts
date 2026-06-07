@@ -80,6 +80,50 @@ interface PreparedExportModel {
 const safeText = (value?: string | null) => value?.trim() || '—';
 const normalizePdfText = (value: string) => value.replace(/[\u00A0\u202F\u2007]/g, ' ');
 
+const getFittedSingleLineText = (
+  doc: jsPDF,
+  text: string,
+  maxWidth: number,
+  options: {
+    fontName?: string;
+    fontStyle?: 'normal' | 'bold' | 'italic' | 'bolditalic';
+    initialFontSize: number;
+    minFontSize: number;
+  },
+) => {
+  const normalizedText = normalizePdfText(text);
+  const fontName = options.fontName ?? 'helvetica';
+  const fontStyle = options.fontStyle ?? 'normal';
+  let fontSize = options.initialFontSize;
+
+  doc.setFont(fontName, fontStyle);
+
+  while (fontSize > options.minFontSize) {
+    doc.setFontSize(fontSize);
+    if (doc.getTextWidth(normalizedText) <= maxWidth) {
+      return { text: normalizedText, fontSize };
+    }
+    fontSize -= 0.2;
+  }
+
+  doc.setFontSize(options.minFontSize);
+  if (doc.getTextWidth(normalizedText) <= maxWidth) {
+    return { text: normalizedText, fontSize: options.minFontSize };
+  }
+
+  const ellipsis = '…';
+  let truncatedText = normalizedText;
+
+  while (truncatedText.length > 1 && doc.getTextWidth(`${truncatedText}${ellipsis}`) > maxWidth) {
+    truncatedText = truncatedText.slice(0, -1);
+  }
+
+  return {
+    text: `${truncatedText.trimEnd()}${ellipsis}`,
+    fontSize: options.minFontSize,
+  };
+};
+
 const formatSignedAmount = (item: PaymentItem) => {
   const numericAmount = Number(item.amount ?? 0) || 0;
   const signedAmount = item.direction === 'OUT' ? -numericAmount : numericAmount;
@@ -337,15 +381,23 @@ const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const contentWidth = pageWidth - (PDF_MARGIN_X * 2);
   const brandBoxWidth = Math.min(182, Math.max(164, contentWidth * 0.22));
-  const metaBoxWidth = Math.min(228, Math.max(208, contentWidth * 0.28));
+  const metaBoxWidth = Math.min(260, Math.max(232, contentWidth * 0.31));
   const metaInnerWidth = metaBoxWidth - 24;
   const titleMaxWidth = Math.max(220, contentWidth - brandBoxWidth - metaBoxWidth - (PDF_TOP_CARD_GAP * 2));
   const filtersText = `Filtres appliqués : ${model.filtersLabel}`;
-  const dateLines = doc.splitTextToSize(`Date d’édition : ${model.exportedAtLabel}`, metaInnerWidth);
-  const userLines = doc.splitTextToSize(`Utilisateur : ${model.userLabel}`, metaInnerWidth);
+  const dateText = normalizePdfText(`Date d’édition : ${model.exportedAtLabel}`);
+  const userText = normalizePdfText(`Utilisateur : ${model.userLabel}`);
+  const dateLine = getFittedSingleLineText(doc, dateText, metaInnerWidth, {
+    initialFontSize: 9.5,
+    minFontSize: 8.2,
+  });
+  const userLine = getFittedSingleLineText(doc, userText, metaInnerWidth, {
+    initialFontSize: 9.5,
+    minFontSize: 8.2,
+  });
   const titleLines = doc.splitTextToSize(EXPORT_TITLE, Math.min(titleMaxWidth, PDF_HEADER_MAX_WIDTH));
   const summaryCardWidth = (contentWidth - (PDF_SUMMARY_CARD_GAP * 2)) / 3;
-  const metaContentHeight = 24 + ((dateLines.length + userLines.length) * 11);
+  const metaContentHeight = 46;
   const titleHeight = Math.max(22, titleLines.length * 16);
   const topSectionHeight = Math.max(58, metaContentHeight + 10, titleHeight + 22);
   const filterLines = doc.splitTextToSize(filtersText, Math.min(contentWidth - (PDF_FILTER_BOX_PADDING * 2), PDF_HEADER_MAX_WIDTH));
@@ -364,8 +416,8 @@ const getPdfHeaderMetrics = (doc: jsPDF, model: PreparedExportModel) => {
     brandBoxWidth,
     metaBoxWidth,
     topSectionHeight,
-    dateLines,
-    userLines,
+    dateLine,
+    userLine,
     titleLines,
     titleHeight,
     summaryCardWidth,
@@ -428,8 +480,8 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
     brandBoxWidth,
     metaBoxWidth,
     topSectionHeight,
-    dateLines,
-    userLines,
+    dateLine,
+    userLine,
     titleLines,
     titleHeight,
     summaryCardWidth,
@@ -472,10 +524,11 @@ const drawPdfHeader = (doc: jsPDF, model: PreparedExportModel, logoDataUrl: stri
   doc.setTextColor(71, 85, 105);
   doc.text('INFORMATIONS D’ÉDITION', metaBoxX + 12, currentY + 16);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text(dateLines, metaBoxX + 12, currentY + 31);
-  doc.text(userLines, metaBoxX + 12, currentY + 31 + (dateLines.length * 11));
+  doc.setFontSize(dateLine.fontSize);
+  doc.text(dateLine.text, metaBoxX + 12, currentY + 30);
+  doc.setFontSize(userLine.fontSize);
+  doc.text(userLine.text, metaBoxX + 12, currentY + 43);
 
   currentY += topSectionHeight + 12;
 
