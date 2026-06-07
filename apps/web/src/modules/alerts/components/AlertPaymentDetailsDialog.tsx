@@ -357,7 +357,7 @@ function PaymentItemDetailsCard({
         </Box>
       </CardContent>
 
-      <CardActions sx={{ px: 1.75, pb: 1.75, pt: 0, justifyContent: 'flex-end', alignItems: 'center', gap: 1.1, flexWrap: 'wrap' }}>
+      <CardActions sx={{ px: 1.75, pb: 1.75, pt: 0, justifyContent: 'space-between', alignItems: 'center', gap: 1.1, flexWrap: 'wrap' }}>
         {isClosed ? (
           <Stack direction="row" spacing={0.8} alignItems="center" sx={{ color: 'text.secondary', width: '100%', justifyContent: 'flex-end' }}>
             <InfoRoundedIcon sx={{ fontSize: 18 }} />
@@ -366,7 +366,7 @@ function PaymentItemDetailsCard({
             </Typography>
           </Stack>
         ) : (
-          <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' }, justifyContent: 'flex-end', ml: 'auto' }}>
+          <Stack direction="row" spacing={1} sx={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
             <Button
               variant="outlined"
               color="inherit"
