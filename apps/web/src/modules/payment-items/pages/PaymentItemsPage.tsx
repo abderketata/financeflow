@@ -22,7 +22,7 @@ import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import type { GridPaginationModel } from '@mui/x-data-grid';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Button, Card, CardContent, Grid, IconButton, MenuItem, Stack, TablePagination, TextField, Tooltip, Typography, alpha } from '@mui/material';
+import { Box, Button, Card, CardContent, IconButton, MenuItem, Stack, TablePagination, TextField, Tooltip, Typography, alpha } from '@mui/material';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SearchField } from '@/components/ui/SearchField';
@@ -537,9 +537,22 @@ export default function PaymentItemsPage() {
       />
       <Card sx={{ mb: 3 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 }, '&:last-child': { pb: { xs: 2, md: 3 } } }}>
-          <Grid container spacing={2}>
-              <Grid item xs={12} md={4}><SearchField value={search} onChange={(value) => { setSearch(value); resetPagination(); }} placeholder="Recherche : référence, réf. paiement, tireur, tiré…" /></Grid>
-            <Grid item xs={12} md={2}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                md: '2.15fr 1.05fr 1.15fr 2fr 1.25fr 1.25fr',
+              },
+              gap: 2,
+              alignItems: 'start',
+            }}
+          >
+            <Box>
+              <SearchField value={search} onChange={(value) => { setSearch(value); resetPagination(); }} placeholder="Recherche : référence, réf. paiement, tireur, tiré…" />
+            </Box>
+            <Box>
               <Box sx={{ position: 'relative' }}>
                 <TextField
                   fullWidth
@@ -602,8 +615,8 @@ export default function PaymentItemsPage() {
                   </Tooltip>
                 )}
               </Box>
-            </Grid>
-            <Grid item xs={12} md={2}>
+            </Box>
+            <Box>
               <Box sx={{ position: 'relative' }}>
                 <TextField
                   fullWidth
@@ -680,8 +693,8 @@ export default function PaymentItemsPage() {
                   </Tooltip>
                 )}
               </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
+            </Box>
+            <Box>
               <Box sx={{ position: 'relative' }}>
                 <ClientAutocompleteField
                   value={selectedClient}
@@ -724,8 +737,8 @@ export default function PaymentItemsPage() {
                   </Tooltip>
                 )}
               </Box>
-            </Grid>
-            <Grid item xs={12} md={3}>
+            </Box>
+            <Box>
               <TextField
                 fullWidth
                 type="date"
@@ -741,8 +754,8 @@ export default function PaymentItemsPage() {
                 error={!!dateError && !!dateFrom}
                 sx={{ cursor: 'pointer', '& input': { cursor: 'pointer' } }}
               />
-            </Grid>
-            <Grid item xs={12} md={3}>
+            </Box>
+            <Box sx={{ position: 'relative' }}>
               <TextField
                 fullWidth
                 type="date"
@@ -757,11 +770,16 @@ export default function PaymentItemsPage() {
                 size="small"
                 error={!!dateError && !!dateTo}
                 helperText={dateError || (datesPartial ? 'Saisir les deux dates pour filtrer par période' : '')}
-                sx={{ cursor: 'pointer', '& input': { cursor: 'pointer' } }}
+                sx={{
+                  cursor: 'pointer',
+                  '& input': { cursor: 'pointer' },
+                  '& .MuiInputBase-root': {
+                    pr: (dateFrom || dateTo) ? 5.5 : undefined,
+                  },
+                }}
               />
-            </Grid>
-            {(dateFrom || dateTo) && (
-              <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'flex-start', pt: { xs: 0, md: '8px !important' } }}>
+
+              {(dateFrom || dateTo) && (
                 <Tooltip title="Effacer le filtre par date" arrow>
                   <IconButton
                     size="small"
@@ -771,19 +789,26 @@ export default function PaymentItemsPage() {
                       setDateError('');
                       resetPagination();
                     }}
-                    sx={clearButtonStyle}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    sx={{
+                      ...clearButtonAbsoluteStyle,
+                      top: 10,
+                      right: 10,
+                    }}
                   >
                     <CloseRoundedIcon sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Tooltip>
-              </Grid>
-            )}
-            {isFetching && !isLoading && (
-              <Grid item xs={12}>
-                <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Mise à jour des résultats…</Typography>
-              </Grid>
-            )}
-          </Grid>
+              )}
+            </Box>
+          </Box>
+
+          {isFetching && !isLoading && (
+            <Typography sx={{ mt: 1.25, fontSize: '0.8rem', color: 'text.secondary' }}>Mise à jour des résultats…</Typography>
+          )}
         </CardContent>
       </Card>
       <Card>
