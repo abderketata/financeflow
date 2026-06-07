@@ -45,6 +45,7 @@ import {
   getClientLabel,
 } from '@/components/ui/EntityAutocompleteFields';
 import { brandColors, headingFont } from '@/app/theme';
+import { formatAmountInWords } from '@/utils/format';
 
 // ── Style helpers ────────────────────────────────────────────────────────
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
@@ -217,6 +218,7 @@ export function PaymentItemForm({
   const watchedClientId = watch('client');
   const watchedAlertEnabled = watch('alertEnabled');
   const watchedDueDate = watch('dueDate');
+  const watchedCurrency = watch('currency');
   const dueDateUrgency = useMemo(() => getDueDateUrgency(watchedDueDate || ''), [watchedDueDate]);
   const showPaymentMethod = watchedType === 'AUTRE';
 
@@ -226,6 +228,7 @@ export function PaymentItemForm({
     const v = defaultValues?.amount;
     return v != null && v !== 0 ? formatAmountDisplay(String(v)) : '';
   });
+  const amountInWords = useMemo(() => formatAmountInWords(stripSpaces(amountDisplay), watchedCurrency), [amountDisplay, watchedCurrency]);
 
   // ── Reference payment display mask ────────────────────
   const refPayInputRef = useRef<HTMLInputElement>(null);
@@ -491,6 +494,25 @@ export function PaymentItemForm({
                   InputProps={{ startAdornment: <InputAdornment position="start"><CurrencyExchangeRoundedIcon sx={inputIconSx} /></InputAdornment> }} />
               )} />
             </Grid>
+            {amountInWords ? (
+              <Grid item xs={12}>
+                <Box
+                  sx={(theme) => ({
+                    mt: { xs: -0.5, md: -0.25 },
+                    px: 1.75,
+                    py: 1.25,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(brandColors.blue[400], theme.palette.mode === 'dark' ? 0.32 : 0.22)}`,
+                    backgroundColor: alpha(brandColors.blue[500], theme.palette.mode === 'dark' ? 0.14 : 0.08),
+                    color: theme.palette.mode === 'dark' ? brandColors.blue[100] : brandColors.blue[900],
+                  })}
+                >
+                  <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, lineHeight: 1.5 }}>
+                    {amountInWords}
+                  </Typography>
+                </Box>
+              </Grid>
+            ) : null}
 
             {/* ── RÉFÉRENCE PAIEMENT — obligatoire si Chèque ou Traite ── */}
             {showReferencePayment && (

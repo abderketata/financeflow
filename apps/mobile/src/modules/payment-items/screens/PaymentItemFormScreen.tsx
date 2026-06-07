@@ -11,9 +11,10 @@ import {
   StyleSheet,
   Switch,
   Text,
+  useColorScheme,
   View,
 } from 'react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AppTextField } from '@/components/ui/AppTextField';
 import { Screen } from '@/components/ui/Screen';
 import { useCreatePaymentItem, useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
@@ -22,6 +23,7 @@ import { buildPaymentItemReference, getPaymentItemAccount } from '@/modules/paym
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { MobileStackParamList } from '@/navigation/types';
+import { formatAmountInWords } from '@/utils/format';
 
 // ── Selector générique ──────────────────────────────────────────────
 function ButtonSelector<T extends string>({ value, options, labels, onChange, colors }: {
@@ -66,6 +68,7 @@ function formatRefDisplay(clean: string): string {
 export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenProps<MobileStackParamList, 'PaymentItemForm'>) {
   const current = route.params?.paymentItem;
   const isEdit = Boolean(current);
+  const colorScheme = useColorScheme();
   const defaultCurrency = useDefaultCurrency();
   const { data: settings } = useSettings();
   const defaultAlertDays = settings?.defaultAlertDays ?? settings?.alertDaysBefore ?? 3;
@@ -96,7 +99,20 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
 
 
   const watchedType = watch('type');
+  const watchedAmount = watch('amount');
+  const watchedCurrency = watch('currency');
   const showReferencePayment = watchedType === 'CHEQUE' || watchedType === 'TRAITE';
+  const amountInWords = useMemo(() => formatAmountInWords(watchedAmount as string | number | null | undefined, watchedCurrency), [watchedAmount, watchedCurrency]);
+  const amountWordsColors = useMemo(() => {
+    const isDark = colorScheme === 'dark';
+
+    return {
+      border: isDark ? 'rgba(96,165,250,0.28)' : 'rgba(59,130,246,0.18)',
+      background: isDark ? 'rgba(37,99,235,0.16)' : 'rgba(239,246,255,0.95)',
+      title: isDark ? '#bfdbfe' : '#1d4ed8',
+      text: isDark ? '#eff6ff' : '#1e3a8a',
+    };
+  }, [colorScheme]);
 
   // Masked display for referencePayment
   const [refPayDisplay, setRefPayDisplay] = useState(() =>
@@ -188,6 +204,11 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
           <Controller name="currency" control={control} render={({ field }) => (
             <AppTextField label="Devise" value={field.value} onChangeText={field.onChange} placeholder="TND" error={errors.currency?.message} />
           )} />
+          {amountInWords ? (
+            <View style={[styles.amountWordsBox, { borderColor: amountWordsColors.border, backgroundColor: amountWordsColors.background }]}>
+              <Text style={[styles.amountWordsText, { color: amountWordsColors.text }]}>{amountInWords}</Text>
+            </View>
+          ) : null}
 
           {/* Dates */}
           <Controller name="issueDate" control={control} render={({ field }) => (
@@ -251,6 +272,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '800', color: '#0f172a', marginBottom: 16 },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
   fieldError: { color: '#dc2626', fontSize: 12, marginTop: -10, marginBottom: 10 },
+  amountWordsBox: { marginTop: -2, marginBottom: 14, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  amountWordsText: { fontSize: 13, fontWeight: '700', lineHeight: 19 },
   switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12, marginBottom: 14 },
   switchLabel: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
   switchHint: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
