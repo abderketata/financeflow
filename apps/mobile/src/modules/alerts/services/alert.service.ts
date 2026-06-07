@@ -1,7 +1,7 @@
 import { createCrudService } from '@/services/api/crud';
 import { api } from '@/services/api/client';
 import { normalizePaymentItemFromBackend } from '@/modules/payment-items/services/paymentItem.service';
-import { AlertItem, PaymentItem, RelationCollection } from '@/types';
+import { AlertItem, PaymentItem, RelationCollection, StrapiCollectionResponse } from '@/types';
 import { unwrapCollection, unwrapSingle } from '@/utils/strapi';
 
 const alertCrudService = createCrudService<AlertItem>('/alerts');
@@ -49,8 +49,33 @@ const isNotFoundError = (error: any) => {
   return status === 404;
 };
 
+const getPaginationTotal = (meta?: Record<string, unknown>) => {
+  const total = Number((meta?.pagination as { total?: unknown } | undefined)?.total ?? 0);
+  return Number.isFinite(total) && total >= 0 ? total : 0;
+};
+
 export const alertService = {
   ...alertCrudService,
+  async countUnread(options?: { signal?: AbortSignal }) {
+	const { data } = await api.get<StrapiCollectionResponse<Pick<AlertItem, 'id'>>>('/alerts', {
+	  params: {
+		fields: ['id'],
+		filters: {
+		  isRead: {
+			$eq: false,
+		  },
+		},
+		pagination: {
+		  page: 1,
+		  pageSize: 1,
+		  withCount: true,
+		},
+	  },
+	  signal: options?.signal,
+	});
+
+	return getPaginationTotal(data.meta);
+  },
   async getPaymentItems(alertId: number): Promise<PaymentItem[]> {
 	const alert = await alertCrudService.get(alertId, {
 	  populate: {

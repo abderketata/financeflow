@@ -7,6 +7,8 @@ import { unwrapCollection } from '@/utils/strapi';
 const rawService = createCrudService<PaymentItem>('/payment-items');
 
 const ACTIVE_PAYMENT_ITEMS_FILTER = { supprimer: { $eq: false } };
+const DEFAULT_MULTI_PAGE_SIZE = 250;
+const MULTI_PAGE_BATCH_SIZE = 4;
 
 const buildActivePaymentItemsParams = (params?: Record<string, unknown>) => {
   const callerFilters = (params?.filters as Record<string, unknown> | undefined) ?? {};
@@ -113,6 +115,44 @@ const normalizePaginationMeta = (meta?: Record<string, unknown>): StrapiPaginati
   };
 };
 
+const toPositiveInteger = (value: unknown, fallback: number) => {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized > 0 ? Math.floor(normalized) : fallback;
+};
+
+const chunk = <T>(items: T[], size: number) => {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+};
+
+const getErrorStatus = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const apiError = error as {
+    status?: number;
+    error?: { status?: number };
+    response?: { status?: number };
+  };
+
+  return apiError.error?.status ?? apiError.status ?? apiError.response?.status;
+};
+
+const omitFieldsParam = (params?: Record<string, unknown>) => {
+  if (!params || !('fields' in params)) {
+    return params;
+  }
+
+  const { fields, ...rest } = params;
+  return rest;
+};
+
 export const paymentItemService = {
   async list(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
     const items = await rawService.list(params, options);
@@ -132,6 +172,65 @@ export const paymentItemService = {
       data: unwrapCollection<PaymentItem>(data).map(normalizePaymentItemFromBackend),
       pagination: normalizePaginationMeta(data.meta),
     };
+  },
+  async listActivePage(params?: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<PaginatedResult<PaymentItem>> {
+    return this.listPage(buildActivePaymentItemsParams(params), options);
+  },
+  async listAllActive(params?: Record<string, unknown>, options?: { signal?: AbortSignal }) {
+    const callerPagination = (params?.pagination as Record<string, unknown> | undefined) ?? {};
+    const basePagination = {
+      ...callerPagination,
+      page: 1,
+      pageSize: toPositiveInteger(callerPagination.pageSize, DEFAULT_MULTI_PAGE_SIZE),
+      withCount: true,
+    };
+
+    const buildRequestParams = (sourceParams?: Record<string, unknown>) => ({
+      ...(sourceParams ?? {}),
+      pagination: basePagination,
+    });
+
+    let effectiveParams = params;
+    let firstPage: PaginatedResult<PaymentItem>;
+
+    try {
+      firstPage = await this.listActivePage(buildRequestParams(effectiveParams), options);
+    } catch (error) {
+      if (getErrorStatus(error) !== 400 || !effectiveParams?.fields) {
+        throw error;
+      }
+
+      effectiveParams = omitFieldsParam(effectiveParams);
+      firstPage = await this.listActivePage(buildRequestParams(effectiveParams), options);
+    }
+
+    if (firstPage.pagination.pageCount <= 1) {
+      return firstPage.data;
+    }
+
+    const remainingPages = Array.from(
+      { length: Math.max(firstPage.pagination.pageCount - 1, 0) },
+      (_, index) => index + 2,
+    );
+    const allPages = [firstPage];
+
+    for (const pageBatch of chunk(remainingPages, MULTI_PAGE_BATCH_SIZE)) {
+      const batchResults = await Promise.all(
+        pageBatch.map((page) => this.listActivePage({
+          ...(effectiveParams ?? {}),
+          pagination: {
+            ...basePagination,
+            page,
+          },
+        }, options))
+      );
+
+      allPages.push(...batchResults);
+    }
+
+    return allPages
+      .sort((left, right) => left.pagination.page - right.pagination.page)
+      .flatMap((page) => page.data);
   },
   async get(id: number, params?: Record<string, unknown>) {
     const item = await rawService.get(id, params);

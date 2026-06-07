@@ -1,6 +1,6 @@
 import { endOfMonth, endOfWeek, endOfYear, format, isBefore, isSameDay, isSameMonth, isValid, isWithinInterval, parseISO, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Alert, DashboardSummary, PaymentItem, Transaction } from '@/types/domain';
+import { DashboardSummary, PaymentItem, Transaction } from '@/types/domain';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
 import { isPaymentItemClosedStatus, mapPaymentItemsToTransactions } from '@/modules/payment-items/utils/paymentItemPresentation';
@@ -32,29 +32,66 @@ const toChartLabel = (value: string) => {
 
 const getPaymentItemDueDate = (item: PaymentItem) => parseDashboardDate(item.dueDate ?? (item as { echeance?: string | null }).echeance ?? null);
 
-export const dashboardService = {
-  async getSummary(selectedWeekDate = new Date()): Promise<DashboardSummary> {
-    const now = new Date();
-    const currentYearStart = startOfYear(now);
-    const currentYearEnd = endOfYear(now);
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
-    const weekStart = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(selectedWeekDate, { weekStartsOn: 1 });
+const DASHBOARD_PAYMENT_ITEM_FIELDS = [
+  'referenceNumber',
+  'amount',
+  'direction',
+  'status',
+  'type',
+  'echeance',
+] as const;
 
-    // Dashboard only loads current-year payment-items by `echeance` and excludes soft-deleted rows.
-    const [paymentItems, alerts] = await Promise.all([
-      paymentItemService.listActive({
-        populate: '*',
+const DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE = 250;
+
+export interface DashboardDataset {
+  year: number;
+  paymentItems: PaymentItem[];
+  unreadAlertsCount: number;
+}
+
+const normalizeDashboardPaymentItem = (item: PaymentItem): PaymentItem => ({
+  ...item,
+  reference: item.reference || item.referenceNumber || '',
+});
+
+export const dashboardService = {
+  async getDataset(year = new Date().getFullYear(), options?: { signal?: AbortSignal }): Promise<DashboardDataset> {
+    const currentYearStart = startOfYear(new Date(year, 0, 1));
+    const currentYearEnd = endOfYear(currentYearStart);
+
+    const [paymentItems, unreadAlertsCount] = await Promise.all([
+      paymentItemService.listAllActive({
+        fields: [...DASHBOARD_PAYMENT_ITEM_FIELDS],
         filters: {
           echeance: {
             $gte: format(currentYearStart, 'yyyy-MM-dd'),
             $lte: format(currentYearEnd, 'yyyy-MM-dd'),
           },
         },
-      }),
-      alertService.list({ populate: '*' })
+        sort: ['id:desc'],
+        pagination: {
+          page: 1,
+          pageSize: DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE,
+          withCount: true,
+        },
+      }, options),
+      alertService.countUnread(options),
     ]);
+
+    return {
+      year,
+      paymentItems: paymentItems.map(normalizeDashboardPaymentItem),
+      unreadAlertsCount,
+    };
+  },
+  buildSummary(dataset: DashboardDataset, selectedWeekDate = new Date()): DashboardSummary {
+    const now = new Date();
+    const datasetYear = dataset.year;
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const weekStart = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(selectedWeekDate, { weekStartsOn: 1 });
+    const paymentItems = dataset.paymentItems;
 
     const transactions = mapPaymentItemsToTransactions(paymentItems)
       .map((item) => ({ item, parsedDate: parseDashboardDate(item.operationDate) }))
@@ -64,7 +101,7 @@ export const dashboardService = {
       .filter(({ parsedDate }) => parsedDate >= monthStart && parsedDate <= monthEnd)
       .map(({ item }) => item);
 
-    const yearTransactions = transactions.filter(({ parsedDate }) => parsedDate.getFullYear() === now.getFullYear());
+    const yearTransactions = transactions.filter(({ parsedDate }) => parsedDate.getFullYear() === datasetYear);
 
     const dueThisWeek = paymentItems
       .filter((item: PaymentItem) => {
@@ -77,8 +114,6 @@ export const dashboardService = {
       const effectiveDate = getPaymentItemDueDate(item);
       return effectiveDate ? isBefore(effectiveDate, now) && !isPaymentItemClosedStatus(item.status) : false;
     });
-
-    const unreadAlerts = alerts.filter((alert: Alert) => !alert.isRead);
 
     const weeklyChart = Array.from({ length: 7 }, (_, index) => {
       const day = new Date(weekStart);
@@ -97,7 +132,7 @@ export const dashboardService = {
     });
 
     const monthlyChart = Array.from({ length: 12 }, (_, index) => {
-      const monthDate = new Date(now.getFullYear(), index, 1);
+      const monthDate = new Date(datasetYear, index, 1);
       const monthTransactionsGroup = yearTransactions
         .filter(({ parsedDate }) => isSameMonth(parsedDate, monthDate))
         .map(({ item }) => item);
@@ -115,7 +150,7 @@ export const dashboardService = {
       monthlyDebits: sumByType(monthTransactions, 'DEBIT'),
       dueThisWeekCount: dueThisWeek.length,
       overdueCount: overdue.length,
-      unreadAlertsCount: unreadAlerts.length,
+      unreadAlertsCount: dataset.unreadAlertsCount,
       weeklyChart,
       monthlyChart,
       upcomingPaymentItems: dueThisWeek.slice(0, 5)

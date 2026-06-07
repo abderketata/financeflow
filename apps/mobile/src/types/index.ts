@@ -9,6 +9,28 @@ export type TransactionOperationType = 'DEBIT' | 'CREDIT';
 export type ClientType = 'INDIVIDUAL' | 'COMPANY';
 export type RelationCollection<T> = T[] | { data?: T[] | null } | null;
 
+export interface StrapiEntity<T> {
+  id: number;
+  attributes: T;
+}
+
+export interface StrapiCollectionResponse<T> {
+  data: Array<StrapiEntity<T> | T>;
+  meta?: Record<string, unknown>;
+}
+
+export interface StrapiPaginationMeta {
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  total: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: StrapiPaginationMeta;
+}
+
 export interface Client {
   id: Identifier;
   /** Nom de compatibilité – calculé côté présentation */
