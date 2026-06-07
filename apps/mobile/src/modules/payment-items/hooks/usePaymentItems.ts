@@ -35,7 +35,13 @@ export const useUpdatePaymentItem = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<PaymentItem> }) => paymentItemService.update(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: QUERY_KEY }),
+        qc.invalidateQueries({ queryKey: ['mobile-alerts'] }),
+        qc.invalidateQueries({ queryKey: ['mobile-dashboard-dataset'] }),
+      ]);
+    },
   });
 };
 

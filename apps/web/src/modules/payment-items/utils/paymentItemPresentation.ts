@@ -1,10 +1,16 @@
-import { BankAccount, Client, PaymentItem, PaymentItemStatus, PaymentItemType, TransactionOperationType, Transaction } from '@/types/domain';
+import { BankAccount, Client, PaymentItem, PaymentItemStatus, PaymentItemType, PaymentMethod, TransactionOperationType, Transaction } from '@/types/domain';
 
 export const paymentItemTypeOptions: Array<{ value: PaymentItemType; label: string }> = [
   { value: 'CHEQUE', label: 'Chèque' },
   { value: 'TRAITE', label: 'Traite' },
   { value: 'AUTRE', label: 'Autre' },
 ];
+
+export const paymentMethodLabelMap: Record<PaymentMethod, string> = {
+  ESPECES: 'Espèces',
+  VIREMENT: 'Virement',
+  CARTE: 'Carte',
+};
 
 const paymentItemTypePrefixMap: Record<PaymentItemType, string> = {
   CHEQUE: 'CHQ',
@@ -42,6 +48,30 @@ export const getPaymentItemStatusLabel = (status?: string | null): PaymentItemSt
 
 export const getPaymentItemReference = (item?: Partial<PaymentItem> | null) =>
   item?.referenceNumber?.trim() || item?.reference?.trim() || '—';
+
+export const getPaymentItemTypeLabel = (item?: Partial<PaymentItem> | null) => {
+  if (!item?.type) {
+    return '—';
+  }
+
+  if (item.type === 'AUTRE' && item.paymentMethod) {
+    return paymentMethodLabelMap[item.paymentMethod] ?? item.paymentMethod;
+  }
+
+  return paymentItemTypeOptions.find((option) => option.value === item.type)?.label ?? item.type;
+};
+
+export const getPaymentItemDirectionLabel = (direction?: string | null) => {
+  if (direction === 'IN') {
+    return 'Entrant';
+  }
+
+  if (direction === 'OUT') {
+    return 'Sortant';
+  }
+
+  return '—';
+};
 
 export const buildPaymentItemReference = (
   type: PaymentItemType,

@@ -67,7 +67,13 @@ export const useUpdatePaymentItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<PaymentItem> }) => paymentItemService.update(id, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey })
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey }),
+        queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-dataset'] }),
+      ]);
+    }
   });
 };
 

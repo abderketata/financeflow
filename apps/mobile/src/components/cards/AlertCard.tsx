@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AlertItem, PaymentItem } from '@/types';
+import { AlertItem } from '@/types';
 import { formatDate } from '@/utils/format';
-import { getPaymentItemClientPrimary, getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { getAlertAssociatedLabel, getAlertScheduledAt, getAlertSentAt, getPrimaryAlertPaymentItem } from '@/modules/alerts/utils/alertPresentation';
 
 interface AlertCardProps {
   item: AlertItem;
@@ -9,33 +10,10 @@ interface AlertCardProps {
   onViewPayment?: () => void;
 }
 
-const getAlertPaymentItems = (alert: AlertItem) => {
-  if (Array.isArray(alert.paymentItems)) {
-    return alert.paymentItems.filter(Boolean);
-  }
-
-  if (alert.paymentItems?.data) {
-    return alert.paymentItems.data.filter(Boolean);
-  }
-
-  return alert.paymentItem ? [alert.paymentItem] : [];
-};
-
-const getPrimaryAlertPaymentItem = (alert: AlertItem): PaymentItem | null => getAlertPaymentItems(alert)[0] ?? null;
-
-const getAlertScheduledAt = (alert: AlertItem) => {
-  const paymentItem = getPrimaryAlertPaymentItem(alert);
-  return alert.scheduledAt || alert.triggerDate || paymentItem?.dueDate || paymentItem?.paymentDate || paymentItem?.createdAt || null;
-};
-
-const getAlertSentAt = (alert: AlertItem) => alert.sentAt || alert.createdAt || alert.updatedAt || null;
-
 export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps) {
   const paymentItem = getPrimaryAlertPaymentItem(item);
   const paymentStatus = paymentItem ? String(getPaymentItemStatusLabel(paymentItem.status)) : null;
-  const associatedLabel = paymentItem
-    ? `${getPaymentItemClientPrimary(paymentItem.client)} · ${getPaymentItemReference(paymentItem)}`
-    : 'Paiement non lié';
+  const associatedLabel = getAlertAssociatedLabel(item);
 
   return (
     <View style={[styles.card, !item.isRead && styles.cardUnread]}>
@@ -65,7 +43,7 @@ export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps)
             )}
             {onViewPayment && (
               <Pressable style={[styles.actionBtn, styles.viewBtn]} onPress={onViewPayment}>
-                <Text style={styles.viewBtnText}>Voir paiement</Text>
+                <Text style={styles.viewBtnText}>Détails paiement</Text>
               </Pressable>
             )}
           </View>

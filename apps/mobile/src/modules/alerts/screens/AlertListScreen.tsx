@@ -6,6 +6,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { AlertPaymentDetailsModal } from '@/modules/alerts/components/AlertPaymentDetailsModal';
 import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
 import { AlertItem, PaymentItem } from '@/types';
 
@@ -53,6 +54,7 @@ export function AlertListScreen() {
   const updateMutation = useUpdateAlert();
   const [filter, setFilter] = useState<AlertFilter>('all');
   const [sort, setSort] = useState<AlertSort>('urgent');
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
 
   const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
   const readCount = Math.max(data.length - unreadCount, 0);
@@ -140,6 +142,7 @@ export function AlertListScreen() {
           <AlertCard
             item={item}
             onToggleRead={() => updateMutation.mutate({ id: item.id, payload: { isRead: !item.isRead } })}
+            onViewPayment={() => setSelectedAlert(item)}
           />
         )}
         ListEmptyComponent={
@@ -150,6 +153,12 @@ export function AlertListScreen() {
         }
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+      />
+
+      <AlertPaymentDetailsModal
+        visible={Boolean(selectedAlert)}
+        alert={selectedAlert}
+        onClose={() => setSelectedAlert(null)}
       />
     </Screen>
   );
