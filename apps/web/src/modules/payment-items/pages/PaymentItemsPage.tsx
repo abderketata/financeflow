@@ -32,17 +32,19 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
+import { PaymentItemAttachmentDraft } from '@/modules/payment-items/components/PaymentItemAttachmentSection';
 import { usePaymentItemsPage, usePaymentItemsTotals, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
+import { getPaymentItemAttachmentErrorMessage, getPaymentItemAttachments } from '@/modules/payment-items/utils/paymentItemAttachments';
 import { exportPaymentItemsToExcel, exportPaymentItemsToPdf } from '@/modules/payment-items/utils/paymentItemExport';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { Client, PaymentItem } from '@/types/domain';
+import { Client, PaymentItem, StrapiUploadFile } from '@/types/domain';
 import { ClientAutocompleteField, getClientLabel } from '@/components/ui/EntityAutocompleteFields';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { actionIconButton, brandColors, clearButtonAbsoluteStyle, clearButtonStyle, numericFont } from '@/app/theme';
+import { actionIconButton, brandColors, clearButtonAbsoluteStyle, numericFont } from '@/app/theme';
 import { useAuth } from '@/providers/AuthProvider';
 import {
   buildPaymentItemReference,
@@ -134,6 +136,8 @@ export default function PaymentItemsPage() {
   const [dateError, setDateError] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PaymentItem | null>(null);
+  const [editingDetailsId, setEditingDetailsId] = useState<number | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<PaymentItem | null>(null);
   const [exportFormat, setExportFormat] = useState<'excel' | 'pdf' | null>(null);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 25 });
@@ -253,6 +257,12 @@ export default function PaymentItemsPage() {
   const createMutation = useCreatePaymentItem();
   const updateMutation = useUpdatePaymentItem();
   const softDeleteMutation = useSoftDeletePaymentItem();
+  const editingDetailsQuery = useQuery({
+    queryKey: ['payment-items', 'detail', editingDetailsId],
+    enabled: Boolean(editingDetailsId),
+    queryFn: () => paymentItemService.getWithAttachments(Number(editingDetailsId)),
+    staleTime: 30_000,
+  });
 
   const rows = data?.data ?? [];
   const pagination = data?.pagination;
@@ -300,6 +310,25 @@ export default function PaymentItemsPage() {
   }, [balance, hasTotals, totalCredits, totalDebits, totalsCurrency]);
 
   const resetPagination = () => setPaginationModel((current) => ({ ...current, page: 0 }));
+
+  const handleCloseForm = () => {
+    setOpenForm(false);
+    setEditing(null);
+    setEditingDetailsId(null);
+    setFormError(null);
+  };
+
+  const cleanupUploadedFiles = async (uploadedFiles: StrapiUploadFile[]) => {
+    if (!uploadedFiles.length) {
+      return;
+    }
+
+    try {
+      await paymentItemService.removeUploadedFiles(uploadedFiles.map((file) => file.id));
+    } catch (cleanupError) {
+      console.warn('Nettoyage des pièces jointes uploadées impossible', cleanupError);
+    }
+  };
 
   const handleExport = async (format: 'excel' | 'pdf') => {
     try {
@@ -457,6 +486,8 @@ export default function PaymentItemsPage() {
               onClick={(event) => {
                 event.stopPropagation();
                 setEditing(row);
+                setEditingDetailsId(row.id);
+                setFormError(null);
                 setOpenForm(true);
               }}
               sx={actionIconButton('#EAB308')}
@@ -529,7 +560,7 @@ export default function PaymentItemsPage() {
                 </Button>
               </span>
             </Tooltip>
-            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setOpenForm(true); }}>
+            <Button variant="contained" startIcon={<AddRoundedIcon />} onClick={() => { setEditing(null); setEditingDetailsId(null); setFormError(null); setOpenForm(true); }}>
               Ajouter un paiement
             </Button>
           </Stack>
@@ -943,37 +974,64 @@ export default function PaymentItemsPage() {
         </CardContent>
       </Card>
 
-      <FormDialog open={openForm} title={editing ? 'Modifier le paiement' : 'Nouveau paiement'} onClose={() => setOpenForm(false)}>
+      <FormDialog open={openForm} title={editing ? 'Modifier le paiement' : 'Nouveau paiement'} onClose={handleCloseForm}>
         <PaymentItemForm
-          defaultValues={editing ? {
-            ...editing,
-            status: getPaymentItemStatusLabel(editing.status) as any,
-            client: editing.client?.id,
-            account: getPaymentItemAccount(editing)?.id,
-            referencePayment: editing.referencePayment ?? '',
+          key={editingDetailsQuery.data?.id ?? editing?.id ?? 'new-payment-item'}
+          defaultValues={(editingDetailsQuery.data ?? editing) ? {
+            ...(editingDetailsQuery.data ?? editing),
+            status: getPaymentItemStatusLabel((editingDetailsQuery.data ?? editing)?.status) as any,
+            client: (editingDetailsQuery.data ?? editing)?.client?.id,
+            account: getPaymentItemAccount(editingDetailsQuery.data ?? editing)?.id,
+            referencePayment: (editingDetailsQuery.data ?? editing)?.referencePayment ?? '',
           } as any : undefined}
           defaultCurrency={defaultCurrency}
           defaultAlertDays={settings?.defaultAlertDays}
-          initialClient={editing?.client ?? null}
-          initialAccount={editing ? getPaymentItemAccount(editing) : null}
+          initialClient={(editingDetailsQuery.data ?? editing)?.client ?? null}
+          initialAccount={(editingDetailsQuery.data ?? editing) ? getPaymentItemAccount(editingDetailsQuery.data ?? editing) : null}
+          initialAttachments={editingDetailsQuery.data ? getPaymentItemAttachments(editingDetailsQuery.data) : []}
+          showAttachmentSection={!editing || Boolean(editingDetailsQuery.data)}
           companyName={settings?.companyName || ''}
-          loading={createMutation.isPending || updateMutation.isPending}
-          onCancel={() => { setOpenForm(false); setEditing(null); }}
-          onSubmit={async (values) => {
-            const payload = {
-              ...values,
-              referenceNumber: buildPaymentItemReference(values.type, values.direction),
-              paymentMethod: values.type === 'AUTRE' ? (values.paymentMethod || null) : null,
-              supprimer: false,
-            };
+          loading={createMutation.isPending || updateMutation.isPending || editingDetailsQuery.isFetching}
+          submitError={formError}
+          onCancel={handleCloseForm}
+          onSubmit={async (values, attachments?: PaymentItemAttachmentDraft) => {
+            setFormError(null);
+            let uploadedAttachments: StrapiUploadFile[] = [];
 
-            if (editing) {
-              await updateMutation.mutateAsync({ id: editing.id, payload: payload as any });
-            } else {
-              await createMutation.mutateAsync(payload as any);
+            try {
+              if (attachments?.newFiles?.length) {
+                uploadedAttachments = await paymentItemService.uploadAttachments(attachments.newFiles);
+              }
+
+              const payload = {
+                ...values,
+                referenceNumber: buildPaymentItemReference(values.type, values.direction),
+                paymentMethod: values.type === 'AUTRE' ? (values.paymentMethod || null) : null,
+                supprimer: false,
+                ...(attachments ? {
+                  attachments: [
+                    ...attachments.keptAttachmentIds,
+                    ...uploadedAttachments.map((attachment) => attachment.id),
+                  ],
+                } : {}),
+              };
+
+              if (editing) {
+                await updateMutation.mutateAsync({ id: editing.id, payload: payload as any });
+              } else {
+                await createMutation.mutateAsync(payload as any);
+              }
+
+              handleCloseForm();
+            } catch (error) {
+              await cleanupUploadedFiles(uploadedAttachments);
+              setFormError(
+                getPaymentItemAttachmentErrorMessage(
+                  error,
+                  "Impossible d'enregistrer le paiement avec ses pièces jointes.",
+                ),
+              );
             }
-            setOpenForm(false);
-            setEditing(null);
           }}
         />
       </FormDialog>

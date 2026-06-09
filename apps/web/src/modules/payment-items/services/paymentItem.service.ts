@@ -1,7 +1,7 @@
 import { createCrudService } from '@/services/api/crud';
 import { api } from '@/services/api/client';
 import { PaginatedResult, StrapiCollectionResponse, StrapiPaginationMeta } from '@/types/api';
-import { PaymentItem } from '@/types/domain';
+import { PaymentItem, StrapiUploadFile } from '@/types/domain';
 import { unwrapCollection } from '@/utils/strapi';
 
 const rawService = createCrudService<PaymentItem>('/payment-items');
@@ -48,6 +48,11 @@ const normalizeStrapiValue = (value: any): any => {
   }
 
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeStrapiValue(entry)]));
+};
+
+const normalizeUploadedFiles = (value: unknown): StrapiUploadFile[] => {
+  const normalized = normalizeStrapiValue(value);
+  return Array.isArray(normalized) ? normalized as StrapiUploadFile[] : [];
 };
 
 // ── Payment method value mappings ────────────────────────────────────
@@ -236,6 +241,17 @@ export const paymentItemService = {
     const item = await rawService.get(id, params);
     return item ? normalizePaymentItemFromBackend(item) : null;
   },
+  async getWithAttachments(id: number) {
+    const item = await rawService.get(id, {
+      populate: {
+        attachments: '*',
+        client: '*',
+        account: '*',
+        bankAccount: '*',
+      },
+    });
+    return item ? normalizePaymentItemFromBackend(item) : null;
+  },
   async create(payload: Partial<PaymentItem>) {
     const item = await rawService.create(normalizeToBackend(payload));
     return item ? normalizePaymentItemFromBackend(item) : null;
@@ -243,6 +259,29 @@ export const paymentItemService = {
   async update(id: number, payload: Partial<PaymentItem>) {
     const item = await rawService.update(id, normalizeToBackend(payload));
     return item ? normalizePaymentItemFromBackend(item) : null;
+  },
+  async uploadAttachments(files: File[]) {
+    if (!files.length) {
+      return [];
+    }
+
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+
+    const { data } = await api.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return normalizeUploadedFiles(data);
+  },
+  async removeUploadedFiles(fileIds: number[]) {
+    if (!fileIds.length) {
+      return;
+    }
+
+    await Promise.all(fileIds.map((fileId) => api.delete(`/upload/files/${fileId}`)));
   },
   async remove(id: number) {
     return rawService.remove(id);

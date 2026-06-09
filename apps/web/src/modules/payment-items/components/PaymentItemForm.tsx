@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Divider, Grid, InputAdornment, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
+import { Box, Button, Grid, InputAdornment, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -30,12 +30,12 @@ import SyncAltRoundedIcon from '@mui/icons-material/SyncAltRounded';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
+import { PaymentItemAttachmentDraft, PaymentItemAttachmentSection } from '@/modules/payment-items/components/PaymentItemAttachmentSection';
 import { paymentItemSchema, PaymentItemFormValues } from '@/modules/payment-items/schemas/paymentItem.schema';
 import {
   paymentItemStatusOptions,
-  paymentItemTypeOptions,
 } from '@/modules/payment-items/utils/paymentItemPresentation';
-import { BankAccount, Client } from '@/types/domain';
+import { BankAccount, Client, StrapiUploadFile } from '@/types/domain';
 import { clientService } from '@/modules/clients/services/client.service';
 import { accountService } from '@/modules/accounts/services/account.service';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -140,10 +140,13 @@ interface PaymentItemFormProps {
   initialClient?: Client | null;
   /** Initial full account object for edit mode pre-selection */
   initialAccount?: BankAccount | null;
+  initialAttachments?: StrapiUploadFile[];
+  showAttachmentSection?: boolean;
   companyName: string;
   loading?: boolean;
+  submitError?: string | null;
   onCancel?: () => void;
-  onSubmit: (values: PaymentItemFormValues) => void | Promise<void>;
+  onSubmit: (values: PaymentItemFormValues, attachments?: PaymentItemAttachmentDraft) => void | Promise<void>;
 }
 
 function getTodayISO(): string {
@@ -180,8 +183,11 @@ export function PaymentItemForm({
   defaultAlertDays = 3,
   initialClient,
   initialAccount,
+  initialAttachments = [],
+  showAttachmentSection = false,
   companyName,
   loading,
+  submitError,
   onCancel,
   onSubmit,
 }: PaymentItemFormProps) {
@@ -235,6 +241,11 @@ export function PaymentItemForm({
   const [refPayDisplay, setRefPayDisplay] = useState(() =>
     formatRefDisplay(defaultValues?.referencePayment ?? '')
   );
+  const [attachmentDraft, setAttachmentDraft] = useState<PaymentItemAttachmentDraft>({
+    keptAttachmentIds: initialAttachments.map((attachment) => attachment.id),
+    removedAttachmentIds: [],
+    newFiles: [],
+  });
 
   // Clear paymentMethod when type is not AUTRE
   useEffect(() => {
@@ -320,7 +331,7 @@ export function PaymentItemForm({
   }, [watchedDirection, selectedClient, companyName, setValue]);
 
   return (
-    <form onSubmit={handleSubmit((values) => onSubmit(values))}>
+    <form onSubmit={handleSubmit((values) => onSubmit(values, showAttachmentSection ? attachmentDraft : undefined))}>
       <Stack spacing={2} sx={{ mt: 0.5 }}>
 
         {/* ── Section 1 : Client & Compte — unchanged ──────────── */}
@@ -760,6 +771,16 @@ export function PaymentItemForm({
             />
           )} />
         </Box>
+
+        {showAttachmentSection ? (
+          <PaymentItemAttachmentSection
+            mode={defaultValues ? 'edit' : 'create'}
+            existingAttachments={initialAttachments}
+            loading={loading}
+            submitError={submitError}
+            onChange={setAttachmentDraft}
+          />
+        ) : null}
 
         {/* ── Boutons ────────────────────────────────────────── */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pt: 0.5 }}>

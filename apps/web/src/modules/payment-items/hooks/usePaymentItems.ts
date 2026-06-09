@@ -52,7 +52,11 @@ export const usePaymentItems = (options?: { enabled?: boolean; params?: Record<s
       const mergedFilters = mergePaymentItemFilters(callerFilters);
 
       return paymentItemService.list({
-        populate: '*',
+        populate: {
+          client: '*',
+          account: '*',
+          bankAccount: '*',
+        },
         ...(options?.params ?? {}),
         filters: mergedFilters,
       }, { signal });
@@ -70,7 +74,11 @@ export const usePaymentItemsPage = (options?: { enabled?: boolean; params?: Reco
       const mergedFilters = mergePaymentItemFilters(callerFilters);
 
       return paymentItemService.listPage({
-        populate: '*',
+        populate: {
+          client: '*',
+          account: '*',
+          bankAccount: '*',
+        },
         ...(options?.params ?? {}),
         filters: mergedFilters,
         sort: ['id:desc'],

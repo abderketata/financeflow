@@ -58,6 +58,25 @@ export interface BankAccount {
   updatedAt?: string;
 }
 
+export interface StrapiUploadFile {
+  id: Identifier;
+  name: string;
+  alternativeText?: string | null;
+  caption?: string | null;
+  width?: number | null;
+  height?: number | null;
+  formats?: Record<string, unknown> | null;
+  hash?: string;
+  ext?: string;
+  mime?: string;
+  size?: number;
+  url?: string;
+  previewUrl?: string | null;
+  provider?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PaymentItem {
   id: Identifier;
   referenceNumber: string;
@@ -84,6 +103,7 @@ export interface PaymentItem {
   client?: Client | null;
   account?: BankAccount | null;
   bankAccount?: BankAccount | null;
+  attachments?: RelationCollection<StrapiUploadFile>;
   createdAt?: string;
   updatedAt?: string;
 }
