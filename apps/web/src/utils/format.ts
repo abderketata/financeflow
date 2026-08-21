@@ -120,8 +120,18 @@ const convertIntegerToFrenchWords = (value: number): string => {
   return convertUnderThousand(value);
 };
 
-const formatAmountUnit = (value: number, singular: string, plural: string) =>
-  `${convertIntegerToFrenchWords(value)} ${value === 1 ? singular : plural}`;
+// « un million dinars » est fautif : après million / milliard, le français exige « de ».
+// On ne l'ajoute que si le nombre se termine réellement par l'échelle
+// (« un million de dinars » mais « un million cinq cent mille dinars »).
+const SCALE_SUFFIX_PATTERN = /(millions?|milliards?)$/;
+
+const formatAmountUnit = (value: number, singular: string, plural: string) => {
+  const words = convertIntegerToFrenchWords(value);
+  const unit = value === 1 ? singular : plural;
+  const liaison = SCALE_SUFFIX_PATTERN.test(words) ? 'de ' : '';
+
+  return `${words} ${liaison}${unit}`;
+};
 
 const getCurrencyUnits = (currency?: string | null) => {
   const code = normalizeCurrencyCode(currency);

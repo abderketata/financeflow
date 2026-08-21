@@ -170,7 +170,9 @@ export const mapPaymentItemsToTransactions = (items: Array<Partial<PaymentItem> 
       label: attrs?.referenceNumber || attrs?.reference || '',
       operationType,
       amount,
-      operationDate
+      operationDate,
+      // Statut normalisé : les graphiques distinguent l'attendu du réellement encaissé.
+      status: getPaymentItemStatusLabel(attrs?.status),
     };
   });
 };
