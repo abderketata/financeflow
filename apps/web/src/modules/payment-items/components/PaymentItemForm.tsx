@@ -682,8 +682,17 @@ export function PaymentItemForm({
             {colloquialAmountChip ? (
               <Grid item xs={12} md={showReferencePayment ? 6 : 12}>
                 {/* 40 px = hauteur d'un TextField `size="small"` : le chip s'aligne
-                    sur le champ, pas sur son texte d'aide. */}
-                <Box sx={{ display: 'flex', alignItems: 'center', minHeight: { md: 40 } }}>
+                    sur le champ, pas sur son texte d'aide.
+                    Poussé au bord droit de la grille, donc aligné sur le bord droit
+                    du champ « Devise », qui termine la ligne au-dessus. */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                    minHeight: { md: 40 },
+                  }}
+                >
                   {colloquialAmountChip}
                 </Box>
               </Grid>
