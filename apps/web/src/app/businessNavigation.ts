@@ -24,12 +24,12 @@ export const useBusinessNavigate = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
 
-  return useCallback((path: string) => {
+  return useCallback((path: string, options?: { search?: string }) => {
     routeRefreshQueries[path]?.forEach((queryKey) => {
       queryClient.removeQueries({ queryKey });
     });
 
-    navigate(path, {
+    navigate({ pathname: path, search: options?.search ?? '' }, {
       replace: location.pathname === path,
       state: { businessRefreshKey: `${path}-${Date.now()}` },
     });

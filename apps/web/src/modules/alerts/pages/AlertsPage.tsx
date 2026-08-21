@@ -30,10 +30,22 @@ import { formatDate } from '@/utils/format';
 import { actionIconButton, brandColors, iconBox } from '@/app/theme';
 import { getPaymentItemClientPrimary, getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { getAlertAssociatedLabel, getAlertScheduledAt, getAlertSentAt, getAlertTimestamp, getPrimaryAlertPaymentItem } from '@/modules/alerts/utils/alertPresentation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 type AlertFilter = 'all' | 'unread' | 'read';
 type AlertSort = 'recent' | 'urgent';
+
+// Mise en évidence ambre de la ligne ciblée depuis les notifications :
+// deux pulsations pour attirer l'œil après le défilement, puis retour au fond ambre discret.
+const focusedRowPulseSx = {
+  '@keyframes alertFocusPulse': {
+    '0%, 100%': { backgroundColor: alpha(brandColors.warning, 0.12) },
+    '50%': { backgroundColor: alpha(brandColors.warning, 0.32) },
+  },
+  animation: 'alertFocusPulse 1.1s ease-in-out 2',
+  '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+} as const;
 
 
 export default function AlertsPage() {
@@ -42,6 +54,9 @@ export default function AlertsPage() {
   const [filter, setFilter] = useState<AlertFilter>('all');
   const [sort, setSort] = useState<AlertSort>('urgent');
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [searchParams] = useSearchParams();
+  const focusedAlertId = searchParams.get('focus');
+  const focusedRowRef = useRef<HTMLDivElement | null>(null);
 
   const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
   const readCount = Math.max(data.length - unreadCount, 0);
@@ -71,6 +86,27 @@ export default function AlertsPage() {
       return rightRecent - leftRecent;
     });
   }, [data, filter, sort]);
+
+  // Alerte ciblée depuis le menu des notifications : on repasse sur « Toutes »
+  // pour être sûr que la ligne visée n'est pas masquée par le filtre courant.
+  useEffect(() => {
+    if (!focusedAlertId) return;
+    setFilter('all');
+  }, [focusedAlertId]);
+
+  useEffect(() => {
+    if (!focusedAlertId) return;
+    const node = focusedRowRef.current;
+    if (!node) return;
+
+    // Un rAF laisse le navigateur terminer la mise en page (liste + AppBar fixe)
+    // avant de centrer la ligne, sinon le défilement cible une position obsolète.
+    const frame = requestAnimationFrame(() => {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [focusedAlertId, filteredAlerts]);
 
   if (isLoading) return <LoadingState message="Chargement des alertes..." />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
@@ -137,19 +173,29 @@ export default function AlertsPage() {
         <CardContent sx={{ p: '4px 0 !important' }}>
           {filteredAlerts.length ? (
             <Stack divider={<Divider />}>
-              {filteredAlerts.map((alert) => (
+              {filteredAlerts.map((alert) => {
+                const isFocused = focusedAlertId != null && String(alert.id) === focusedAlertId;
+
+                return (
                 <Box
                   key={alert.id}
+                  ref={isFocused ? focusedRowRef : undefined}
                   sx={{
                     px: 3,
                     py: 2,
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 2,
-                    borderLeft: alert.isRead ? 'none' : `3px solid ${brandColors.alert}`,
-                    backgroundColor: alert.isRead ? 'transparent' : alpha(brandColors.alert, 0.02),
+                    borderLeft: isFocused
+                      ? `3px solid ${brandColors.warning}`
+                      : alert.isRead ? 'none' : `3px solid ${brandColors.alert}`,
+                    backgroundColor: isFocused
+                      ? alpha(brandColors.warning, 0.12)
+                      : alert.isRead ? 'transparent' : alpha(brandColors.alert, 0.02),
+                    boxShadow: isFocused ? `inset 0 0 0 1px ${alpha(brandColors.warning, 0.35)}` : 'none',
                     transition: 'all 0.25s ease',
-                    '&:hover': { backgroundColor: alpha(brandColors.alert, 0.04) },
+                    '&:hover': { backgroundColor: isFocused ? alpha(brandColors.warning, 0.18) : alpha(brandColors.alert, 0.04) },
+                    ...(isFocused ? focusedRowPulseSx : null),
                   }}
                 >
                   {/* Icon */}
@@ -187,6 +233,20 @@ export default function AlertsPage() {
                           label={String(getPaymentItemStatusLabel(getPrimaryAlertPaymentItem(alert)?.status))}
                           variant="outlined"
                           sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }}
+                        />
+                      ) : null}
+                      {isFocused ? (
+                        <Chip
+                          size="small"
+                          label="Sélectionnée"
+                          sx={{
+                            height: 20,
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            color: brandColors.warning,
+                            backgroundColor: brandColors.warningBg,
+                            border: `1px solid ${alpha(brandColors.warning, 0.35)}`,
+                          }}
                         />
                       ) : null}
                     </Stack>
@@ -263,7 +323,8 @@ export default function AlertsPage() {
                     </Tooltip>
                   </Stack>
                 </Box>
-              ))}
+                );
+              })}
             </Stack>
           ) : (
             <EmptyState

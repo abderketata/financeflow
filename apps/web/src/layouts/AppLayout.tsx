@@ -13,6 +13,8 @@ import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import MarkEmailReadRoundedIcon from '@mui/icons-material/MarkEmailReadRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import LaunchRoundedIcon from '@mui/icons-material/LaunchRounded';
 import {
   AppBar,
   Avatar,
@@ -41,10 +43,14 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getBusinessRefreshKey, useBusinessNavigate } from '@/app/businessNavigation';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { GlobalSearch } from '@/components/ui/GlobalSearch';
+import { AlertPaymentDetailsDialog } from '@/modules/alerts/components/AlertPaymentDetailsDialog';
 import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import { getPrimaryAlertPaymentItem } from '@/modules/alerts/utils/alertPresentation';
+import { getPaymentItemClientPrimary, getPaymentItemCurrency, getPaymentItemDirectionLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { Alert } from '@/types/domain';
 import { useAuth } from '@/providers/AuthProvider';
-import { formatDate } from '@/utils/format';
-import { brandColors, headingFont, premiumShadows } from '@/app/theme';
+import { formatCurrency, formatDate } from '@/utils/format';
+import { brandColors, headingFont, numericFont, premiumShadows } from '@/app/theme';
 
 const DRAWER_FULL = 260;
 const DRAWER_COLLAPSED = 72;
@@ -90,6 +96,7 @@ export function AppLayout() {
   });
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null);
+  const [notifDetailsAlert, setNotifDetailsAlert] = useState<Alert | null>(null);
   const { logout, user } = useAuth();
   const { data: alerts = [] } = useAlerts();
   const updateAlert = useUpdateAlert();
@@ -105,6 +112,18 @@ export function AppLayout() {
     setMobileOpen(false);
     setNotifAnchor(null);
     setUserAnchor(null);
+  }, [businessNavigate]);
+
+  const openAlertDetails = useCallback((alert: Alert) => {
+    setNotifAnchor(null);
+    setNotifDetailsAlert(alert);
+  }, []);
+
+  const goToAlertInList = useCallback((alert: Alert) => {
+    setMobileOpen(false);
+    setNotifAnchor(null);
+    setUserAnchor(null);
+    businessNavigate('/alerts', { search: `?focus=${encodeURIComponent(String(alert.id))}` });
   }, [businessNavigate]);
 
   const toggleCollapse = () => {
@@ -486,7 +505,7 @@ export function AppLayout() {
             onClose={() => setNotifAnchor(null)}
             PaperProps={{
               sx: {
-                width: 380,
+                width: 430,
                 maxHeight: 440,
                 mt: 1,
               },
@@ -519,38 +538,116 @@ export function AppLayout() {
                 </Tooltip>
               )}
             </Box>
-            {alerts.slice(0, 6).map((alert) => (
-              <MenuItem
+            {alerts.slice(0, 6).map((alert) => {
+              const paymentItem = getPrimaryAlertPaymentItem(alert);
+              const clientLabel = paymentItem ? getPaymentItemClientPrimary(paymentItem.client) : '—';
+              const hasClient = Boolean(paymentItem) && clientLabel !== '—';
+              const isIncoming = paymentItem?.direction === 'IN';
+              const amountColor = isIncoming ? brandColors.credit : brandColors.debit;
+
+              return (
+              <Box
                 key={alert.id}
-                onClick={() => navigateWithRefresh('/alerts')}
                 sx={{
-                  py: 1.5,
+                  py: 1.25,
                   px: 2.5,
-                  mx: 0,
-                  borderRadius: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
                   borderLeft: alert.isRead ? 'none' : `3px solid ${brandColors.blue[500]}`,
                   backgroundColor: alert.isRead ? 'transparent' : alpha(brandColors.blue[500], 0.03),
                   '&:hover': { backgroundColor: alpha(brandColors.blue[500], 0.06) },
                 }}
               >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    sx={{
-                      fontWeight: alert.isRead ? 500 : 650,
-                      fontSize: '0.86rem',
-                      color: 'text.primary',
-                      mb: 0.3,
-                    }}
-                    noWrap
-                  >
-                    {alert.title}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {formatDate(alert.triggerDate || alert.createdAt)}
-                  </Typography>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mb: 0.3 }}>
+                    <Typography
+                      sx={{
+                        fontWeight: alert.isRead ? 500 : 650,
+                        fontSize: '0.86rem',
+                        color: 'text.primary',
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                      noWrap
+                    >
+                      {alert.title}
+                    </Typography>
+                    {paymentItem ? (
+                      <Tooltip title={getPaymentItemDirectionLabel(paymentItem.direction)} arrow placement="left">
+                        <Typography
+                          sx={{
+                            fontFamily: numericFont,
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: amountColor,
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isIncoming ? '+' : '-'}
+                          {formatCurrency(Math.abs(Number(paymentItem.amount ?? 0)), getPaymentItemCurrency(paymentItem))}
+                        </Typography>
+                      </Tooltip>
+                    ) : null}
+                  </Stack>
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0 }}>
+                      {formatDate(alert.triggerDate || alert.createdAt)}
+                    </Typography>
+                    {hasClient ? (
+                      <>
+                        <Typography variant="caption" sx={{ color: brandColors.slate[300], flexShrink: 0 }}>·</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', minWidth: 0 }} noWrap>
+                          {clientLabel}
+                        </Typography>
+                      </>
+                    ) : null}
+                  </Stack>
                 </Box>
-              </MenuItem>
-            ))}
+                <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                  <Tooltip title="Voir les détails sans quitter la page" arrow>
+                    <IconButton
+                      size="small"
+                      onClick={() => openAlertDetails(alert)}
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        color: brandColors.blue[600],
+                        border: `1px solid ${alpha(brandColors.blue[600], 0.2)}`,
+                        backgroundColor: alpha(brandColors.blue[600], 0.04),
+                        '&:hover': {
+                          borderColor: alpha(brandColors.blue[600], 0.35),
+                          backgroundColor: alpha(brandColors.blue[600], 0.1),
+                        },
+                      }}
+                    >
+                      <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Ouvrir dans la page Alertes" arrow>
+                    <IconButton
+                      size="small"
+                      onClick={() => goToAlertInList(alert)}
+                      sx={{
+                        width: 30,
+                        height: 30,
+                        color: brandColors.slate[600],
+                        border: `1px solid ${brandColors.slate[200]}`,
+                        backgroundColor: '#FFFFFF',
+                        '&:hover': {
+                          borderColor: brandColors.slate[300],
+                          backgroundColor: brandColors.slate[50],
+                        },
+                      }}
+                    >
+                      <LaunchRoundedIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Box>
+              );
+            })}
             {!alerts.length && (
               <Box sx={{ py: 4, textAlign: 'center' }}>
                 <NotificationsNoneRoundedIcon sx={{ color: brandColors.slate[300], fontSize: 36, mb: 1 }} />
@@ -634,6 +731,13 @@ export function AppLayout() {
       >
         <Outlet key={`${location.pathname}:${menuRefreshKey}`} />
       </Box>
+
+      {/* ── Détails de l'alerte depuis les notifications (sans redirection) ── */}
+      <AlertPaymentDetailsDialog
+        open={Boolean(notifDetailsAlert)}
+        alert={notifDetailsAlert}
+        onClose={() => setNotifDetailsAlert(null)}
+      />
     </Box>
   );
 }

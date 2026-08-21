@@ -4,10 +4,17 @@ import { alertService } from '@/modules/alerts/services/alert.service';
 
 const queryKey = ['alerts'];
 
+// `populate: '*'` ne remonte que le premier niveau : sans populate imbriqué, le client
+// et le compte des effets liés à l'alerte restent absents (montant/devise/client non affichables).
+const alertPopulate = {
+  paymentItem: { populate: '*' },
+  paymentItems: { populate: '*' },
+} as const;
+
 export const useAlerts = () =>
   useQuery({
     queryKey,
-    queryFn: () => alertService.list({ populate: '*' })
+    queryFn: () => alertService.list({ populate: alertPopulate })
   });
 
 export const useAlertPaymentItems = (alertId?: number, enabled = true) =>
