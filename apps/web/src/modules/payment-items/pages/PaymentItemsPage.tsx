@@ -1000,7 +1000,7 @@ export default function PaymentItemsPage() {
         </CardContent>
       </Card>
 
-      <FormDialog open={openForm} title={editing ? 'Modifier le paiement' : 'Nouveau paiement'} onClose={handleCloseForm} maxWidth="lg">
+      <FormDialog open={openForm} title={editing ? 'Modifier le paiement' : 'Nouveau paiement'} onClose={handleCloseForm} maxWidth="lg" dense>
         <PaymentItemForm
           key={editingDetailsQuery.data?.id ?? editing?.id ?? 'new-payment-item'}
           defaultValues={(editingDetailsQuery.data ?? editing) ? {

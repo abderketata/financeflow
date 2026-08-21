@@ -71,7 +71,7 @@ const sectionTitleSx = {
   fontSize: '0.88rem',
   color: brandColors.slate[700],
   letterSpacing: '-0.01em',
-  mb: 0.5,
+  mb: 0.25,
 } as const;
 
 const readOnlyInputSx = {
@@ -394,7 +394,7 @@ export function PaymentItemForm({
         submitFormValues(values);
       })}
     >
-      <Stack spacing={1.25} sx={{ mt: 0.25 }}>
+      <Stack spacing={1.25}>
 
         {/* ── Section 1 : Client & Compte — unchanged ──────────── */}
         <Box sx={sectionSx}>

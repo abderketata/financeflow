@@ -10,9 +10,11 @@ interface FormDialogProps {
   children: React.ReactNode;
   /** Largeur maximale ; 'lg' pour les formulaires denses (grille + montant bilingue). */
   maxWidth?: Breakpoint;
+  /** Resserre l'en-tête et les marges du contenu pour les formulaires longs. */
+  dense?: boolean;
 }
 
-export function FormDialog({ open, title, onClose, children, maxWidth = 'md' }: FormDialogProps) {
+export function FormDialog({ open, title, onClose, children, maxWidth = 'md', dense = false }: FormDialogProps) {
   return (
     <Dialog
       open={open}
@@ -28,7 +30,7 @@ export function FormDialog({ open, title, onClose, children, maxWidth = 'md' }: 
           background: `linear-gradient(90deg, ${brandColors.blue[600]}, ${brandColors.blue[400]}, ${alpha(brandColors.blue[300], 0.2)})`,
         }}
       />
-      <DialogTitle sx={{ pb: 1.5, pt: 2.5 }}>
+      <DialogTitle sx={{ pb: dense ? 1 : 1.5, pt: dense ? 1.75 : 2.5 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '1.12rem', color: 'text.primary', letterSpacing: '-0.01em' }}>
             {title}
@@ -51,7 +53,7 @@ export function FormDialog({ open, title, onClose, children, maxWidth = 'md' }: 
         </Stack>
       </DialogTitle>
       <Divider sx={{ mx: 3 }} />
-      <DialogContent sx={{ pt: '20px !important', pb: '24px !important' }}>
+      <DialogContent sx={{ pt: dense ? '12px !important' : '20px !important', pb: dense ? '16px !important' : '24px !important' }}>
         {children}
       </DialogContent>
     </Dialog>
