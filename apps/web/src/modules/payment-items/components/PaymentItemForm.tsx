@@ -571,7 +571,9 @@ export function PaymentItemForm({
               <Grid item xs={12}>
                 <Box
                   sx={(theme) => ({
-                    mt: { xs: -0.5, md: -0.25 },
+                    // La grille pose 16 px de gouttière (spacing={2}) au-dessus de chaque
+                    // item : on les reprend presque entièrement pour coller le bloc aux champs.
+                    mt: { xs: -1.25, md: -1.5 },
                     px: 1.5,
                     py: 0.75,
                     borderRadius: 2,
