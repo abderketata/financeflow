@@ -1,5 +1,6 @@
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import { Box, Card, CardContent, Divider, Stack, Typography, alpha } from '@mui/material';
+import { useMemo } from 'react';
 import {
   Bar,
   CartesianGrid,
@@ -12,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartPoint } from '@/types/domain';
+import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
@@ -56,6 +58,9 @@ export function MonthlyCreditDebitComparisonChart({
 }) {
   const totalCredits = data.reduce((sum, point) => sum + Number(point.credit ?? 0), 0);
   const totalDebits = data.reduce((sum, point) => sum + Number(point.debit ?? 0), 0);
+  // Crédits (colonnes) ET débits (ligne) partagent le même axe : les deux séries
+  // doivent entrer dans le calcul de l'échelle.
+  const yScale = useMemo(() => buildChartAmountScale(data, ['credit', 'debit']), [data]);
 
   return (
     <Card>
@@ -106,7 +111,10 @@ export function MonthlyCreditDebitComparisonChart({
               axisLine={false}
               tickLine={false}
               width={60}
-              tickFormatter={(value) => new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(Number(value ?? 0))}
+              domain={[yScale.min, yScale.max]}
+              ticks={yScale.ticks}
+              allowDataOverflow={false}
+              tickFormatter={formatCompactAmount}
             />
             <Tooltip content={<CustomTooltip currency={currency} />} />
             <Legend

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { ChartPoint } from '@/types';
+import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { formatCurrency } from '@/utils/format';
 
 const CREDIT_COLOR = '#16a34a';
@@ -84,10 +85,14 @@ export function MonthlyCreditDebitComparisonChart({
 
   const totalCredits = useMemo(() => data.reduce((sum, point) => sum + Number(point.credit ?? 0), 0), [data]);
   const totalDebits = useMemo(() => data.reduce((sum, point) => sum + Number(point.debit ?? 0), 0), [data]);
-  const maxValue = useMemo(
-    () => Math.max(1, ...data.flatMap((point) => [Number(point.credit ?? 0), Number(point.debit ?? 0)])),
+  // Échelle Y dynamique calculée sur les DEUX séries (crédits en colonnes +
+  // débits en ligne), avec une marge au-dessus de la plus grande valeur pour
+  // qu'une colonne ne touche jamais le haut de la zone de tracé.
+  const yScale = useMemo(
+    () => buildChartAmountScale(data, ['credit', 'debit'], { segments: GRID_SEGMENTS }),
     [data],
   );
+  const maxValue = yScale.max;
 
   const creditBars = useMemo(() => getBarPoints(data, chartWidth, maxValue), [data, chartWidth, maxValue]);
   const debitPoints = useMemo(() => getSeriesPoints(data, 'debit', chartWidth, maxValue), [data, chartWidth, maxValue]);
@@ -166,9 +171,9 @@ export function MonthlyCreditDebitComparisonChart({
       </View>
 
       <View style={styles.scaleRow}>
-        <Text style={styles.scaleText}>0</Text>
-        <Text style={styles.scaleText}>{new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(maxValue / 2)}</Text>
-        <Text style={styles.scaleText}>{new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(maxValue)}</Text>
+        <Text style={styles.scaleText}>{formatCompactAmount(yScale.ticks[0])}</Text>
+        <Text style={styles.scaleText}>{formatCompactAmount(yScale.ticks[Math.floor(yScale.ticks.length / 2)])}</Text>
+        <Text style={styles.scaleText}>{formatCompactAmount(yScale.ticks[yScale.ticks.length - 1])}</Text>
       </View>
     </View>
   );

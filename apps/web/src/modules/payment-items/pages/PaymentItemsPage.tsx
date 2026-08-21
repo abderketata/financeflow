@@ -33,7 +33,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { PaymentItemForm } from '@/modules/payment-items/components/PaymentItemForm';
 import { PaymentItemAttachmentDraft } from '@/modules/payment-items/components/PaymentItemAttachmentSection';
-import { usePaymentItemsPage, usePaymentItemsTotals, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
+import { usePaymentItemsPage, usePaymentItemsAllPages, usePaymentItemsTotals, useCreatePaymentItem, useUpdatePaymentItem, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { clientService } from '@/modules/clients/services/client.service';
@@ -195,14 +195,10 @@ export default function PaymentItemsPage() {
       filters.push({ client: { id: { $eq: selectedClient.id } } });
     }
 
-    // Date filter: only when both dates are filled and valid
+    // Date filter: only when both dates are filled and valid.
+    // La période porte uniquement sur l'échéance (`echeance`).
     if (datesValid) {
-      filters.push({
-        $or: [
-          { echeance: { $gte: dateFrom, $lte: dateTo } },
-          { issueDate: { $gte: dateFrom, $lte: dateTo } },
-        ],
-      });
+      filters.push({ echeance: { $gte: dateFrom, $lte: dateTo } });
     }
 
     return filters.length ? { filters: filters.length === 1 ? filters[0] : { $and: filters } } : {};
@@ -250,7 +246,29 @@ export default function PaymentItemsPage() {
     return user.email ? `${user.username} (${user.email})` : user.username;
   }, [user]);
 
-  const { data, isLoading, isError, refetch, isFetching } = usePaymentItemsPage({ params: queryParams });
+  // Filtre par période : on charge TOUS les éléments de la période (toutes les pages
+  // Strapi) et la pagination du tableau devient locale. Hors période, la pagination
+  // reste entièrement côté serveur.
+  const isDateRangeMode = Boolean(datesValid);
+
+  const { data, isLoading, isError, refetch, isFetching } = usePaymentItemsPage({
+    params: queryParams,
+    enabled: !isDateRangeMode,
+  });
+  const {
+    data: dateRangeItems,
+    isLoading: isDateRangeLoading,
+    isError: isDateRangeError,
+    refetch: refetchDateRange,
+    isFetching: isDateRangeFetching,
+  } = usePaymentItemsAllPages({ params: filterQueryParams, enabled: isDateRangeMode });
+
+  const listIsLoading = isDateRangeMode ? isDateRangeLoading : isLoading;
+  const listIsError = isDateRangeMode ? isDateRangeError : isError;
+  const listIsFetching = isDateRangeMode ? isDateRangeFetching : isFetching;
+  const listHasData = isDateRangeMode ? dateRangeItems !== undefined : data !== undefined;
+  const listRefetch = isDateRangeMode ? refetchDateRange : refetch;
+
   const { data: totals, isFetching: isTotalsFetching } = usePaymentItemsTotals({ params: filterQueryParams });
   const { data: settings } = useSettings();
   const defaultCurrency = useDefaultCurrency();
@@ -264,11 +282,18 @@ export default function PaymentItemsPage() {
     staleTime: 30_000,
   });
 
-  const rows = data?.data ?? [];
   const pagination = data?.pagination;
-  const rowCount = pagination?.total ?? 0;
-  const currentPage = Math.max((pagination?.page ?? 1) - 1, 0);
-  const currentPageSize = pagination?.pageSize ?? paginationModel.pageSize;
+  const allDateRangeRows = dateRangeItems ?? [];
+  const rowCount = isDateRangeMode ? allDateRangeRows.length : pagination?.total ?? 0;
+  const currentPageSize = isDateRangeMode
+    ? paginationModel.pageSize
+    : pagination?.pageSize ?? paginationModel.pageSize;
+  const currentPage = isDateRangeMode
+    ? Math.min(paginationModel.page, Math.max(Math.ceil(rowCount / currentPageSize) - 1, 0))
+    : Math.max((pagination?.page ?? 1) - 1, 0);
+  const rows = isDateRangeMode
+    ? allDateRangeRows.slice(currentPage * currentPageSize, (currentPage + 1) * currentPageSize)
+    : data?.data ?? [];
 
   // Client lookup: limit to 10 on initial load, dynamic on search
   const { data: remoteClients = [], isFetching: isClientLookupLoading } = useQuery({
@@ -284,7 +309,8 @@ export default function PaymentItemsPage() {
       : [selectedClient, ...remoteClients];
   }, [remoteClients, selectedClient]);
 
-  // No local filtering — all filtering and pagination are server-side
+  // No local filtering — all filtering is server-side (la pagination est locale
+  // uniquement lorsqu'un filtre par période charge l'intégralité des résultats)
   const filteredRows = rows;
 
   const totalsCurrency = defaultCurrency || 'TND';
@@ -524,8 +550,8 @@ export default function PaymentItemsPage() {
     }
   ];
 
-  if (isLoading && !data) return <LoadingState />;
-  if (isError) return <ErrorState onRetry={() => refetch()} />;
+  if (listIsLoading && !listHasData) return <LoadingState />;
+  if (listIsError) return <ErrorState onRetry={() => listRefetch()} />;
 
   return (
     <>
@@ -837,7 +863,7 @@ export default function PaymentItemsPage() {
             </Box>
           </Box>
 
-          {isFetching && !isLoading && (
+          {listIsFetching && !listIsLoading && (
             <Typography sx={{ mt: 1.25, fontSize: '0.8rem', color: 'text.secondary' }}>Mise à jour des résultats…</Typography>
           )}
         </CardContent>
@@ -867,7 +893,7 @@ export default function PaymentItemsPage() {
                       return model;
                     });
                   }}
-                  loading={isLoading || isFetching}
+                  loading={listIsLoading || listIsFetching}
                   hideFooter
                   sx={{
                     '& .MuiDataGrid-row': {

@@ -86,6 +86,35 @@ export const usePaymentItemsPage = (options?: { enabled?: boolean; params?: Reco
     }
   });
 
+/**
+ * Charge la totalité des éléments correspondant aux filtres, toutes pages confondues.
+ * Utilisé lorsqu'un filtre par période est appliqué : Strapi plafonne `pagination[pageSize]`
+ * à `maxLimit` (100 dans `config/api.js`), le service enchaîne donc les pages jusqu'à
+ * récupérer l'intégralité des résultats.
+ */
+export const usePaymentItemsAllPages = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
+  useQuery<PaymentItem[]>({
+    queryKey: [...queryKey, 'all', options?.params ?? {}],
+    enabled: options?.enabled,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: ({ signal }) => {
+      const callerFilters = (options?.params?.filters ?? {}) as Record<string, unknown>;
+      const mergedFilters = mergePaymentItemFilters(callerFilters);
+
+      return paymentItemService.listAllActive({
+        populate: {
+          client: '*',
+          account: '*',
+          bankAccount: '*',
+        },
+        ...(options?.params ?? {}),
+        filters: mergedFilters,
+        sort: ['id:desc'],
+      }, { signal });
+    }
+  });
+
 export const usePaymentItemsTotals = (options?: { enabled?: boolean; params?: Record<string, unknown> }) =>
   useQuery<PaymentItemTotals>({
     queryKey: [...queryKey, 'totals', options?.params ?? {}],

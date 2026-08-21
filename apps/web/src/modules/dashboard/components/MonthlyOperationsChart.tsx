@@ -1,5 +1,6 @@
 import ShowChartRoundedIcon from '@mui/icons-material/ShowChartRounded';
 import { Box, Card, CardContent, Divider, Stack, Typography, alpha } from '@mui/material';
+import { useMemo } from 'react';
 import {
   Area,
   AreaChart,
@@ -11,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartPoint } from '@/types/domain';
+import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
@@ -47,6 +49,9 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
 };
 
 export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: ChartPoint[]; currency?: string }) {
+  // Échelle Y calculée sur les DEUX séries (crédits + débits).
+  const yScale = useMemo(() => buildChartAmountScale(data, ['credit', 'debit']), [data]);
+
   return (
     <Card>
       <CardContent sx={{ p: '24px !important' }}>
@@ -89,7 +94,10 @@ export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: Chart
               axisLine={false}
               tickLine={false}
               width={60}
-              tickFormatter={(v) => new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(v)}
+              domain={[yScale.min, yScale.max]}
+              ticks={yScale.ticks}
+              allowDataOverflow={false}
+              tickFormatter={formatCompactAmount}
             />
             <Tooltip content={<CustomTooltip currency={currency} />} />
             <Legend

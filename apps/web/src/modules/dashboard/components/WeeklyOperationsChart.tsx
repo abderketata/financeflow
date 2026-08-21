@@ -1,6 +1,6 @@
 import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
 import { Box, Card, CardContent, Divider, Stack, Typography, alpha } from '@mui/material';
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import {
   Bar,
   BarChart,
@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartPoint } from '@/types/domain';
+import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
@@ -58,6 +59,9 @@ export function WeeklyOperationsChart({
   subtitle?: string;
   headerAction?: ReactNode;
 }) {
+  // Échelle Y calculée sur les DEUX séries (crédits + débits).
+  const yScale = useMemo(() => buildChartAmountScale(data, ['credit', 'debit']), [data]);
+
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent sx={{ p: '24px !important' }}>
@@ -93,7 +97,10 @@ export function WeeklyOperationsChart({
               axisLine={false}
               tickLine={false}
               width={60}
-              tickFormatter={(v) => new Intl.NumberFormat('fr-FR', { notation: 'compact' }).format(v)}
+              domain={[yScale.min, yScale.max]}
+              ticks={yScale.ticks}
+              allowDataOverflow={false}
+              tickFormatter={formatCompactAmount}
             />
             <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ fill: alpha(brandColors.slate[200], 0.3) }} />
             <Legend
