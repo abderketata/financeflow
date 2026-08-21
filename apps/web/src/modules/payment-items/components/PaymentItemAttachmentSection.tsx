@@ -17,7 +17,7 @@ const sectionSx = {
   borderRadius: 2.5,
   border: `1px solid ${alpha(brandColors.slate[200], 0.8)}`,
   backgroundColor: alpha(brandColors.slate[50], 0.5),
-  p: { xs: 1.5, md: 2 },
+  p: { xs: 1.25, md: 1.5 },
 } as const;
 
 const sectionTitleSx = {
@@ -158,7 +158,7 @@ export function PaymentItemAttachmentSection({
 
   return (
     <Box sx={sectionSx}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 1.5 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ mb: 1 }}>
         <Box>
           <Typography sx={sectionTitleSx}>Pièces jointes</Typography>
           <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>

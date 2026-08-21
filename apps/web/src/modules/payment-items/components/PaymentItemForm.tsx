@@ -62,7 +62,7 @@ const sectionSx = {
   borderRadius: 2.5,
   border: `1px solid ${alpha(brandColors.slate[200], 0.8)}`,
   backgroundColor: alpha(brandColors.slate[50], 0.5),
-  p: { xs: 1.5, md: 2 },
+  p: { xs: 1.25, md: 1.5 },
 } as const;
 
 const sectionTitleSx = {
@@ -394,12 +394,12 @@ export function PaymentItemForm({
         submitFormValues(values);
       })}
     >
-      <Stack spacing={2} sx={{ mt: 0.5 }}>
+      <Stack spacing={1.25} sx={{ mt: 0.25 }}>
 
         {/* ── Section 1 : Client & Compte — unchanged ──────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Parties concernées</Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             <Grid item xs={12} md={6}>
               <Controller name="client" control={control} render={({ field }) => (
                 <ClientAutocompleteField
@@ -454,7 +454,7 @@ export function PaymentItemForm({
         {/* ── Section 2 : Caractéristiques du paiement ─────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Caractéristiques du paiement</Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             <Grid item xs={6} md={3}>
               <Controller name="type" control={control} render={({ field }) => (
                 <TextField
@@ -571,9 +571,9 @@ export function PaymentItemForm({
               <Grid item xs={12}>
                 <Box
                   sx={(theme) => ({
-                    // La grille pose 16 px de gouttière (spacing={2}) au-dessus de chaque
+                    // La grille pose 12 px de gouttière (spacing={1.5}) au-dessus de chaque
                     // item : on les reprend presque entièrement pour coller le bloc aux champs.
-                    mt: { xs: -1.25, md: -1.5 },
+                    mt: { xs: -0.75, md: -1 },
                     px: 1.5,
                     py: 0.75,
                     borderRadius: 2,
@@ -745,7 +745,7 @@ export function PaymentItemForm({
         {/* ── Section 3 : Statut & Dates ───────────────────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Statut et échéances</Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
 
             {/* ── STATUT — colored options ────────────────────────── */}
             <Grid item xs={12} md={3}>
@@ -842,7 +842,7 @@ export function PaymentItemForm({
         {/* ── Section 4 : Tireur / Tiré (readonly) ─────────────── */}
         <Box sx={sectionSx}>
           <Typography sx={sectionTitleSx}>Parties (auto-renseignées)</Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={1.5}>
             <Grid item xs={12} md={6}>
               <Controller name="drawer" control={control} render={({ field }) => (
                 <TextField
@@ -894,7 +894,7 @@ export function PaymentItemForm({
               {...field}
               fullWidth
               multiline
-              rows={3}
+              rows={2}
               placeholder="Commentaires, informations complémentaires..."
               size="small"
               InputProps={{
