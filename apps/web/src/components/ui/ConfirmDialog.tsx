@@ -1,12 +1,13 @@
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography, alpha } from '@mui/material';
+import type { ReactNode } from 'react';
 import { brandColors, headingFont } from '@/app/theme';
 
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
-  description: string;
+  description: ReactNode;
   confirmLabel?: string;
   confirmColor?: 'error' | 'success';
   loading?: boolean;
@@ -64,7 +65,8 @@ export function ConfirmDialog({
       </DialogTitle>
       <Divider sx={{ mx: 3 }} />
       <DialogContent sx={{ pt: '16px !important' }}>
-        <Typography sx={{ color: 'text.secondary', fontSize: '0.9rem', lineHeight: 1.6 }}>
+        {/* `component="div"` : la description peut contenir des blocs, invalides dans un <p>. */}
+        <Typography component="div" sx={{ color: 'text.secondary', fontSize: '0.9rem', lineHeight: 1.6 }}>
           {description}
         </Typography>
       </DialogContent>

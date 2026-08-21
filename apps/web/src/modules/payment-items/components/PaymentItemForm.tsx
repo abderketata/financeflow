@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Grid, InputAdornment, MenuItem, Stack, TextField, Typography, alpha } from '@mui/material';
+import { Alert as MuiAlert, Box, Button, Chip, Divider, Grid, InputAdornment, MenuItem, Stack, TextField, Tooltip, Typography, alpha } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
@@ -44,8 +44,16 @@ import {
   ClientAutocompleteField,
   getClientLabel,
 } from '@/components/ui/EntityAutocompleteFields';
-import { brandColors, headingFont } from '@/app/theme';
-import { formatAmountInWords } from '@/utils/format';
+import { AmountWordsText } from '@/components/ui/AmountWordsText';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { brandColors, headingFont, numericFont } from '@/app/theme';
+import {
+  HIGH_AMOUNT_CONFIRMATION_THRESHOLD,
+  describeColloquialAmount,
+  formatAmountInWords,
+  formatAmountInWordsArabic,
+  formatCurrency,
+} from '@/utils/format';
 
 // ── Style helpers ────────────────────────────────────────────────────────
 const inputIconSx = { fontSize: 18, color: brandColors.slate[400] } as const;
@@ -235,6 +243,50 @@ export function PaymentItemForm({
     return v != null && v !== 0 ? formatAmountDisplay(String(v)) : '';
   });
   const amountInWords = useMemo(() => formatAmountInWords(stripSpaces(amountDisplay), watchedCurrency), [amountDisplay, watchedCurrency]);
+  const amountInWordsArabic = useMemo(() => formatAmountInWordsArabic(stripSpaces(amountDisplay), watchedCurrency), [amountDisplay, watchedCurrency]);
+  const amountNumber = useMemo(() => {
+    const parsed = Number.parseFloat(stripSpaces(amountDisplay));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }, [amountDisplay]);
+  // Échelle usuelle : 1 000 DT = « 1 million », 1 000 000 DT = « 1 milyar ».
+  const colloquialAmount = useMemo(() => describeColloquialAmount(amountNumber, watchedCurrency), [amountNumber, watchedCurrency]);
+  const isMilyarScale = colloquialAmount?.scale === 'milyar';
+  const isHighAmount = amountNumber > HIGH_AMOUNT_CONFIRMATION_THRESHOLD;
+  // Montant élevé : on demande une confirmation explicite avant d'enregistrer.
+  const [highAmountConfirmation, setHighAmountConfirmation] = useState<PaymentItemFormValues | null>(null);
+
+  const submitFormValues = (values: PaymentItemFormValues) =>
+    onSubmit(values, showAttachmentSection ? attachmentDraft : undefined);
+
+  // Échelle usuelle : « milyar » signalé en rouge, très au-dessus des montants courants.
+  const colloquialAmountChip = colloquialAmount ? (
+    <Tooltip
+      arrow
+      title={
+        isMilyarScale
+          ? `Échelle usuelle : ${colloquialAmount.label} — ${colloquialAmount.arabicLabel}`
+          : 'Échelle usuelle : 1 000 DT se dit « 1 million », 1 000 000 DT se dit « 1 milyar ».'
+      }
+    >
+      <Chip
+        size="small"
+        icon={isMilyarScale ? <WarningAmberRoundedIcon sx={{ fontSize: 14 }} /> : undefined}
+        label={colloquialAmount.label}
+        sx={{
+          height: 24,
+          fontFamily: numericFont,
+          fontWeight: 800,
+          fontSize: '0.72rem',
+          letterSpacing: '0.01em',
+          color: isMilyarScale ? brandColors.debit : brandColors.slate[600],
+          backgroundColor: isMilyarScale ? brandColors.debitBg : alpha(brandColors.slate[200], 0.7),
+          border: `1px solid ${alpha(isMilyarScale ? brandColors.debit : brandColors.slate[300], isMilyarScale ? 0.45 : 0.8)}`,
+          '& .MuiChip-icon': { color: brandColors.debit, ml: 0.5, mr: -0.25 },
+          '& .MuiChip-label': { px: 0.85 },
+        }}
+      />
+    </Tooltip>
+  ) : null;
 
   // ── Reference payment display mask ────────────────────
   const refPayInputRef = useRef<HTMLInputElement>(null);
@@ -331,7 +383,17 @@ export function PaymentItemForm({
   }, [watchedDirection, selectedClient, companyName, setValue]);
 
   return (
-    <form onSubmit={handleSubmit((values) => onSubmit(values, showAttachmentSection ? attachmentDraft : undefined))}>
+    <form
+      onSubmit={handleSubmit((values) => {
+        // Au-delà du seuil, la saisie est trop rare pour être enregistrée sans confirmation.
+        if (Number(values.amount) > HIGH_AMOUNT_CONFIRMATION_THRESHOLD) {
+          setHighAmountConfirmation(values);
+          return;
+        }
+
+        submitFormValues(values);
+      })}
+    >
       <Stack spacing={2} sx={{ mt: 0.5 }}>
 
         {/* ── Section 1 : Client & Compte — unchanged ──────────── */}
@@ -510,18 +572,52 @@ export function PaymentItemForm({
                 <Box
                   sx={(theme) => ({
                     mt: { xs: -0.5, md: -0.25 },
-                    px: 1.75,
-                    py: 1.25,
+                    px: 1.5,
+                    py: 0.75,
                     borderRadius: 2,
+                    // Pleine largeur : les libellés étant empilés (FR puis AR),
+                    // chacun dispose de toute la ligne sans se retrouver écrasé.
+                    width: '100%',
                     border: `1px solid ${alpha(brandColors.blue[400], theme.palette.mode === 'dark' ? 0.32 : 0.22)}`,
                     backgroundColor: alpha(brandColors.blue[500], theme.palette.mode === 'dark' ? 0.14 : 0.08),
                     color: theme.palette.mode === 'dark' ? brandColors.blue[100] : brandColors.blue[900],
                   })}
                 >
-                  <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, lineHeight: 1.5 }}>
-                    {amountInWords}
+                  {/* Français puis arabe ; l'échelle usuelle est affichée à côté de la référence. */}
+                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, lineHeight: 1.4 }}>
+                    <AmountWordsText words={amountInWords} currency={watchedCurrency} />
                   </Typography>
+
+                  {amountInWordsArabic ? (
+                    <Typography
+                      dir="rtl"
+                      lang="ar"
+                      sx={{ fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.5, textAlign: 'right', mt: 0.15 }}
+                    >
+                      <AmountWordsText words={amountInWordsArabic} script="arabic" currency={watchedCurrency} />
+                    </Typography>
+                  ) : null}
                 </Box>
+              </Grid>
+            ) : null}
+
+            {/* ── Garde-fou : montant inhabituellement élevé ── */}
+            {isHighAmount ? (
+              <Grid item xs={12}>
+                <MuiAlert
+                  severity="warning"
+                  icon={<WarningAmberRoundedIcon />}
+                  sx={{ borderRadius: 2, alignItems: 'flex-start', '& .MuiAlert-message': { py: 0.25 } }}
+                >
+                  <Typography sx={{ fontSize: '0.84rem', fontWeight: 700, lineHeight: 1.5 }}>
+                    Montant inhabituellement élevé : {formatCurrency(amountNumber, watchedCurrency)}
+                    {colloquialAmount ? ` (${colloquialAmount.label})` : ''}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.78rem', lineHeight: 1.5, mt: 0.25 }}>
+                    Au-delà de {formatCurrency(HIGH_AMOUNT_CONFIRMATION_THRESHOLD, watchedCurrency)}, une confirmation
+                    sera demandée à l'enregistrement. Vérifiez qu'un zéro n'a pas été saisi en trop.
+                  </Typography>
+                </MuiAlert>
               </Grid>
             ) : null}
 
@@ -579,6 +675,19 @@ export function PaymentItemForm({
                 )} />
               </Grid>
             )}
+
+            {/* Échelle usuelle, à droite de la référence de paiement.
+                Sans champ référence (type « Autre »), elle occupe sa propre ligne
+                pour ne pas disparaître avec le repère « milyar ». */}
+            {colloquialAmountChip ? (
+              <Grid item xs={12} md={showReferencePayment ? 6 : 12}>
+                {/* 40 px = hauteur d'un TextField `size="small"` : le chip s'aligne
+                    sur le champ, pas sur son texte d'aide. */}
+                <Box sx={{ display: 'flex', alignItems: 'center', minHeight: { md: 40 } }}>
+                  {colloquialAmountChip}
+                </Box>
+              </Grid>
+            ) : null}
 
             {/* ── MÉTHODE DE PAIEMENT — visible seulement si Type = Autre */}
             {showPaymentMethod && (              <Grid item xs={12} md={4}>
@@ -805,6 +914,62 @@ export function PaymentItemForm({
           </Button>
         </Box>
       </Stack>
+
+      <ConfirmDialog
+        open={Boolean(highAmountConfirmation)}
+        title="Confirmer un montant élevé"
+        confirmLabel="Oui, enregistrer"
+        confirmColor="error"
+        loading={loading}
+        onClose={() => setHighAmountConfirmation(null)}
+        onConfirm={() => {
+          const values = highAmountConfirmation;
+          setHighAmountConfirmation(null);
+          if (values) {
+            submitFormValues(values);
+          }
+        }}
+        description={
+          <Box>
+            <Typography sx={{ fontSize: '0.9rem', color: 'text.secondary', mb: 1.5 }}>
+              Ce montant dépasse {formatCurrency(HIGH_AMOUNT_CONFIRMATION_THRESHOLD, watchedCurrency)}, ce qui est rare.
+              Vérifiez la saisie avant d'enregistrer.
+            </Typography>
+
+            <Box
+              sx={{
+                px: 1.75,
+                py: 1.25,
+                borderRadius: 2,
+                border: `1px solid ${alpha(brandColors.debit, 0.28)}`,
+                backgroundColor: brandColors.debitBg,
+              }}
+            >
+              <Typography sx={{ fontFamily: numericFont, fontSize: '1.05rem', fontWeight: 800, color: brandColors.debit }}>
+                {formatCurrency(amountNumber, watchedCurrency)}
+              </Typography>
+              {colloquialAmount ? (
+                <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: brandColors.debit, mt: 0.25 }}>
+                  Soit {colloquialAmount.label} — <Box component="span" dir="rtl" lang="ar">{colloquialAmount.arabicLabel}</Box>
+                </Typography>
+              ) : null}
+              <Divider sx={{ my: 1, borderColor: alpha(brandColors.debit, 0.18) }} />
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: brandColors.slate[700], lineHeight: 1.5 }}>
+                <AmountWordsText words={amountInWords} currency={watchedCurrency} />
+              </Typography>
+              {amountInWordsArabic ? (
+                <Typography
+                  dir="rtl"
+                  lang="ar"
+                  sx={{ fontSize: '0.9rem', fontWeight: 700, color: brandColors.slate[700], lineHeight: 1.8, textAlign: 'right', mt: 0.5 }}
+                >
+                  <AmountWordsText words={amountInWordsArabic} script="arabic" currency={watchedCurrency} />
+                </Typography>
+              ) : null}
+            </Box>
+          </Box>
+        }
+      />
     </form>
   );
 }

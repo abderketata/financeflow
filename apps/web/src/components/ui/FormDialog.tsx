@@ -1,5 +1,6 @@
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { Box, Dialog, DialogContent, DialogTitle, Divider, IconButton, Stack, Typography, alpha } from '@mui/material';
+import type { Breakpoint } from '@mui/material';
 import { brandColors, headingFont } from '@/app/theme';
 
 interface FormDialogProps {
@@ -7,15 +8,17 @@ interface FormDialogProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  /** Largeur maximale ; 'lg' pour les formulaires denses (grille + montant bilingue). */
+  maxWidth?: Breakpoint;
 }
 
-export function FormDialog({ open, title, onClose, children }: FormDialogProps) {
+export function FormDialog({ open, title, onClose, children, maxWidth = 'md' }: FormDialogProps) {
   return (
     <Dialog
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="md"
+      maxWidth={maxWidth}
       TransitionProps={{ timeout: 250 }}
     >
       {/* Accent top bar */}

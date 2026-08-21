@@ -94,6 +94,10 @@ const convertUnderThousand = (value: number): string => {
   return `${hundredWord} ${convertUnderHundred(rest)}`;
 };
 
+// « vingt » et « cent » ne prennent le -s que s'ils terminent le nombre :
+// « cinq cents dinars » mais « cinq cent mille dinars », « quatre-vingt mille ».
+const stripMultiplierPlural = (words: string) => words.replace(/(cent|vingt)s$/, '$1');
+
 const convertIntegerToFrenchWords = (value: number): string => {
   if (value === 0) {
     return SMALL_NUMBERS[0];
@@ -103,11 +107,12 @@ const convertIntegerToFrenchWords = (value: number): string => {
     if (value >= scale.value) {
       const quotient = Math.floor(value / scale.value);
       const remainder = value % scale.value;
+      const quotientWords = stripMultiplierPlural(convertIntegerToFrenchWords(quotient));
       const scalePrefix = scale.value === 1_000
         ? quotient === 1
           ? scale.singular
-          : `${convertIntegerToFrenchWords(quotient)} ${scale.singular}`
-        : `${convertIntegerToFrenchWords(quotient)} ${quotient > 1 ? scale.plural : scale.singular}`;
+          : `${quotientWords} ${scale.singular}`
+        : `${quotientWords} ${quotient > 1 ? scale.plural : scale.singular}`;
 
       if (remainder === 0) {
         return scalePrefix;
@@ -189,3 +194,385 @@ export const formatAmountInWords = (value?: string | number | null, currency?: s
   return capitalizeFirstLetter(parts.join(' et '));
 };
 
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Montant en lettres — arabe (tafqit)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const ARABIC_ONES = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+const ARABIC_TEENS = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+const ARABIC_TENS = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+const ARABIC_HUNDREDS = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+
+/** Formes d'un nom compté en arabe : singulier, duel, pluriel (3-10), accusatif (11-99). */
+interface ArabicNounForms {
+  one: string;
+  two: string;
+  few: string;
+  many: string;
+}
+
+/** `twoConstruct` : duel amputé du nūn, employé lorsqu'un nom compté suit (ألفا دينار). */
+const ARABIC_SCALES: Array<{ value: number; twoConstruct: string } & ArabicNounForms> = [
+  { value: 1_000_000_000, one: 'مليار', two: 'ملياران', twoConstruct: 'مليارا', few: 'مليارات', many: 'ملياراً' },
+  { value: 1_000_000, one: 'مليون', two: 'مليونان', twoConstruct: 'مليونا', few: 'ملايين', many: 'مليوناً' },
+  { value: 1_000, one: 'ألف', two: 'ألفان', twoConstruct: 'ألفا', few: 'آلاف', many: 'ألفاً' },
+];
+
+const ARABIC_CURRENCY_UNITS: Record<string, { major: ArabicNounForms; minor: ArabicNounForms }> = {
+  TND: {
+    major: { one: 'دينار', two: 'ديناران', few: 'دنانير', many: 'ديناراً' },
+    minor: { one: 'مليم', two: 'مليمان', few: 'مليمات', many: 'مليماً' },
+  },
+  EUR: {
+    major: { one: 'يورو', two: 'يورو', few: 'يورو', many: 'يورو' },
+    minor: { one: 'سنت', two: 'سنتان', few: 'سنتات', many: 'سنتاً' },
+  },
+  USD: {
+    major: { one: 'دولار', two: 'دولاران', few: 'دولارات', many: 'دولاراً' },
+    minor: { one: 'سنت', two: 'سنتان', few: 'سنتات', many: 'سنتاً' },
+  },
+  GBP: {
+    major: { one: 'جنيه', two: 'جنيهان', few: 'جنيهات', many: 'جنيهاً' },
+    minor: { one: 'بنس', two: 'بنسان', few: 'بنسات', many: 'بنساً' },
+  },
+};
+
+const getArabicCurrencyUnits = (currency?: string | null) => {
+  const code = normalizeCurrencyCode(currency);
+  return ARABIC_CURRENCY_UNITS[code] ?? {
+    major: { one: code, two: code, few: code, many: code },
+    minor: { one: 'جزء', two: 'جزءان', few: 'أجزاء', many: 'جزءاً' },
+  };
+};
+
+/** Accord du nom compté : ديناران / ثلاثة دنانير / أحد عشر ديناراً / مائة دينار. */
+const getArabicNounForm = (count: number, forms: ArabicNounForms) => {
+  if (count === 1) return forms.one;
+  if (count === 2) return forms.two;
+
+  const lastTwoDigits = count % 100;
+  if (lastTwoDigits >= 3 && lastTwoDigits <= 10) return forms.few;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 99) return forms.many;
+
+  return forms.one;
+};
+
+const convertUnderThousandToArabic = (value: number, followedByNoun = false): string => {
+  const parts: string[] = [];
+  const hundreds = Math.floor(value / 100);
+  const rest = value % 100;
+
+  if (hundreds > 0) {
+    // مائتان → مائتا à l'état construit, comme les duels d'échelle.
+    parts.push(hundreds === 2 && rest === 0 && followedByNoun ? 'مائتا' : ARABIC_HUNDREDS[hundreds]);
+  }
+
+  if (rest > 0) {
+    if (rest < 10) {
+      parts.push(ARABIC_ONES[rest]);
+    } else if (rest < 20) {
+      parts.push(ARABIC_TEENS[rest - 10]);
+    } else {
+      const tens = Math.floor(rest / 10);
+      const unit = rest % 10;
+      parts.push(unit > 0 ? `${ARABIC_ONES[unit]} و${ARABIC_TENS[tens]}` : ARABIC_TENS[tens]);
+    }
+  }
+
+  return parts.join(' و');
+};
+
+/**
+ * @param followedByNoun un nom compté suit directement le nombre (le duel passe
+ *   alors à l'état construit : « ألفا دينار » et non « ألفان دينار »).
+ */
+const convertIntegerToArabicWords = (value: number, followedByNoun = false): string => {
+  if (value === 0) {
+    return 'صفر';
+  }
+
+  const parts: string[] = [];
+  let rest = value;
+
+  for (const scale of ARABIC_SCALES) {
+    const quotient = Math.floor(rest / scale.value);
+
+    if (quotient === 0) {
+      continue;
+    }
+
+    rest %= scale.value;
+    // Le duel n'est à l'état construit que si le nom compté suit vraiment,
+    // c'est-à-dire si aucune autre tranche ne vient après cette échelle.
+    const isLastPart = rest === 0;
+
+    if (quotient === 1) {
+      parts.push(scale.one);
+    } else if (quotient === 2) {
+      parts.push(followedByNoun && isLastPart ? scale.twoConstruct : scale.two);
+    } else {
+      // Même accord que pour un nom compté : ثلاثة آلاف / أحد عشر ألفاً / مائة ألف.
+      parts.push(`${convertIntegerToArabicWords(quotient)} ${getArabicNounForm(quotient, scale)}`);
+    }
+  }
+
+  if (rest > 0) {
+    parts.push(convertUnderThousandToArabic(rest, followedByNoun));
+  }
+
+  return parts.join(' و');
+};
+
+const formatArabicAmountUnit = (value: number, forms: ArabicNounForms) => {
+  const noun = getArabicNounForm(value, forms);
+
+  // En arabe le nom précède l'adjectif numéral pour 1, et le duel se suffit à lui-même.
+  if (value === 1) return `${noun} واحد`;
+  if (value === 2) return noun;
+
+  return `${convertIntegerToArabicWords(value, true)} ${noun}`;
+};
+
+/** Échelles usuelles tunisiennes, invariables : « ثلاثة مليون » et non « ثلاثة ملايين ». */
+const COLLOQUIAL_ARABIC_MILYAR = { one: 'مليار', two: 'مليارين' };
+const COLLOQUIAL_ARABIC_MILLION = { one: 'مليون', two: 'مليونين' };
+
+const formatColloquialArabicScale = (count: number, forms: { one: string; two: string }) => {
+  if (count === 1) return forms.one;
+  if (count === 2) return forms.two;
+
+  return `${convertIntegerToArabicWords(count)} ${forms.one}`;
+};
+
+/**
+ * Partie « dinars » dans l'échelle usuelle tunisienne : 1 000 DT se dit
+ * « مليون » et 1 000 000 DT « مليار ». En dessous de 1 000 DT le rendu est
+ * identique à l'arabe standard.
+ *
+ * Ex. 3 470 DT -> « ثلاثة مليون وأربعمائة وسبعون ديناراً ».
+ */
+const formatColloquialArabicMajor = (major: number, forms: ArabicNounForms) => {
+  const milyar = Math.floor(major / MILYAR_IN_MAJOR_UNITS);
+  const million = Math.floor((major % MILYAR_IN_MAJOR_UNITS) / COLLOQUIAL_MILLION_IN_MAJOR_UNITS);
+  const rest = major % COLLOQUIAL_MILLION_IN_MAJOR_UNITS;
+
+  if (milyar === 0 && million === 0) {
+    return formatArabicAmountUnit(major, forms);
+  }
+
+  const parts: string[] = [];
+
+  if (milyar > 0) {
+    parts.push(formatColloquialArabicScale(milyar, COLLOQUIAL_ARABIC_MILYAR));
+  }
+
+  if (million > 0) {
+    parts.push(formatColloquialArabicScale(million, COLLOQUIAL_ARABIC_MILLION));
+  }
+
+  if (rest > 0) {
+    parts.push(convertUnderThousandToArabic(rest, true));
+  }
+
+  // Le nom compté s'accorde avec le dernier nombre énoncé (470 -> ديناراً, rien -> دينار).
+  return `${parts.join(' و')} ${getArabicNounForm(rest > 0 ? rest : 1, forms)}`;
+};
+
+/** Montant en lettres arabes, ex. 1 000 000 TND -> « مليار دينار » (échelle usuelle). */
+export const formatAmountInWordsArabic = (value?: string | number | null, currency?: string | null) => {
+  const normalizedAmount = normalizeAmountInput(value);
+
+  if (normalizedAmount == null || normalizedAmount < 0) {
+    return '';
+  }
+
+  const totalMinorUnits = Math.round(normalizedAmount * 1000);
+  const majorUnits = Math.floor(totalMinorUnits / 1000);
+  const minorUnits = totalMinorUnits % 1000;
+  const units = getArabicCurrencyUnits(currency);
+  const parts: string[] = [];
+
+  if (majorUnits > 0) {
+    // Hors dinar tunisien, l'échelle usuelle « million / milyar » ne s'applique pas.
+    parts.push(
+      normalizeCurrencyCode(currency) === 'TND'
+        ? formatColloquialArabicMajor(majorUnits, units.major)
+        : formatArabicAmountUnit(majorUnits, units.major),
+    );
+  }
+
+  if (minorUnits > 0) {
+    parts.push(formatArabicAmountUnit(minorUnits, units.minor));
+  }
+
+  if (!parts.length) {
+    return `صفر ${units.major.one}`;
+  }
+
+  return parts.join(' و');
+};
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Échelle usuelle tunisienne (« million » / « milyar »)
+ *
+ * Dans l'usage courant on compte en millimes : 1 000 DT se dit « un million »
+ * et 1 000 000 DT se dit « un milyar ». Un montant saisi en dinars doit donc
+ * être annoncé dans cette échelle pour éviter tout malentendu à la saisie.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** 1 milyar = 1 000 000 DT. */
+export const MILYAR_IN_MAJOR_UNITS = 1_000_000;
+/** 1 « million » (usage courant) = 1 000 DT. */
+export const COLLOQUIAL_MILLION_IN_MAJOR_UNITS = 1_000;
+/** Au-delà, la saisie est assez rare pour mériter une confirmation explicite. */
+export const HIGH_AMOUNT_CONFIRMATION_THRESHOLD = 100_000;
+
+export interface ColloquialAmount {
+  scale: 'milyar' | 'million';
+  /** Valeur exprimée dans l'échelle usuelle (1 000 000 DT -> 1). */
+  value: number;
+  /** Libellé français, ex. « 1 milyar », « 2,5 milyar », « 250 millions ». */
+  label: string;
+  /** Libellé arabe, ex. « 1 مليار », « 250 مليون ». */
+  arabicLabel: string;
+}
+
+const formatColloquialValue = (value: number) =>
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(value);
+
+/**
+ * Traduit un montant en dinars vers l'échelle usuelle tunisienne.
+ * Renvoie `null` hors dinar tunisien ou en dessous de 1 000 DT, où l'usage
+ * courant ne diffère pas du montant écrit.
+ */
+export const describeColloquialAmount = (
+  value?: string | number | null,
+  currency?: string | null,
+): ColloquialAmount | null => {
+  if (normalizeCurrencyCode(currency) !== 'TND') {
+    return null;
+  }
+
+  const amount = normalizeAmountInput(value);
+
+  if (amount == null || amount < COLLOQUIAL_MILLION_IN_MAJOR_UNITS) {
+    return null;
+  }
+
+  if (amount >= MILYAR_IN_MAJOR_UNITS) {
+    const scaled = amount / MILYAR_IN_MAJOR_UNITS;
+    const formatted = formatColloquialValue(scaled);
+
+    return {
+      scale: 'milyar',
+      value: scaled,
+      label: `${formatted} milyar`,
+      arabicLabel: `${formatted} مليار`,
+    };
+  }
+
+  const scaled = amount / COLLOQUIAL_MILLION_IN_MAJOR_UNITS;
+  const formatted = formatColloquialValue(scaled);
+
+  return {
+    scale: 'million',
+    value: scaled,
+    label: `${formatted} million${scaled >= 2 ? 's' : ''}`,
+    arabicLabel: `${formatted} مليون`,
+  };
+};
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Découpage du montant en lettres pour la mise en couleur
+ *
+ * Les mots d'échelle (mille / مليون), l'unité principale (dinars / ديناراً)
+ * et l'unité divisionnaire (millimes / مليماً) sont repérés pour pouvoir être
+ * colorés différemment à l'affichage.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export type AmountWordRole = 'scale' | 'majorUnit' | 'minorUnit' | 'text';
+
+export interface AmountWordSegment {
+  text: string;
+  role: AmountWordRole;
+}
+
+const FRENCH_SCALE_WORDS = new Set(['mille', 'million', 'millions', 'milliard', 'milliards']);
+
+const ARABIC_SCALE_WORDS = new Set([
+  // Arabe standard.
+  'ألف', 'ألفان', 'ألفا', 'آلاف', 'ألفاً',
+  'مليون', 'مليونان', 'مليونا', 'ملايين', 'مليوناً',
+  'مليار', 'ملياران', 'مليارا', 'مليارات', 'ملياراً',
+  // Échelle usuelle tunisienne (duels parlés).
+  'مليونين', 'مليارين',
+]);
+
+/** Mots des unités monétaires, dans les deux écritures. */
+const getAmountUnitWords = (script: 'latin' | 'arabic', currency?: string | null) => {
+  if (script === 'arabic') {
+    const units = getArabicCurrencyUnits(currency);
+    return {
+      major: new Set([units.major.one, units.major.two, units.major.few, units.major.many]),
+      minor: new Set([units.minor.one, units.minor.two, units.minor.few, units.minor.many]),
+    };
+  }
+
+  const units = getCurrencyUnits(currency);
+  return {
+    major: new Set([units.majorSingular.toLowerCase(), units.majorPlural.toLowerCase()]),
+    minor: new Set([units.minorSingular.toLowerCase(), units.minorPlural.toLowerCase()]),
+  };
+};
+
+/**
+ * `\b` de JavaScript ne reconnaît pas les limites de mots arabes : on découpe
+ * donc sur les espaces et on classe chaque jeton entier.
+ *
+ * En arabe la conjonction « و » est soudée au mot suivant (« ومليون ») : elle est
+ * retirée avant comparaison, mais conservée dans le segment coloré.
+ */
+const normalizeAmountToken = (token: string, script: 'latin' | 'arabic') => {
+  if (script === 'arabic') {
+    return token.startsWith('و') ? token.slice(1) : token;
+  }
+
+  return token.toLowerCase();
+};
+
+export const splitAmountWords = (
+  words: string,
+  options: { script?: 'latin' | 'arabic'; currency?: string | null } = {},
+): AmountWordSegment[] => {
+  if (!words) {
+    return [];
+  }
+
+  const script = options.script ?? 'latin';
+  const scaleWords = script === 'arabic' ? ARABIC_SCALE_WORDS : FRENCH_SCALE_WORDS;
+  const unitWords = getAmountUnitWords(script, options.currency);
+
+  // Le groupe capturant conserve les espaces, l'affichage reste identique à la chaîne source.
+  return words.split(/(\s+)/).filter(Boolean).map((token) => {
+    if (!token.trim()) {
+      return { text: token, role: 'text' as const };
+    }
+
+    const normalized = normalizeAmountToken(token, script);
+
+    if (scaleWords.has(normalized)) {
+      return { text: token, role: 'scale' as const };
+    }
+
+    if (unitWords.major.has(normalized)) {
+      return { text: token, role: 'majorUnit' as const };
+    }
+
+    if (unitWords.minor.has(normalized)) {
+      return { text: token, role: 'minorUnit' as const };
+    }
+
+    return { text: token, role: 'text' as const };
+  });
+};

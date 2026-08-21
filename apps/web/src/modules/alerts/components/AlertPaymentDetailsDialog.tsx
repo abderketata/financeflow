@@ -29,13 +29,14 @@ import {
 } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { AmountWordsText } from '@/components/ui/AmountWordsText';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormDialog } from '@/components/ui/FormDialog';
 import { useAlertPaymentItems } from '@/modules/alerts/hooks/useAlerts';
 import { useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { Alert, PaymentItem, RelationCollection } from '@/types/domain';
 import { brandColors, numericFont } from '@/app/theme';
-import { formatAmountInWords, formatCurrency, formatDate } from '@/utils/format';
+import { describeColloquialAmount, formatAmountInWords, formatAmountInWordsArabic, formatCurrency, formatDate } from '@/utils/format';
 import { getAlertScheduledAt, getAlertSentAt } from '@/modules/alerts/utils/alertPresentation';
 import {
   getPaymentItemClientPrimary,
@@ -223,6 +224,8 @@ function PaymentItemDetailsCard({
   const title = getPaymentItemReference(item);
   const currency = getPaymentItemCurrency(item);
   const amountInWords = formatAmountInWords(item.amount, currency);
+  const amountInWordsArabic = formatAmountInWordsArabic(item.amount, currency);
+  const colloquialAmount = describeColloquialAmount(item.amount, currency);
   const paymentStatus = getPaymentItemStatusLabel(item.status) as string;
   const isClosed = isPaymentItemClosedStatus(item.status);
   const scheduledAt = formatDate(getAlertScheduledAt(alert));
@@ -291,9 +294,23 @@ function PaymentItemDetailsCard({
           >
             {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount, currency)}
           </Typography>
+          {colloquialAmount?.scale === 'milyar' ? (
+            <Typography sx={{ mt: 0.4, fontSize: '0.78rem', fontWeight: 800, color: brandColors.debit }}>
+              Soit {colloquialAmount.label} — <Box component="span" dir="rtl" lang="ar">{colloquialAmount.arabicLabel}</Box>
+            </Typography>
+          ) : null}
           {amountInWords ? (
             <Typography sx={{ mt: 0.55, fontSize: '0.82rem', color: 'text.secondary', lineHeight: 1.45 }}>
-              {amountInWords}
+              <AmountWordsText words={amountInWords} currency={currency} />
+            </Typography>
+          ) : null}
+          {amountInWordsArabic ? (
+            <Typography
+              dir="rtl"
+              lang="ar"
+              sx={{ mt: 0.35, fontSize: '0.88rem', color: 'text.secondary', lineHeight: 1.75, textAlign: 'right' }}
+            >
+              <AmountWordsText words={amountInWordsArabic} script="arabic" currency={currency} />
             </Typography>
           ) : null}
         </Box>
