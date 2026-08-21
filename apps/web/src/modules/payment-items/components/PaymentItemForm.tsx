@@ -293,6 +293,8 @@ export function PaymentItemForm({
   const [refPayDisplay, setRefPayDisplay] = useState(() =>
     formatRefDisplay(defaultValues?.referencePayment ?? '')
   );
+  // Compteur affiché dans le champ, en remplacement de la ligne « 12 chiffres max ».
+  const refPayDigitCount = useMemo(() => refPayDisplay.replace(/\D/g, '').length, [refPayDisplay]);
   const [attachmentDraft, setAttachmentDraft] = useState<PaymentItemAttachmentDraft>({
     keptAttachmentIds: initialAttachments.map((attachment) => attachment.id),
     removedAttachmentIds: [],
@@ -652,10 +654,27 @@ export function PaymentItemForm({
                     size="small"
                     placeholder="9999 9999 9999"
                     error={!!errors.referencePayment}
-                    helperText={errors.referencePayment?.message ?? '12 chiffres max'}
+                    // Plus de ligne d'aide permanente : le format est porté par le
+                    // placeholder, la limite par le compteur ci-dessous. La ligne
+                    // n'apparaît donc qu'en cas d'erreur de validation.
+                    helperText={errors.referencePayment?.message}
                     inputProps={{ inputMode: 'numeric', maxLength: 14 }}
                     InputProps={{
                       startAdornment: <InputAdornment position="start"><TagRoundedIcon sx={inputIconSx} /></InputAdornment>,
+                      endAdornment: refPayDigitCount > 0 ? (
+                        <InputAdornment position="end">
+                          <Typography
+                            sx={{
+                              fontFamily: numericFont,
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: refPayDigitCount === 12 ? brandColors.credit : brandColors.slate[400],
+                            }}
+                          >
+                            {refPayDigitCount}/12
+                          </Typography>
+                        </InputAdornment>
+                      ) : undefined,
                     }}
                     onChange={(e) => {
                       const input = e.target as HTMLInputElement;
