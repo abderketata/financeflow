@@ -583,20 +583,36 @@ export function PaymentItemForm({
                     color: theme.palette.mode === 'dark' ? brandColors.blue[100] : brandColors.blue[900],
                   })}
                 >
-                  {/* Français puis arabe ; l'échelle usuelle est affichée à côté de la référence. */}
-                  <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, lineHeight: 1.4 }}>
-                    <AmountWordsText words={amountInWords} currency={watchedCurrency} />
-                  </Typography>
-
-                  {amountInWordsArabic ? (
-                    <Typography
-                      dir="rtl"
-                      lang="ar"
-                      sx={{ fontSize: '0.88rem', fontWeight: 700, lineHeight: 1.5, textAlign: 'right', mt: 0.15 }}
-                    >
-                      <AmountWordsText words={amountInWordsArabic} script="arabic" currency={watchedCurrency} />
+                  {/* Français et arabe sur une seule ligne pour gagner de la hauteur :
+                      français à gauche, arabe à droite (son sens de lecture).
+                      Repasse en colonne sous md, où la largeur ne suffit plus. */}
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    alignItems={{ xs: 'stretch', md: 'baseline' }}
+                    spacing={{ xs: 0.15, md: 1.5 }}
+                    useFlexGap
+                  >
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, lineHeight: 1.4, flex: 1, minWidth: 0 }}>
+                      <AmountWordsText words={amountInWords} currency={watchedCurrency} />
                     </Typography>
-                  ) : null}
+
+                    {amountInWordsArabic ? (
+                      <Typography
+                        dir="rtl"
+                        lang="ar"
+                        sx={{
+                          fontSize: '0.88rem',
+                          fontWeight: 700,
+                          lineHeight: 1.5,
+                          textAlign: 'right',
+                          flexShrink: { md: 0 },
+                          minWidth: 0,
+                        }}
+                      >
+                        <AmountWordsText words={amountInWordsArabic} script="arabic" currency={watchedCurrency} />
+                      </Typography>
+                    ) : null}
+                  </Stack>
                 </Box>
               </Grid>
             ) : null}
