@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +17,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { useClients, useUpdateClient } from '@/modules/clients/hooks/useClients';
 import { MobileStackParamList } from '@/navigation/types';
 import { Client } from '@/types';
@@ -240,13 +240,11 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
 
       {/* ── Recherche ── */}
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.searchInput}
+        <SearchField
+          style={styles.searchField}
           placeholder="Rechercher un client..."
-          placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
-          clearButtonMode="while-editing"
           returnKeyType="search"
         />
         <Pressable style={styles.filterToggle} onPress={() => setShowFilters((v) => !v)}>
@@ -368,17 +366,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 4,
   },
-  searchInput: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
+  searchField: { flex: 1 },
   filterToggle: {
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 12,

@@ -5,7 +5,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +15,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { usePaymentItems, useSoftDeletePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { getPaymentItemReference, getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { MobileStackParamList } from '@/navigation/types';
@@ -92,13 +92,12 @@ export function PaymentItemListScreen({ navigation }: NativeStackScreenProps<Mob
 
       {/* Recherche */}
       <View style={styles.searchRow}>
-        <TextInput
-          style={styles.search}
+        <SearchField
+          style={styles.searchField}
           placeholder="Référence, réf. paiement, tireur, tiré..."
-          placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
-          clearButtonMode="while-editing"
+          returnKeyType="search"
         />
         <Pressable style={styles.filterToggle} onPress={() => setShowFilters((v) => !v)}>
           <Text style={styles.filterToggleText}>{showFilters ? '▲' : 'Filtres ▼'}</Text>
@@ -159,7 +158,7 @@ const styles = StyleSheet.create({
   addBtn: { backgroundColor: '#1D4ED8', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
-  search: { flex: 1, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#0f172a', borderWidth: 1, borderColor: '#e2e8f0' },
+  searchField: { flex: 1 },
   filterToggle: { backgroundColor: '#f1f5f9', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, justifyContent: 'center' },
   filterToggleText: { fontSize: 12, fontWeight: '700', color: '#475569' },
   filtersPanel: { backgroundColor: '#f8fafc', marginHorizontal: 16, borderRadius: 14, padding: 12, marginBottom: 4, borderWidth: 1, borderColor: '#e2e8f0' },

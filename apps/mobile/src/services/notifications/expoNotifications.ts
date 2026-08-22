@@ -1,17 +1,31 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+/**
+ * `expo-notifications` n'a pas d'implémentation web : chaque appel y lève
+ * `UnavailabilityError` ("The method or property ... is not available on web").
+ * Le build web consomme les mêmes écrans que le natif, on neutralise donc ces
+ * appels au lieu de laisser les promesses être rejetées.
+ */
+export const areNotificationsSupported = Platform.OS !== 'web';
+
 /** Configure default notification display behavior */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+if (areNotificationsSupported) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 /** Request permissions and create notification channel */
 export async function initNotifications() {
+  if (!areNotificationsSupported) {
+    return null;
+  }
+
   const permissions = await Notifications.getPermissionsAsync();
   if (!permissions.granted) {
     const result = await Notifications.requestPermissionsAsync();
@@ -57,6 +71,10 @@ export async function scheduleNotification(
   triggerDate: Date,
   channelId = 'financeflow-alerts'
 ) {
+  if (!areNotificationsSupported) {
+    return null;
+  }
+
   const secondsUntilTrigger = Math.max(
     1,
     Math.floor((triggerDate.getTime() - Date.now()) / 1000)
@@ -76,5 +94,9 @@ export async function scheduleNotification(
 
 /** Cancel all scheduled notifications */
 export async function cancelAllNotifications() {
+  if (!areNotificationsSupported) {
+    return;
+  }
+
   await Notifications.cancelAllScheduledNotificationsAsync();
 }

@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -15,6 +14,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
+import { SearchField } from '@/components/ui/SearchField';
 import { useTransactions, useDeleteTransaction } from '@/modules/transactions/hooks/useTransactions';
 import { MobileStackParamList } from '@/navigation/types';
 import { formatCurrency } from '@/utils/format';
@@ -94,13 +94,12 @@ export function TransactionListScreen({ navigation }: NativeStackScreenProps<Mob
 
       {/* Recherche + filtre type */}
       <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.search}
+        <SearchField
+          style={styles.searchField}
           placeholder="Rechercher par libellé, client, compte..."
-          placeholderTextColor="#94a3b8"
           value={search}
           onChangeText={setSearch}
-          clearButtonMode="while-editing"
+          returnKeyType="search"
         />
         <FilterChips
           options={TYPE_OPTIONS.map((k) => TYPE_LABELS[k] ?? k)}
@@ -155,16 +154,6 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
   statValue: { fontSize: 15, fontWeight: '800' },
   searchWrap: { paddingHorizontal: 16, paddingBottom: 4 },
-  search: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 4,
-  },
+  searchField: { marginBottom: 4 },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
 });

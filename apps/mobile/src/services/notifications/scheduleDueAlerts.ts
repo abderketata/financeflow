@@ -1,7 +1,13 @@
 import * as Notifications from 'expo-notifications';
+import { areNotificationsSupported } from '@/services/notifications/expoNotifications';
 import { PaymentItem } from '@/types';
 
 export async function scheduleDueAlerts(items: PaymentItem[], alertDaysBefore: number) {
+  // Hors natif, `getAllScheduledNotificationsAsync` lève `UnavailabilityError`.
+  if (!areNotificationsSupported) {
+    return;
+  }
+
   const now = Date.now();
   const existing = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(existing.map((notification) => Notifications.cancelScheduledNotificationAsync(notification.identifier)));

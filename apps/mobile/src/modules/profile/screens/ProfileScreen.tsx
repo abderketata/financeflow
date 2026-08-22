@@ -29,11 +29,12 @@ const emptyPasswordValues: ProfilePasswordFormValues = {
 type Feedback = { kind: 'success' | 'error'; message: string } | null;
 
 export function ProfileScreen() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [emailFeedback, setEmailFeedback] = useState<Feedback>(null);
   const [passwordFeedback, setPasswordFeedback] = useState<Feedback>(null);
   const [emailSaving, setEmailSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const emailForm = useForm<ProfileEmailFormValues>({
     resolver: zodResolver(profileEmailSchema),
@@ -87,6 +88,19 @@ export function ProfileScreen() {
     }
   };
 
+  const handleLogout = async () => {
+    setLoggingOut(true);
+
+    try {
+      await logout();
+      // `RootNavigator` bascule sur l'écran de connexion : cet écran est démonté,
+      // inutile — et incorrect — de remettre l'état à zéro ici.
+    } catch (error) {
+      setLoggingOut(false);
+      console.warn('[FinanceFlow] Déconnexion impossible', error);
+    }
+  };
+
   return (
     <Screen>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -100,20 +114,30 @@ export function ProfileScreen() {
             Votre identifiant de connexion, votre adresse email et votre mot de passe
           </Text>
 
-          {/* ── Nom d'utilisateur (lecture seule) ── */}
+          {/* ── Nom d'utilisateur (lecture seule) + déconnexion ── */}
           <View style={styles.identityCard}>
-            <View style={styles.identityMedallion}>
-              <Ionicons name="person" size={20} color={brand.blue600} />
+            <View style={styles.identityRow}>
+              <View style={styles.identityMedallion}>
+                <Ionicons name="person" size={20} color={brand.blue600} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.identityLabel}>Nom d'utilisateur</Text>
+                <Text style={styles.identityValue} numberOfLines={1}>
+                  {user?.username || '—'}
+                </Text>
+                <Text style={styles.identityEmail} numberOfLines={1}>
+                  {user?.email || 'Aucune adresse email enregistrée'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.flex}>
-              <Text style={styles.identityLabel}>Nom d'utilisateur</Text>
-              <Text style={styles.identityValue} numberOfLines={1}>
-                {user?.username || '—'}
-              </Text>
-              <Text style={styles.identityEmail} numberOfLines={1}>
-                {user?.email || 'Aucune adresse email enregistrée'}
-              </Text>
-            </View>
+            <View style={styles.identityDivider} />
+            <AppButton
+              label="Déconnexion"
+              icon="log-out-outline"
+              variant="danger"
+              loading={loggingOut}
+              onPress={handleLogout}
+            />
           </View>
 
           {/* ── Email ── */}
@@ -241,14 +265,21 @@ const styles = StyleSheet.create({
     color: brand.slate500,
   },
   identityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
     backgroundColor: brand.white,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: brand.slate200,
     padding: spacing.lg,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  identityDivider: {
+    height: 1,
+    backgroundColor: brand.slate100,
+    marginVertical: spacing.lg - 4,
   },
   identityMedallion: {
     width: 44,

@@ -114,7 +114,11 @@ export function DashboardScreen() {
         settings.defaultAlertDays ?? settings.alertDaysBefore ?? 3,
       );
     };
-    run();
+    // Sans `catch`, un échec de programmation (permission refusée, plateforme
+    // non supportée) remonterait en rejet de promesse non traité.
+    run().catch((error) => {
+      console.warn("[FinanceFlow] Programmation des alertes d'échéance impossible", error);
+    });
   }, [data, settings]);
 
   if (isLoading && !data) return <LoadingState message="Chargement du tableau de bord..." />;
