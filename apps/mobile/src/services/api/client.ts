@@ -5,6 +5,9 @@ import { handleUnauthorizedSession } from '@/services/api/authSession';
 
 const extra = (Constants.expoConfig?.extra || Constants.manifest?.extra || {}) as { apiBaseUrl?: string };
 const baseURL = (extra.apiBaseUrl || 'http://51.75.24.113:1334').replace(/\/$/, '');
+
+/** URL de l'API embarquée dans ce build. Affichée à l'écran pour le diagnostic. */
+export const apiBaseUrl = baseURL;
 const PAYMENT_ITEMS_ENDPOINT_PATTERN = /(^|\/)payment-items(\/|$)/;
 const AUTH_LOGIN_ENDPOINT_PATTERN = /(^|\/)auth\/local(\/|$)/;
 
@@ -27,6 +30,9 @@ const logPaymentItemsRequest = (label: string, details: Record<string, unknown>)
 
 export const api = axios.create({
   baseURL: `${baseURL}/api`,
+  // Sans délai maximal, une adresse injoignable laisse la requête pendante et
+  // l'utilisateur face à un bouton qui tourne indéfiniment.
+  timeout: 15_000,
   headers: {
     'Content-Type': 'application/json'
   }

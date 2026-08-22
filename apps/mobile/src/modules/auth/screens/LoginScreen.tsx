@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { AuthIllustration } from '@/components/ui/AuthIllustration';
 import { BrandMark } from '@/components/ui/BrandLogo';
 import { useAuth } from '@/providers/AuthProvider';
+import { apiBaseUrl } from '@/services/api/client';
 import { brand } from '@/theme/brand';
 
 const schema = z.object({
@@ -27,6 +28,34 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+
+/**
+ * Distingue une panne réseau d'un refus d'authentification.
+ *
+ * L'intercepteur du client rejette `error.response.data ?? error` : quand la
+ * requête n'atteint jamais le serveur, il n'y a pas de `response`, donc pas de
+ * message d'API. Sans ce tri, une adresse injoignable s'affichait « identifiant
+ * incorrect » — ce qui envoie chercher le problème au mauvais endroit.
+ */
+function describeLoginError(error: any): string {
+  const apiMessage = error?.error?.message;
+
+  if (apiMessage) {
+    return apiMessage === 'Invalid identifier or password'
+      ? 'Identifiant ou mot de passe incorrect.'
+      : apiMessage;
+  }
+
+  if (error?.code === 'ECONNABORTED' || /timeout/i.test(String(error?.message))) {
+    return `Le serveur n'a pas répondu dans le délai imparti (${apiBaseUrl}). Vérifiez qu'il est démarré et accessible depuis ce téléphone.`;
+  }
+
+  if (error?.isAxiosError || /network/i.test(String(error?.message))) {
+    return `Serveur injoignable : ${apiBaseUrl}. Le téléphone n'atteint pas cette adresse — vérifiez le réseau et que le port est ouvert.`;
+  }
+
+  return String(error?.message || 'Connexion impossible.');
+}
 
 interface AuthFieldProps {
   /** Sert de placeholder ET d'étiquette pour les lecteurs d'écran. */
@@ -126,7 +155,7 @@ export function LoginScreen() {
       setServerError('');
       await login(values.identifier, values.password);
     } catch (error: any) {
-      setServerError(error?.error?.message || 'Identifiant ou mot de passe incorrect.');
+      setServerError(describeLoginError(error));
     }
   });
 
@@ -224,6 +253,7 @@ export function LoginScreen() {
               </Pressable>
 
               <Text style={styles.footer}>CRM Finance Société · Version 1.0.0</Text>
+              <Text style={styles.footerApi}>{apiBaseUrl}</Text>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -362,6 +392,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
     color: brand.white,
+  },
+  footerApi: {
+    marginTop: 3,
+    fontSize: 10,
+    color: brand.slate400,
+    textAlign: 'center',
   },
   footer: {
     marginTop: 24,

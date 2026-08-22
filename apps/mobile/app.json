@@ -15,6 +15,16 @@
     "android": {
       "package": "com.financeflow.app"
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
     "extra": {
       "apiBaseUrl": "http://51.75.24.113:1334",
       "eas": {
