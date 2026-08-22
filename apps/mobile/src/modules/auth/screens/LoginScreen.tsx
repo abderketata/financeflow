@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { z } from 'zod';
+import { AuthIllustration } from '@/components/ui/AuthIllustration';
 import { BrandMark } from '@/components/ui/BrandLogo';
 import { useAuth } from '@/providers/AuthProvider';
 import { brand } from '@/theme/brand';
@@ -27,61 +28,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-/**
- * Halos diffus derrière la carte, en Vues arrondies plutôt qu'en SVG.
- *
- * Un `RadialGradient` react-native-svg en coordonnées pourcentage n'est pas
- * rendu de la même façon en web qu'en natif : le dégradé peignait son cadre,
- * ce qui produisait un rectangle visible en haut à gauche. Des cercles
- * translucides empilés donnent le même dégradé perçu (les alphas s'additionnent
- * vers le centre) avec un rendu identique sur les deux plateformes.
- */
-function GlowCircle({
-  size,
-  color,
-  opacity,
-  position,
-}: {
-  size: number;
-  color: string;
-  opacity: number;
-  position: { top?: number; bottom?: number; left?: number; right?: number };
-}) {
-  return (
-    <View
-      pointerEvents="none"
-      style={[
-        styles.glow,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity },
-        position,
-      ]}
-    />
-  );
-}
-
-function Backdrop() {
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
-      {/* Halo haut-gauche */}
-      <GlowCircle size={520} color={brand.blue700} opacity={0.16} position={{ top: -230, left: -190 }} />
-      <GlowCircle size={360} color={brand.blue600} opacity={0.16} position={{ top: -150, left: -110 }} />
-      <GlowCircle size={210} color={brand.blue500} opacity={0.18} position={{ top: -70, left: -30 }} />
-      {/* Halo bas-droite */}
-      <GlowCircle size={560} color={brand.blue700} opacity={0.14} position={{ bottom: -270, right: -210 }} />
-      <GlowCircle size={380} color={brand.blue600} opacity={0.14} position={{ bottom: -180, right: -130 }} />
-      <GlowCircle size={220} color={brand.blue500} opacity={0.14} position={{ bottom: -90, right: -50 }} />
-    </View>
-  );
-}
-
 interface AuthFieldProps {
+  /** Sert de placeholder ET d'étiquette pour les lecteurs d'écran. */
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   value: string;
   onChangeText: (value: string) => void;
   onBlur?: () => void;
   error?: string;
-  placeholder?: string;
   secure?: boolean;
   autoComplete?: 'username' | 'password';
   returnKeyType?: 'next' | 'go';
@@ -103,7 +57,6 @@ function AuthField({
 
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
       <View
         style={[
           styles.inputShell,
@@ -113,12 +66,16 @@ function AuthField({
       >
         <Ionicons
           name={icon}
-          size={18}
+          size={19}
           color={error ? brand.danger : focused ? brand.blue600 : brand.slate400}
         />
         <TextInput
           {...inputProps}
           ref={inputRef}
+          // Le champ n'a pas d'étiquette visible (style de la maquette) : on la
+          // fournit explicitement pour ne pas la perdre à l'accessibilité.
+          accessibilityLabel={label}
+          placeholder={label}
           style={styles.input}
           placeholderTextColor={brand.slate400}
           secureTextEntry={secure && !revealed}
@@ -140,7 +97,7 @@ function AuthField({
           >
             <Ionicons
               name={revealed ? 'eye-off-outline' : 'eye-outline'}
-              size={18}
+              size={19}
               color={brand.slate400}
             />
           </Pressable>
@@ -175,9 +132,7 @@ export function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={brand.navy900} />
-      <Backdrop />
-
+      <StatusBar barStyle="dark-content" backgroundColor={brand.canvas} />
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
           style={styles.safe}
@@ -188,21 +143,22 @@ export function LoginScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.card}>
-              {/* En-tête : logo repris de l'application web */}
+            {/* `maxWidth` : sans plafond, la colonne s'étire sur toute la fenêtre
+                en build web et les champs deviennent des bandes démesurées. */}
+            <View style={styles.column}>
+              {/* Logo repris de l'application web */}
               <View style={styles.brandRow}>
-                <BrandMark size={52} />
-                <View style={styles.brandText}>
-                  <Text style={styles.brandName}>Flux Financier</Text>
-                  <Text style={styles.brandTagline}>Suivi des chèques et traites</Text>
-                </View>
+                <BrandMark size={44} />
+                <Text style={styles.brandName}>Flux Financier</Text>
               </View>
 
-              <View style={styles.divider} />
+              <View style={styles.illustration}>
+                <AuthIllustration width={300} />
+              </View>
 
-              <Text style={styles.heading}>Connexion</Text>
+              <Text style={styles.heading}>Bienvenue</Text>
               <Text style={styles.headingSub}>
-                Accédez à votre espace de suivi des encaissements et échéances.
+                Connectez-vous pour suivre vos chèques, traites et échéances.
               </Text>
 
               {serverError ? (
@@ -219,7 +175,6 @@ export function LoginScreen() {
                   <AuthField
                     label="Identifiant"
                     icon="person-outline"
-                    placeholder="Nom d'utilisateur ou e-mail"
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -237,8 +192,7 @@ export function LoginScreen() {
                 render={({ field }) => (
                   <AuthField
                     label="Mot de passe"
-                    icon="lock-closed-outline"
-                    placeholder="••••••••"
+                    icon="lock-closed"
                     value={field.value}
                     onChangeText={field.onChange}
                     onBlur={field.onBlur}
@@ -265,15 +219,12 @@ export function LoginScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color={brand.white} size="small" />
                 ) : (
-                  <>
-                    <Text style={styles.buttonText}>Se connecter</Text>
-                    <Ionicons name="arrow-forward" size={17} color={brand.white} />
-                  </>
+                  <Text style={styles.buttonText}>Connexion</Text>
                 )}
               </Pressable>
-            </View>
 
-            <Text style={styles.footer}>CRM Finance Société · Version 1.0.0</Text>
+              <Text style={styles.footer}>CRM Finance Société · Version 1.0.0</Text>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -284,11 +235,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: brand.navy900,
-    overflow: 'hidden',
-  },
-  glow: {
-    position: 'absolute',
+    backgroundColor: brand.canvas,
   },
   safe: {
     flex: 1,
@@ -297,62 +244,44 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 32,
-  },
-  card: {
-    // `maxWidth` : sans plafond, la carte s'étirait sur toute la largeur en web
-    // et les champs devenaient des bandes de plusieurs centaines de pixels.
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: brand.white,
-    borderRadius: 24,
     paddingHorizontal: 24,
-    paddingVertical: 26,
-    shadowColor: '#020617',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.32,
-    shadowRadius: 34,
-    elevation: 14,
+    paddingVertical: 28,
+  },
+  column: {
+    width: '100%',
+    maxWidth: 400,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  brandText: {
-    marginLeft: 13,
-    flexShrink: 1,
+    justifyContent: 'center',
   },
   brandName: {
-    fontSize: 19,
+    marginLeft: 11,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    color: brand.navy900,
+  },
+  illustration: {
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 22,
+  },
+  heading: {
+    fontSize: 21,
     fontWeight: '800',
     letterSpacing: -0.4,
     color: brand.navy900,
-  },
-  brandTagline: {
-    marginTop: 2,
-    fontSize: 12.5,
-    fontWeight: '500',
-    color: brand.slate500,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: brand.slate200,
-    marginTop: 18,
-    marginBottom: 18,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    color: brand.navy900,
+    textAlign: 'center',
   },
   headingSub: {
-    marginTop: 5,
-    marginBottom: 20,
+    marginTop: 6,
+    marginBottom: 22,
     fontSize: 13,
     lineHeight: 19,
     color: brand.slate500,
+    textAlign: 'center',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -374,28 +303,21 @@ const styles = StyleSheet.create({
     color: brand.danger,
   },
   field: {
-    marginBottom: 15,
-  },
-  fieldLabel: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: brand.slate700,
-    marginBottom: 6,
+    marginBottom: 14,
   },
   inputShell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: brand.slate50,
+    gap: 11,
+    backgroundColor: brand.white,
     borderWidth: 1.5,
     borderColor: brand.slate200,
-    borderRadius: 13,
-    paddingHorizontal: 13,
-    height: 48,
+    borderRadius: 14,
+    paddingHorizontal: 15,
+    height: 54,
   },
   inputShellFocused: {
     borderColor: brand.blue600,
-    backgroundColor: brand.white,
   },
   inputShellError: {
     borderColor: brand.danger,
@@ -403,7 +325,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '500',
     color: brand.navy900,
     // Retire le contour bleu que le navigateur ajoute au focus en build web.
@@ -411,41 +333,41 @@ const styles = StyleSheet.create({
   },
   fieldError: {
     marginTop: 5,
+    marginLeft: 4,
     fontSize: 11.5,
     fontWeight: '600',
     color: brand.danger,
   },
   button: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    marginTop: 6,
-    borderRadius: 13,
-    backgroundColor: brand.blue600,
-    shadowColor: brand.blue600,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    height: 54,
+    marginTop: 10,
+    borderRadius: 14,
+    backgroundColor: brand.blue700,
+    shadowColor: brand.blue700,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
     elevation: 5,
   },
   buttonPressed: {
-    backgroundColor: brand.blue700,
+    backgroundColor: brand.navy800,
   },
   buttonDisabled: {
     opacity: 0.65,
   },
   buttonText: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '700',
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
     color: brand.white,
   },
   footer: {
-    marginTop: 22,
+    marginTop: 24,
     fontSize: 11.5,
     fontWeight: '500',
-    color: 'rgba(226, 232, 240, 0.55)',
+    color: brand.slate400,
+    textAlign: 'center',
   },
 });

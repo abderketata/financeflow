@@ -18,6 +18,8 @@ export const brand = {
   blue500: '#3B82F6',
   blue100: '#DBEAFE',
   blue50: '#EFF6FF',
+  /** Fond d'écran clair, légèrement lavande, pour les pages d'authentification. */
+  canvas: '#F1F3FB',
   credit: '#059669',
   danger: '#DC2626',
   dangerBg: '#FEF2F2',
