@@ -2,6 +2,7 @@
   "expo": {
     "name": "Flux Financier",
     "slug": "financeflow",
+    "owner": "ktataabdr",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -15,8 +16,10 @@
       "package": "com.financeflow.app"
     },
     "extra": {
-      "apiBaseUrl": "http://51.75.24.113:1334"
+      "apiBaseUrl": "http://51.75.24.113:1334",
+      "eas": {
+        "projectId": "7805d063-8b78-4329-af74-146c6223237f"
+      }
     }
   }
 }
-
