@@ -15,7 +15,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { z } from 'zod';
 import { BrandMark } from '@/components/ui/BrandLogo';
 import { useAuth } from '@/providers/AuthProvider';
@@ -28,23 +27,50 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-/** Halos diffus derrière la carte : évite un fond marine complètement plat. */
-function BackdropGlow() {
+/**
+ * Halos diffus derrière la carte, en Vues arrondies plutôt qu'en SVG.
+ *
+ * Un `RadialGradient` react-native-svg en coordonnées pourcentage n'est pas
+ * rendu de la même façon en web qu'en natif : le dégradé peignait son cadre,
+ * ce qui produisait un rectangle visible en haut à gauche. Des cercles
+ * translucides empilés donnent le même dégradé perçu (les alphas s'additionnent
+ * vers le centre) avec un rendu identique sur les deux plateformes.
+ */
+function GlowCircle({
+  size,
+  color,
+  opacity,
+  position,
+}: {
+  size: number;
+  color: string;
+  opacity: number;
+  position: { top?: number; bottom?: number; left?: number; right?: number };
+}) {
   return (
-    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Defs>
-        <RadialGradient id="glowTop" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={brand.blue500} stopOpacity={0.35} />
-          <Stop offset="1" stopColor={brand.blue500} stopOpacity={0} />
-        </RadialGradient>
-        <RadialGradient id="glowBottom" cx="50%" cy="50%" r="50%">
-          <Stop offset="0" stopColor={brand.blue700} stopOpacity={0.3} />
-          <Stop offset="1" stopColor={brand.blue700} stopOpacity={0} />
-        </RadialGradient>
-      </Defs>
-      <Circle cx="15%" cy="12%" r="180" fill="url(#glowTop)" />
-      <Circle cx="90%" cy="88%" r="220" fill="url(#glowBottom)" />
-    </Svg>
+    <View
+      pointerEvents="none"
+      style={[
+        styles.glow,
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: color, opacity },
+        position,
+      ]}
+    />
+  );
+}
+
+function Backdrop() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+      {/* Halo haut-gauche */}
+      <GlowCircle size={520} color={brand.blue700} opacity={0.16} position={{ top: -230, left: -190 }} />
+      <GlowCircle size={360} color={brand.blue600} opacity={0.16} position={{ top: -150, left: -110 }} />
+      <GlowCircle size={210} color={brand.blue500} opacity={0.18} position={{ top: -70, left: -30 }} />
+      {/* Halo bas-droite */}
+      <GlowCircle size={560} color={brand.blue700} opacity={0.14} position={{ bottom: -270, right: -210 }} />
+      <GlowCircle size={380} color={brand.blue600} opacity={0.14} position={{ bottom: -180, right: -130 }} />
+      <GlowCircle size={220} color={brand.blue500} opacity={0.14} position={{ bottom: -90, right: -50 }} />
+    </View>
   );
 }
 
@@ -150,7 +176,7 @@ export function LoginScreen() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={brand.navy900} />
-      <BackdropGlow />
+      <Backdrop />
 
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView
@@ -259,6 +285,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: brand.navy900,
+    overflow: 'hidden',
+  },
+  glow: {
+    position: 'absolute',
   },
   safe: {
     flex: 1,
