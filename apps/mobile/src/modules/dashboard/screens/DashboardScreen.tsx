@@ -1,7 +1,7 @@
 // DashboardScreen — portage complet du métier de la page Dashboard du web.
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppCard } from '@/components/ui/AppCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -13,11 +13,13 @@ import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/component
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
+import { PaymentItemDetailsModal } from '@/modules/payment-items/components/PaymentItemDetailsModal';
 import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
 import { getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { initNotifications } from '@/services/notifications/expoNotifications';
 import { scheduleDueAlerts } from '@/services/notifications/scheduleDueAlerts';
+import { PaymentItem } from '@/types';
 import { brand, getStatusStyle, radius, spacing } from '@/theme/brand';
 import { formatCurrency, formatDate } from '@/utils/format';
 
@@ -80,6 +82,7 @@ export function DashboardScreen() {
   const today = useMemo(() => new Date(), []);
   const currentWeekStart = useMemo(() => startOfWeek(today), [today]);
   const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
+  const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
 
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(selectedWeekStart);
   const { data: settings } = useSettings();
@@ -239,10 +242,21 @@ export function DashboardScreen() {
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.dueAmount, { color: amountColor }]} numberOfLines={1}>
-                    {isIn ? '+' : '-'}
-                    {formatCurrency(item.amount, currency)}
-                  </Text>
+                  <View style={styles.dueRight}>
+                    <Text style={[styles.dueAmount, { color: amountColor }]} numberOfLines={1}>
+                      {isIn ? '+' : '-'}
+                      {formatCurrency(item.amount, currency)}
+                    </Text>
+                    <Pressable
+                      onPress={() => setDetailsPaymentItem(item)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Voir les détails de ${item.reference || item.referenceNumber}`}
+                      style={({ pressed }) => [styles.dueDetailsButton, pressed && styles.dueDetailsButtonPressed]}
+                    >
+                      <Ionicons name="eye-outline" size={15} color={brand.blue600} />
+                    </Pressable>
+                  </View>
                 </View>
               );
             })
@@ -270,6 +284,13 @@ export function DashboardScreen() {
           <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={currency} />
         </AppCard>
       </ScrollView>
+
+      {/* ── Détail de l'opération sélectionnée ── */}
+      <PaymentItemDetailsModal
+        visible={Boolean(detailsPaymentItem)}
+        paymentItem={detailsPaymentItem}
+        onClose={() => setDetailsPaymentItem(null)}
+      />
     </Screen>
   );
 }
@@ -390,9 +411,28 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: brand.slate500,
   },
+  dueRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexShrink: 0,
+  },
   dueAmount: {
     fontSize: 13.5,
     fontWeight: '800',
     flexShrink: 0,
+  },
+  dueDetailsButton: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: brand.blue100,
+    backgroundColor: brand.blue50,
+  },
+  dueDetailsButtonPressed: {
+    backgroundColor: brand.blue100,
   },
 });

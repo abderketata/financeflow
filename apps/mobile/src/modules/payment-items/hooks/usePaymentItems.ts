@@ -23,6 +23,21 @@ export const usePaymentItems = (options?: { params?: Record<string, unknown> }) 
     },
   });
 
+/**
+ * Détail complet d'un effet, chargé à la demande.
+ *
+ * Le tableau de bord ne demande qu'un sous-ensemble de champs (`fields`) :
+ * client, compte, tireur/tiré et notes doivent être relus par id pour être
+ * affichés dans la fiche de détail.
+ */
+export const usePaymentItemDetails = (id?: number | null, enabled = true) =>
+  useQuery<PaymentItem | null>({
+    queryKey: [...QUERY_KEY, 'details', id],
+    enabled: Boolean(id) && enabled,
+    staleTime: 30_000,
+    queryFn: () => paymentItemService.get(Number(id), { populate: '*' }),
+  });
+
 export const useCreatePaymentItem = () => {
   const qc = useQueryClient();
   return useMutation({

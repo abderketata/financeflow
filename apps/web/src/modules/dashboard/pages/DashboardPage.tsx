@@ -5,6 +5,7 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsActiveRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import { addWeeks, endOfWeek, format, isSameWeek, startOfWeek, startOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -13,7 +14,9 @@ import {
   CardContent,
   Divider,
   Grid,
+  IconButton,
   Stack,
+  Tooltip,
   Typography,
   alpha,
 } from '@mui/material';
@@ -30,13 +33,16 @@ import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/component
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
+import { PaymentItemDetailsDialog } from '@/modules/payment-items/components/PaymentItemDetailsDialog';
 import { formatCurrency, formatDate } from '@/utils/format';
+import { PaymentItem } from '@/types/domain';
 import { brandColors, iconBox, numericFont } from '@/app/theme';
 
 export default function DashboardPage() {
   const currentDate = useMemo(() => new Date(), []);
   const currentWeekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
   const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
+  const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
   const { data, isLoading, isError, refetch } = useDashboard(selectedWeekStart);
   const defaultCurrency = useDefaultCurrency();
 
@@ -222,6 +228,26 @@ export default function DashboardPage() {
                       >
                         {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount, defaultCurrency)}
                       </Typography>
+                      <Tooltip title="Voir les détails de l’opération" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => setDetailsPaymentItem(item)}
+                          sx={{
+                            flexShrink: 0,
+                            width: 30,
+                            height: 30,
+                            color: brandColors.blue[600],
+                            border: `1px solid ${alpha(brandColors.blue[600], 0.2)}`,
+                            backgroundColor: alpha(brandColors.blue[600], 0.04),
+                            '&:hover': {
+                              borderColor: alpha(brandColors.blue[600], 0.35),
+                              backgroundColor: alpha(brandColors.blue[600], 0.1),
+                            },
+                          }}
+                        >
+                          <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   ))}
                 </Stack>
@@ -246,6 +272,13 @@ export default function DashboardPage() {
           <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={defaultCurrency} />
         </Grid>
       </Grid>
+
+      {/* ── Détail de l'opération sélectionnée ── */}
+      <PaymentItemDetailsDialog
+        open={Boolean(detailsPaymentItem)}
+        paymentItem={detailsPaymentItem}
+        onClose={() => setDetailsPaymentItem(null)}
+      />
     </>
   );
 }

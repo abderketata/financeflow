@@ -135,6 +135,21 @@ export const usePaymentItemsTotals = (options?: { enabled?: boolean; params?: Re
     }
   });
 
+/**
+ * Détail complet d'un effet, chargé à la demande.
+ *
+ * Le tableau de bord ne demande qu'un sous-ensemble de champs (`fields`) :
+ * client, compte, tireur/tiré et notes doivent être relus par id pour être
+ * affichés dans la fiche de détail.
+ */
+export const usePaymentItemDetails = (id?: number | null, enabled = true) =>
+  useQuery<PaymentItem | null>({
+    queryKey: [...queryKey, 'details', id],
+    enabled: Boolean(id) && enabled,
+    staleTime: 30_000,
+    queryFn: () => paymentItemService.getWithAttachments(Number(id)),
+  });
+
 export const useCreatePaymentItem = () => {
   const queryClient = useQueryClient();
   return useMutation({
