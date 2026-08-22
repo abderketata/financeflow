@@ -71,25 +71,6 @@ export const usePaymentItemsTotals = (params?: Record<string, unknown>) =>
     },
   });
 
-export const usePaymentItems = (options?: { params?: Record<string, unknown> }) =>
-  useQuery({
-    queryKey: [...QUERY_KEY, options?.params ?? null],
-    queryFn: () => {
-      const callerFilters = ((options?.params?.filters ?? {}) as Record<string, unknown>);
-      let mergedFilters: Record<string, unknown>;
-
-      if (!Object.keys(callerFilters).length) {
-        mergedFilters = { supprimer: { $eq: false } };
-      } else if (Array.isArray(callerFilters.$and)) {
-        mergedFilters = { $and: [{ supprimer: { $eq: false } }, ...callerFilters.$and] };
-      } else {
-        mergedFilters = { supprimer: { $eq: false }, ...callerFilters };
-      }
-
-      return paymentItemService.list({ populate: '*', ...(options?.params ?? {}), filters: mergedFilters });
-    },
-  });
-
 /**
  * Détail complet d'un effet, chargé à la demande.
  *

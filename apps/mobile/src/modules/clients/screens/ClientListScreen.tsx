@@ -1,16 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import {
-  Alert,
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { ClientCard } from '@/components/cards/ClientCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -19,6 +20,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { SearchField } from '@/components/ui/SearchField';
 import { useClients, useUpdateClient } from '@/modules/clients/hooks/useClients';
+import { confirmAction, notify } from '@/utils/confirm';
 import { MobileStackParamList } from '@/navigation/types';
 import { Client } from '@/types';
 import {
@@ -43,6 +45,8 @@ const STATUS_CHIP_OPTIONS = ['', 'ACTIVE', 'INACTIVE'];
 const STATUS_CHIP_LABELS: Record<string, string> = { '': 'Tous statuts', ACTIVE: 'Actifs', INACTIVE: 'Inactifs' };
 const ACCOUNTS_CHIP_OPTIONS = ['', 'WITH', 'WITHOUT'];
 const ACCOUNTS_CHIP_LABELS: Record<string, string> = { '': 'Tous', WITH: 'Avec comptes', WITHOUT: 'Sans compte' };
+const TRANSACTIONS_CHIP_OPTIONS = ['', 'WITH', 'WITHOUT'];
+const TRANSACTIONS_CHIP_LABELS: Record<string, string> = { '': 'Toutes', WITH: 'Avec transactions', WITHOUT: 'Sans transaction' };
 
 /** Modal de détail client */
 function ClientDetailModal({
@@ -140,15 +144,44 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 // ─── Screen principal ─────────────────────────────────────────────────────────
 
 export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileStackParamList, 'ClientList'>) {
-  const { data = [], isLoading, isError, isFetching, refetch } = useClients();
-  const updateMutation = useUpdateClient();
-
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [accountsFilter, setAccountsFilter] = useState<PresenceFilter>('');
+  const [transactionsFilter, setTransactionsFilter] = useState<PresenceFilter>('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  const debouncedSearch = useDebouncedValue(search, 400);
+
+  // Recherche envoyée au serveur, avec les mêmes critères que le web : le
+  // filtrage local ne voyait que la page chargée et ignorait les relations
+  // (n° de compte, RIB, IBAN, libellé de transaction, référence de paiement).
+  const queryParams = useMemo(() => {
+    const term = debouncedSearch.trim();
+
+    if (!term) return undefined;
+
+    return {
+      filters: {
+        $or: [
+          { fullName: { $containsi: term } },
+          { companyName: { $containsi: term } },
+          { code: { $containsi: term } },
+          { phone: { $containsi: term } },
+          { email: { $containsi: term } },
+          { accounts: { accountNumber: { $containsi: term } } },
+          { accounts: { rib: { $containsi: term } } },
+          { accounts: { iban: { $containsi: term } } },
+          { transactions: { label: { $containsi: term } } },
+          { paymentItems: { referenceNumber: { $containsi: term } } },
+        ],
+      },
+    };
+  }, [debouncedSearch]);
+
+  const { data = [], isLoading, isError, isFetching, refetch } = useClients({ params: queryParams });
+  const updateMutation = useUpdateClient();
 
   const stats = useMemo(() => ({
     total: data.length,
@@ -156,63 +189,60 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
     inactive: data.filter((c) => c.isActive === false).length,
   }), [data]);
 
-  const filteredRows = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    return data.filter((client) => {
-      const metrics = getClientMetrics(client);
-      // Recherche locale (nom, société, code, téléphone, email)
-      if (q) {
-        const haystack = [
-          getClientDisplayName(client),
-          getClientSecondaryName(client),
-          client.code,
-          client.phone,
-          client.email,
-        ].join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      // Filtres
-      if (typeFilter && client.type !== typeFilter) return false;
-      if (statusFilter === 'ACTIVE' && client.isActive === false) return false;
-      if (statusFilter === 'INACTIVE' && client.isActive !== false) return false;
-      if (accountsFilter === 'WITH' && metrics.accountsCount === 0) return false;
-      if (accountsFilter === 'WITHOUT' && metrics.accountsCount > 0) return false;
-      return true;
-    });
-  }, [data, search, typeFilter, statusFilter, accountsFilter]);
+  // La recherche textuelle est traitée par le serveur ; ne restent ici que
+  // les filtres qui portent sur des données déjà chargées.
+  const filteredRows = useMemo(() => data.filter((client) => {
+    const metrics = getClientMetrics(client);
+
+    if (typeFilter && client.type !== typeFilter) return false;
+    if (statusFilter === 'ACTIVE' && client.isActive === false) return false;
+    if (statusFilter === 'INACTIVE' && client.isActive !== false) return false;
+    if (accountsFilter === 'WITH' && metrics.accountsCount === 0) return false;
+    if (accountsFilter === 'WITHOUT' && metrics.accountsCount > 0) return false;
+    if (transactionsFilter === 'WITH' && metrics.transactionsCount === 0) return false;
+    if (transactionsFilter === 'WITHOUT' && metrics.transactionsCount > 0) return false;
+
+    return true;
+  }), [data, typeFilter, statusFilter, accountsFilter, transactionsFilter]);
+
+  const activeFilterCount = [typeFilter, statusFilter, accountsFilter, transactionsFilter].filter(Boolean).length;
 
   const resetFilters = () => {
     setSearch('');
     setTypeFilter('');
     setStatusFilter('');
     setAccountsFilter('');
+    setTransactionsFilter('');
   };
 
-  const handleToggleStatus = (client: Client) => {
-    const label = client.isActive === false ? 'activer' : 'désactiver';
+  const handleToggleStatus = async (client: Client) => {
+    const willActivate = client.isActive === false;
     const name = getClientDisplayName(client);
-    Alert.alert(
-      client.isActive === false ? 'Activer ce client' : 'Désactiver ce client',
-      `Voulez-vous vraiment ${label} le client "${name}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: client.isActive === false ? 'Activer' : 'Désactiver',
-          style: client.isActive === false ? 'default' : 'destructive',
-          onPress: async () => {
-            try {
-              await updateMutation.mutateAsync({
-                id: client.id,
-                payload: buildClientMutationPayload({ ...client, isActive: client.isActive === false }),
-              });
-              refetch();
-            } catch (e) {
-              Alert.alert('Erreur', 'Impossible de modifier le statut.');
-            }
-          },
-        },
-      ],
-    );
+
+    const confirmed = await confirmAction({
+      title: willActivate ? 'Activer ce client' : 'Désactiver ce client',
+      message: willActivate
+        ? `Voulez-vous vraiment activer le client "${name}" ? Il redeviendra disponible pour les opérations.`
+        : `Voulez-vous vraiment désactiver le client "${name}" ? Il ne sera plus visible dans les opérations courantes.`,
+      confirmLabel: willActivate ? 'Activer' : 'Désactiver',
+      destructive: !willActivate,
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await updateMutation.mutateAsync({
+        id: client.id,
+        payload: buildClientMutationPayload({ ...client, isActive: willActivate }),
+      });
+
+      // La fiche ouverte doit refléter le nouveau statut sans être rouverte.
+      if (selectedClient?.id === client.id) {
+        setSelectedClient({ ...selectedClient, isActive: willActivate });
+      }
+    } catch {
+      notify('Erreur', 'Impossible de modifier le statut.');
+    }
   };
 
   if (isLoading) return <LoadingState />;
@@ -222,12 +252,22 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
     <Screen>
       {/* ── En-tête ── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Clients</Text>
-          <Text style={styles.subtitle}>{filteredRows.length} affiché(s){isFetching ? ' · Mise à jour…' : ''}</Text>
+        <View style={styles.headerText}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Clients</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{filteredRows.length}</Text>
+            </View>
+          </View>
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {isFetching
+              ? 'Mise à jour des résultats…'
+              : 'Gestion des clients : statut, contacts et informations clés'}
+          </Text>
         </View>
         <Pressable style={styles.addBtn} onPress={() => navigation.navigate('ClientForm', undefined)}>
-          <Text style={styles.addBtnText}>+ Ajouter</Text>
+          <Ionicons name="add" size={16} color="#fff" />
+          <Text style={styles.addBtnText}>Ajouter</Text>
         </Pressable>
       </View>
 
@@ -247,8 +287,14 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
           onChangeText={setSearch}
           returnKeyType="search"
         />
-        <Pressable style={styles.filterToggle} onPress={() => setShowFilters((v) => !v)}>
-          <Text style={styles.filterToggleText}>{showFilters ? 'Masquer ▲' : 'Filtres ▼'}</Text>
+        <Pressable
+          style={[styles.filterToggle, activeFilterCount > 0 && styles.filterToggleActive]}
+          onPress={() => setShowFilters((v) => !v)}
+        >
+          <Ionicons name="options-outline" size={15} color={activeFilterCount > 0 ? '#fff' : '#475569'} />
+          <Text style={[styles.filterToggleText, activeFilterCount > 0 && styles.filterToggleTextActive]}>
+            {activeFilterCount > 0 ? String(activeFilterCount) : 'Filtres'}
+          </Text>
         </Pressable>
       </View>
 
@@ -282,6 +328,15 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
               setAccountsFilter((entry ? entry[0] : '') as PresenceFilter);
             }}
           />
+          <Text style={styles.filterLabel}>Transactions</Text>
+          <FilterChips
+            options={TRANSACTIONS_CHIP_OPTIONS.map((k) => TRANSACTIONS_CHIP_LABELS[k] ?? k)}
+            value={TRANSACTIONS_CHIP_LABELS[transactionsFilter] ?? transactionsFilter}
+            onChange={(label) => {
+              const entry = Object.entries(TRANSACTIONS_CHIP_LABELS).find(([, v]) => v === label);
+              setTransactionsFilter((entry ? entry[0] : '') as PresenceFilter);
+            }}
+          />
           <Pressable style={styles.resetBtn} onPress={resetFilters}>
             <Text style={styles.resetBtnText}>Réinitialiser les filtres</Text>
           </Pressable>
@@ -309,6 +364,7 @@ export function ClientListScreen({ navigation }: NativeStackScreenProps<MobileSt
         }
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor="#2563EB" />}
       />
 
       {/* ── Modal détail ── */}
@@ -333,18 +389,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 12,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
   },
-  title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
-  subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  headerText: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, color: '#0f172a' },
+  countBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: '#e0f2fe' },
+  countBadgeText: { fontSize: 12, fontWeight: '800', color: '#0369a1' },
+  subtitle: { fontSize: 12, lineHeight: 16, color: '#94a3b8', marginTop: 3 },
   addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#1D4ED8',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   statsRow: {
@@ -368,13 +432,17 @@ const styles = StyleSheet.create({
   },
   searchField: { flex: 1 },
   filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 12,
-    paddingVertical: 10,
     borderRadius: 14,
     justifyContent: 'center',
   },
-  filterToggleText: { fontSize: 12, fontWeight: '700', color: '#475569' },
+  filterToggleActive: { backgroundColor: '#1D4ED8' },
+  filterToggleText: { fontSize: 12.5, fontWeight: '700', color: '#475569' },
+  filterToggleTextActive: { color: '#fff' },
   filtersPanel: {
     backgroundColor: '#f8fafc',
     marginHorizontal: 16,
