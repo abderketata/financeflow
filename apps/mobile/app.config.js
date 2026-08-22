@@ -1,28 +1,29 @@
 const path = require('path');
 const dotenv = require('dotenv');
+const appJson = require('./app.json');
 
-const rootEnvPath = path.resolve(__dirname, '../../.env');
-dotenv.config({ path: rootEnvPath });
+// `.env` racine, utilisé en développement local.
+// Il est ignoré par git : lors d'un build EAS (cloud) il n'est PAS envoyé,
+// l'URL vient alors de `env.API_BASE_URL` déclaré dans eas.json.
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const apiBaseUrl = process.env.API_BASE_URL || 'http://51.75.24.113:1334';
+const apiBaseUrl =
+  process.env.API_BASE_URL || appJson.expo.extra?.apiBaseUrl || 'http://51.75.24.113:1334';
 
+/**
+ * La configuration statique vit dans `app.json` ; ce fichier ne fait que la
+ * compléter avec l'URL d'API résolue à la volée.
+ *
+ * Important : `app.config.js` a la priorité sur `app.json`. Sans cette fusion,
+ * tout ce qu'`app.json` contient serait ignoré — y compris le `extra.eas.projectId`
+ * qu'`eas init` y écrit au premier build.
+ */
 module.exports = {
   expo: {
-    name: 'Flux Financier',
-    slug: 'financeflow',
-    version: '1.0.0',
-    orientation: 'portrait',
-    userInterfaceStyle: 'light',
-    splash: {
-      backgroundColor: '#0f172a'
-    },
-    assetBundlePatterns: ['**/*'],
-    android: {
-      package: 'com.financeflow.app'
-    },
+    ...appJson.expo,
     extra: {
-      apiBaseUrl
-    }
-  }
+      ...appJson.expo.extra,
+      apiBaseUrl,
+    },
+  },
 };
-

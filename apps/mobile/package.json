@@ -6,7 +6,9 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview",
+    "build:aab": "npx eas-cli@latest build --platform android --profile production"
   },
   "dependencies": {
     "@expo/webpack-config": "^18.0.1",

@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 5.9.0"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "API_BASE_URL": "http://51.75.24.113:1334"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "API_BASE_URL": "http://51.75.24.113:1334"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
