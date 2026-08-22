@@ -156,8 +156,21 @@ export interface AppSetting {
 export interface ChartPoint {
   label: string;
   tooltipLabel?: string;
+  /** Attendu (théorique) : payé + déposé + en retard. Les annulés en sont exclus. */
   credit: number;
   debit: number;
+  /** Réalisé : statut « Payé », donc effectivement encaissé / décaissé. */
+  creditPaid?: number;
+  debitPaid?: number;
+  /** En attente : statut « Déposé », échéance pas encore arrivée. */
+  creditPending?: number;
+  debitPending?: number;
+  /** En retard : échéance dépassée et effet non réglé. */
+  creditOverdue?: number;
+  debitOverdue?: number;
+  /** Annulé : hors total attendu, conservé pour information. */
+  creditCancelled?: number;
+  debitCancelled?: number;
 }
 
 export interface DashboardSummary {

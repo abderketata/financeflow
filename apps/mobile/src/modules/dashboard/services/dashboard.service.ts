@@ -1,7 +1,7 @@
-import { DashboardSummary, PaymentItem, Transaction } from '@/types';
+import { ChartPoint, DashboardSummary, PaymentItem, Transaction } from '@/types';
 import { alertService } from '@/modules/alerts/services/alert.service';
 import { paymentItemService } from '@/modules/payment-items/services/paymentItem.service';
-import { isPaymentItemClosedStatus, mapPaymentItemsToTransactions } from '@/modules/payment-items/utils/paymentItemPresentation';
+import { getPaymentItemStatusLabel, isPaymentItemClosedStatus, mapPaymentItemsToTransactions } from '@/modules/payment-items/utils/paymentItemPresentation';
 
 const startOfMonthNative = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonthNative = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -46,6 +46,88 @@ const DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE = 250;
 
 const sumByType = (items: Transaction[], operationType: 'DEBIT' | 'CREDIT') =>
   items.filter((item) => item.operationType === operationType).reduce((total, item) => total + Number(item.amount || 0), 0);
+
+
+type DatedTransaction = { item: Transaction; parsedDate: Date };
+
+/**
+ * Statut « effectif » d'un effet pour les graphiques.
+ *
+ * Un effet resté « Déposé » alors que son échéance est passée est compté en
+ * retard, exactement comme le fait le compteur « En retard » du tableau de bord :
+ * sans cela l'attendu et le réalisé ne s'expliqueraient pas l'un par l'autre.
+ */
+const resolveChartStatus = (transaction: Transaction, dueDate: Date, now: Date) => {
+  const status = getPaymentItemStatusLabel(transaction.status);
+
+  if (status === 'Payé' || status === 'Annulé' || status === 'En retard') {
+    return status;
+  }
+
+  return isBeforeNative(dueDate, now) ? 'En retard' : 'Déposé';
+};
+
+/**
+ * Agrège un groupe d'effets en un point de graphique : total attendu par sens,
+ * puis ventilation par statut (encaissé / en attente / en retard / annulé).
+ *
+ * Les effets annulés sont volontairement exclus du total attendu : cet argent
+ * n'arrivera pas, l'inclure gonflerait le théorique sans contrepartie possible.
+ */
+const buildChartPoint = (
+  label: string,
+  tooltipLabel: string,
+  entries: DatedTransaction[],
+  now: Date,
+): ChartPoint => {
+  const point: ChartPoint = {
+    label,
+    tooltipLabel,
+    credit: 0,
+    debit: 0,
+    creditPaid: 0,
+    debitPaid: 0,
+    creditPending: 0,
+    debitPending: 0,
+    creditOverdue: 0,
+    debitOverdue: 0,
+    creditCancelled: 0,
+    debitCancelled: 0,
+  };
+
+  for (const { item, parsedDate } of entries) {
+    const amount = Number(item.amount || 0);
+
+    if (!Number.isFinite(amount) || amount === 0) {
+      continue;
+    }
+
+    const isCredit = item.operationType === 'CREDIT';
+    const status = resolveChartStatus(item, parsedDate, now);
+
+    if (status === 'Annulé') {
+      if (isCredit) point.creditCancelled = (point.creditCancelled ?? 0) + amount;
+      else point.debitCancelled = (point.debitCancelled ?? 0) + amount;
+      continue;
+    }
+
+    if (isCredit) point.credit += amount;
+    else point.debit += amount;
+
+    if (status === 'Payé') {
+      if (isCredit) point.creditPaid = (point.creditPaid ?? 0) + amount;
+      else point.debitPaid = (point.debitPaid ?? 0) + amount;
+    } else if (status === 'En retard') {
+      if (isCredit) point.creditOverdue = (point.creditOverdue ?? 0) + amount;
+      else point.debitOverdue = (point.debitOverdue ?? 0) + amount;
+    } else {
+      if (isCredit) point.creditPending = (point.creditPending ?? 0) + amount;
+      else point.debitPending = (point.debitPending ?? 0) + amount;
+    }
+  }
+
+  return point;
+};
 
 export interface DashboardDataset {
   year: number;
@@ -123,30 +205,23 @@ export const dashboardService = {
       const day = new Date(weekStart);
       day.setDate(day.getDate() + index);
 
-      const dayTransactions = transactions
-        .filter(({ parsedDate }) => isSameDayNative(parsedDate, day))
-        .map(({ item }) => item);
-
-      return {
-        label: toChartLabel(WEEK_LABELS[day.getDay()]),
-        tooltipLabel: `${WEEK_TOOLTIP_LABELS[day.getDay()]} ${day.getDate()}`,
-        credit: sumByType(dayTransactions, 'CREDIT'),
-        debit: sumByType(dayTransactions, 'DEBIT'),
-      };
+      return buildChartPoint(
+        toChartLabel(WEEK_LABELS[day.getDay()]),
+        `${WEEK_TOOLTIP_LABELS[day.getDay()]} ${day.getDate()}`,
+        transactions.filter(({ parsedDate }) => isSameDayNative(parsedDate, day)),
+        now,
+      );
     });
 
     const monthlyChart = Array.from({ length: 12 }, (_, index) => {
       const monthDate = new Date(datasetYear, index, 1);
-      const monthTransactionsGroup = yearTransactions
-        .filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate))
-        .map(({ item }) => item);
 
-      return {
-        label: toChartLabel(MONTH_LABELS[index]),
-        tooltipLabel: `${MONTH_TOOLTIP_LABELS[index]} ${datasetYear}`,
-        credit: sumByType(monthTransactionsGroup, 'CREDIT'),
-        debit: sumByType(monthTransactionsGroup, 'DEBIT'),
-      };
+      return buildChartPoint(
+        toChartLabel(MONTH_LABELS[index]),
+        `${MONTH_TOOLTIP_LABELS[index]} ${datasetYear}`,
+        yearTransactions.filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate)),
+        now,
+      );
     });
 
     return {
