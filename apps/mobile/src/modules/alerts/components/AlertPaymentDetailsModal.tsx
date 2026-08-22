@@ -366,7 +366,7 @@ export function AlertPaymentDetailsModal({ visible, alert, onClose }: AlertPayme
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f4f7fb',
+    backgroundColor: '#EEF0FA',
   },
   header: {
     paddingHorizontal: 16,

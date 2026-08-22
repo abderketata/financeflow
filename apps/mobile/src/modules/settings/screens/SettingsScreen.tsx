@@ -61,7 +61,7 @@ const sel = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   btn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, backgroundColor: '#e2e8f0' },
-  btnSelected: { backgroundColor: '#0f766e' },
+  btnSelected: { backgroundColor: '#1D4ED8' },
   btnText: { fontWeight: '700', fontSize: 13, color: '#334155' },
   btnTextSelected: { color: '#fff' },
 });
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   submitBtn: {
     paddingVertical: 16,
     borderRadius: 16,
-    backgroundColor: '#0f766e',
+    backgroundColor: '#1D4ED8',
     alignItems: 'center',
     marginTop: 4,
   },

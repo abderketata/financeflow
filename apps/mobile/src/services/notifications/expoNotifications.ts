@@ -27,7 +27,7 @@ export async function initNotifications() {
       description: 'Alertes d\'échéances et opérations financières',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#0F766E',
+      lightColor: '#1D4ED8',
       sound: 'default',
     });
 

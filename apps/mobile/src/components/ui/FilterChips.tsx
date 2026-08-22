@@ -1,4 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { brand, radius, shadow, spacing } from '@/theme/brand';
 
 // FilterChips — support labelMap optionnel pour affichage traduit des valeurs
 export function FilterChips({
@@ -18,8 +19,16 @@ export function FilterChips({
         const selected = option === value;
         const label = labelMap?.[option] ?? (option || 'Tous');
         return (
-          <Pressable key={option} style={[styles.chip, selected ? styles.selected : null]} onPress={() => onChange(selected ? '' : option)}>
-            <Text style={[styles.label, selected ? styles.selectedLabel : null]}>{label}</Text>
+          <Pressable
+            key={option}
+            style={({ pressed }) => [
+              styles.chip,
+              selected && styles.chipSelected,
+              pressed && !selected && styles.chipPressed,
+            ]}
+            onPress={() => onChange(selected ? '' : option)}
+          >
+            <Text style={[styles.label, selected && styles.labelSelected]}>{label}</Text>
           </Pressable>
         );
       })}
@@ -29,24 +38,34 @@ export function FilterChips({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
-    paddingVertical: 8
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: '#e2e8f0',
-    marginRight: 8
+    paddingHorizontal: spacing.lg - 2,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
+    backgroundColor: brand.white,
+    borderWidth: 1.5,
+    borderColor: brand.slate200,
+    marginRight: spacing.sm,
+    ...shadow.card,
+    shadowOpacity: 0.05,
+    elevation: 1,
   },
-  selected: {
-    backgroundColor: '#0f766e'
+  chipPressed: {
+    backgroundColor: brand.blue50,
+  },
+  chipSelected: {
+    backgroundColor: brand.blue700,
+    borderColor: brand.blue700,
   },
   label: {
-    color: '#334155',
-    fontWeight: '600'
+    fontSize: 13,
+    fontWeight: '700',
+    color: brand.slate600,
   },
-  selectedLabel: {
-    color: '#fff'
-  }
+  labelSelected: {
+    color: brand.white,
+  },
 });

@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 8 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f1f5f9', alignItems: 'center' },
   cancelBtnText: { fontWeight: '700', color: '#475569', fontSize: 15 },
-  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#0f766e', alignItems: 'center' },
+  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#1D4ED8', alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { fontWeight: '800', color: '#fff', fontSize: 15 },
 });

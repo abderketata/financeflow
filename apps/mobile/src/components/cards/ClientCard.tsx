@@ -1,14 +1,19 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
+import { AppButton } from '@/components/ui/AppButton';
+import { AppCard } from '@/components/ui/AppCard';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { Client } from '@/types';
 import {
+  getClientActivitySummary,
   getClientDisplayName,
   getClientInitials,
   getClientSecondaryName,
-  getClientTypeLabel,
   getClientStatusLabel,
-  getClientActivitySummary,
+  getClientTypeLabel,
   getDisplayValue,
 } from '@/modules/clients/utils/clientPresentation';
+import { brand, radius, spacing } from '@/theme/brand';
 
 interface ClientCardProps {
   item: Client;
@@ -18,203 +23,152 @@ interface ClientCardProps {
 
 export function ClientCard({ item, onEdit, onToggleStatus }: ClientCardProps) {
   const isInactive = item.isActive === false;
-  const initials = getClientInitials(item);
-  const primaryName = getClientDisplayName(item);
-  const secondaryName = getClientSecondaryName(item);
 
   return (
-    <View style={[styles.card, isInactive && styles.cardInactive]}>
-      {/* Avatar + identité */}
-      <View style={styles.row}>
+    <AppCard accent={isInactive ? brand.slate300 : brand.blue600} style={isInactive ? styles.inactive : undefined}>
+      {/* Identité */}
+      <View style={styles.header}>
         <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
-          <Text style={styles.avatarText}>{initials}</Text>
+          <Text style={styles.avatarText}>{getClientInitials(item)}</Text>
         </View>
         <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>{primaryName}</Text>
-          {secondaryName ? (
-            <Text style={styles.company} numberOfLines={1}>{secondaryName}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {getClientDisplayName(item)}
+          </Text>
+          {getClientSecondaryName(item) ? (
+            <Text style={styles.company} numberOfLines={1}>
+              {getClientSecondaryName(item)}
+            </Text>
           ) : null}
         </View>
-        {/* Badges */}
-        <View style={styles.badges}>
-          <View style={[styles.badge, isInactive ? styles.badgeInactive : styles.badgeActive]}>
-            <Text style={[styles.badgeText, isInactive ? styles.badgeTextInactive : styles.badgeTextActive]}>
-              {getClientStatusLabel(item.isActive)}
-            </Text>
-          </View>
-          <View style={styles.badgeType}>
-            <Text style={styles.badgeTypeText}>{getClientTypeLabel(item.type)}</Text>
-          </View>
-        </View>
       </View>
+
+      {/* Étiquettes */}
+      <View style={styles.pills}>
+        <StatusPill
+          label={String(getClientStatusLabel(item.isActive))}
+          color={isInactive ? brand.slate500 : brand.credit}
+          backgroundColor={isInactive ? brand.slate100 : brand.creditBg}
+        />
+        <StatusPill
+          label={String(getClientTypeLabel(item.type))}
+          color={brand.blue700}
+          backgroundColor={brand.blue50}
+        />
+      </View>
+
+      <View style={styles.divider} />
 
       {/* Contact */}
-      <View style={styles.contact}>
-        <Text style={styles.meta}>📞 {getDisplayValue(item.phone, 'Téléphone non renseigné')}</Text>
-        {item.email ? <Text style={styles.meta} numberOfLines={1}>✉️ {item.email}</Text> : null}
+      <View style={styles.contactRow}>
+        <Ionicons name="call-outline" size={14} color={brand.blue500} />
+        <Text style={styles.contactText} numberOfLines={1}>
+          {getDisplayValue(item.phone, 'Téléphone non renseigné')}
+        </Text>
       </View>
+      {item.email ? (
+        <View style={styles.contactRow}>
+          <Ionicons name="mail-outline" size={14} color={brand.blue500} />
+          <Text style={styles.contactText} numberOfLines={1}>
+            {item.email}
+          </Text>
+        </View>
+      ) : null}
 
-      {/* Activité */}
       <Text style={styles.activity}>{getClientActivitySummary(item)}</Text>
 
-      {/* Actions */}
-      {(onEdit || onToggleStatus) && (
+      {onEdit || onToggleStatus ? (
         <View style={styles.actions}>
-          {onToggleStatus && (
-            <Pressable style={[styles.actionBtn, isInactive ? styles.activateBtn : styles.deactivateBtn]} onPress={onToggleStatus}>
-              <Text style={[styles.actionBtnText, isInactive ? styles.activateBtnText : styles.deactivateBtnText]}>
-                {isInactive ? 'Activer' : 'Désactiver'}
-              </Text>
-            </Pressable>
-          )}
-          {onEdit && (
-            <Pressable style={[styles.actionBtn, styles.editBtn]} onPress={onEdit}>
-              <Text style={styles.editBtnText}>Modifier</Text>
-            </Pressable>
-          )}
+          {onToggleStatus ? (
+            <AppButton
+              block={false}
+              variant={isInactive ? 'soft' : 'danger'}
+              icon={isInactive ? 'play-outline' : 'pause-outline'}
+              label={isInactive ? 'Activer' : 'Désactiver'}
+              onPress={onToggleStatus}
+            />
+          ) : null}
+          {onEdit ? (
+            <AppButton block={false} variant="outline" icon="create-outline" label="Modifier" onPress={onEdit} />
+          ) : null}
         </View>
-      )}
-    </View>
+      ) : null}
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  inactive: {
+    opacity: 0.78,
   },
-  cardInactive: {
-    opacity: 0.72,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  row: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: spacing.md,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#0f766e',
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: brand.blue600,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
     flexShrink: 0,
   },
   avatarInactive: {
-    backgroundColor: '#94a3b8',
+    backgroundColor: brand.slate400,
   },
   avatarText: {
-    color: '#fff',
+    color: brand.white,
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 14.5,
   },
   identity: {
     flex: 1,
-    marginRight: 8,
   },
   name: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0f172a',
+    fontSize: 15.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: brand.navy900,
   },
   company: {
-    fontSize: 12,
-    color: '#64748b',
     marginTop: 2,
+    fontSize: 12.5,
+    color: brand.slate500,
   },
-  badges: {
-    alignItems: 'flex-end',
-    gap: 4,
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 99,
+  divider: {
+    height: 1,
+    backgroundColor: brand.slate100,
+    marginTop: spacing.md,
+    marginBottom: spacing.md - 2,
   },
-  badgeActive: {
-    backgroundColor: '#dcfce7',
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 3,
   },
-  badgeInactive: {
-    backgroundColor: '#f1f5f9',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  badgeTextActive: {
-    color: '#16a34a',
-  },
-  badgeTextInactive: {
-    color: '#64748b',
-  },
-  badgeType: {
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 99,
-  },
-  badgeTypeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#2563eb',
-  },
-  contact: {
-    gap: 2,
-    marginBottom: 8,
-  },
-  meta: {
+  contactText: {
     fontSize: 13,
-    color: '#475569',
-    lineHeight: 18,
+    color: brand.slate600,
+    flexShrink: 1,
   },
   activity: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginBottom: 10,
+    marginTop: spacing.sm,
+    fontSize: 12.5,
+    color: brand.slate500,
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  deactivateBtn: {
-    backgroundColor: '#fef2f2',
-  },
-  activateBtn: {
-    backgroundColor: '#f0fdf4',
-  },
-  editBtn: {
-    backgroundColor: '#fefce8',
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  deactivateBtnText: {
-    color: '#dc2626',
-  },
-  activateBtnText: {
-    color: '#16a34a',
-  },
-  editBtnText: {
-    color: '#ca8a04',
-    fontSize: 13,
-    fontWeight: '700',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
 });

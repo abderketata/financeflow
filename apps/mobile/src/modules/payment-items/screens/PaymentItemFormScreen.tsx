@@ -37,7 +37,7 @@ function ButtonSelector<T extends string>({ value, options, labels, onChange, co
     <View style={sel.row}>
       {options.map((opt) => {
         const selected = value === opt;
-        const bg = selected ? (colors?.[opt] ?? '#0f766e') : '#e2e8f0';
+        const bg = selected ? (colors?.[opt] ?? '#1D4ED8') : '#e2e8f0';
         return (
           <Pressable key={opt} style={[sel.btn, { backgroundColor: bg }]} onPress={() => onChange(opt)}>
             <Text style={[sel.text, selected && sel.textSelected]}>{labels?.[opt] ?? opt}</Text>
@@ -241,7 +241,7 @@ export function PaymentItemFormScreen({ navigation, route }: NativeStackScreenPr
               <Text style={styles.switchHint}>Recevoir une notification avant l'échéance</Text>
             </View>
             <Controller name="alertEnabled" control={control} render={({ field }) => (
-              <Switch value={field.value} onValueChange={field.onChange} trackColor={{ false: '#e2e8f0', true: '#0f766e' }} thumbColor="#fff" />
+              <Switch value={field.value} onValueChange={field.onChange} trackColor={{ false: '#e2e8f0', true: '#1D4ED8' }} thumbColor="#fff" />
             )} />
           </View>
 
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 8 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f1f5f9', alignItems: 'center' },
   cancelBtnText: { fontWeight: '700', color: '#475569', fontSize: 15 },
-  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#0f766e', alignItems: 'center' },
+  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#1D4ED8', alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { fontWeight: '800', color: '#fff', fontSize: 15 },
 });

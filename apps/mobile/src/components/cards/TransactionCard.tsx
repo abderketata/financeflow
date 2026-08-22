@@ -1,59 +1,98 @@
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
+import { AppCard } from '@/components/ui/AppCard';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDate } from '@/utils/format';
+import { brand, radius, spacing } from '@/theme/brand';
 
 export function TransactionCard({ item }: { item: Transaction }) {
   const isCredit = item.operationType === 'CREDIT';
+  const color = isCredit ? brand.credit : brand.danger;
+  const background = isCredit ? brand.creditBg : brand.dangerBg;
 
   return (
-    <View style={[styles.card, isCredit ? styles.cardCredit : styles.cardDebit]}>
+    <AppCard accent={color}>
       <View style={styles.row}>
-        {/* Indicateur couleur */}
-        <View style={[styles.bar, { backgroundColor: isCredit ? '#16a34a' : '#dc2626' }]} />
-        <View style={styles.body}>
-          <Text style={styles.label} numberOfLines={1}>{item.label}</Text>
-          <Text style={styles.meta}>{formatDate(item.operationDate)}</Text>
-          {item.client?.name ? <Text style={styles.meta}>👤 {item.client.name}</Text> : null}
-          {item.bankAccount?.label ? <Text style={styles.meta}>🏦 {item.bankAccount.label}</Text> : null}
+        <View style={[styles.medallion, { backgroundColor: background }]}>
+          <Ionicons name={isCredit ? 'arrow-down' : 'arrow-up'} size={19} color={color} />
         </View>
+
+        <View style={styles.body}>
+          <Text style={styles.label} numberOfLines={1}>
+            {item.label}
+          </Text>
+          <Text style={styles.meta}>{formatDate(item.operationDate)}</Text>
+          {item.client?.name ? (
+            <View style={styles.metaRow}>
+              <Ionicons name="person-outline" size={12} color={brand.slate400} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {item.client.name}
+              </Text>
+            </View>
+          ) : null}
+          {item.bankAccount?.label ? (
+            <View style={styles.metaRow}>
+              <Ionicons name="business-outline" size={12} color={brand.slate400} />
+              <Text style={styles.meta} numberOfLines={1}>
+                {item.bankAccount.label}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
         <View style={styles.right}>
-          <View style={[styles.typeBadge, isCredit ? styles.creditBadge : styles.debitBadge]}>
-            <Text style={[styles.typeText, { color: isCredit ? '#16a34a' : '#dc2626' }]}>
-              {isCredit ? 'Crédit' : 'Débit'}
-            </Text>
-          </View>
-          <Text style={[styles.amount, { color: isCredit ? '#16a34a' : '#dc2626' }]}>
-            {isCredit ? '+' : '-'}{formatCurrency(item.amount)}
+          <StatusPill label={isCredit ? 'Crédit' : 'Débit'} color={color} backgroundColor={background} />
+          <Text style={[styles.amount, { color }]} numberOfLines={1}>
+            {isCredit ? '+' : '-'}
+            {formatCurrency(item.amount)}
           </Text>
         </View>
       </View>
-    </View>
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  cardCredit: { borderLeftWidth: 4, borderLeftColor: '#16a34a' },
-  cardDebit: { borderLeftWidth: 4, borderLeftColor: '#dc2626' },
-  row: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
-  bar: { width: 0 }, // handled by borderLeft on card
-  body: { flex: 1, gap: 2 },
-  label: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
-  meta: { fontSize: 12, color: '#64748b' },
-  right: { alignItems: 'flex-end', gap: 6 },
-  typeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 99 },
-  creditBadge: { backgroundColor: '#dcfce7' },
-  debitBadge: { backgroundColor: '#fef2f2' },
-  typeText: { fontSize: 11, fontWeight: '700' },
-  amount: { fontSize: 16, fontWeight: '800' },
+  medallion: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  body: {
+    flex: 1,
+    gap: 2,
+  },
+  label: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: brand.navy900,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  meta: {
+    fontSize: 12,
+    color: brand.slate500,
+    flexShrink: 1,
+  },
+  right: {
+    alignItems: 'flex-end',
+    gap: 6,
+    flexShrink: 0,
+  },
+  amount: {
+    fontSize: 15.5,
+    fontWeight: '800',
+  },
 });

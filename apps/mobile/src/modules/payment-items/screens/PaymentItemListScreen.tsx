@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  addBtn: { backgroundColor: '#0f766e', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
+  addBtn: { backgroundColor: '#1D4ED8', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   searchRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 4 },
   search: { flex: 1, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: '#0f172a', borderWidth: 1, borderColor: '#e2e8f0' },

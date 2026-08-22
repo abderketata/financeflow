@@ -1,87 +1,105 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { AppCard } from '@/components/ui/AppCard';
+import { DetailRow } from '@/components/ui/DetailRow';
+import { StatusPill } from '@/components/ui/StatusPill';
 import { PaymentItem } from '@/types';
 import {
+  getPaymentItemAccount,
+  getPaymentItemClientPrimary,
   getPaymentItemEffectiveDate,
   getPaymentItemReference,
   getPaymentItemStatusLabel,
-  getPaymentItemClientPrimary,
-  getPaymentItemAccount,
 } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { formatCurrency, formatDate } from '@/utils/format';
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  'Déposé':    { bg: '#fffbeb', color: '#d97706' },
-  'Payé':      { bg: '#ecfdf5', color: '#059669' },
-  'Annulé':    { bg: '#f1f5f9', color: '#64748b' },
-  'En retard': { bg: '#fef2f2', color: '#dc2626' },
-};
+import { brand, getStatusStyle, spacing } from '@/theme/brand';
 
 const TYPE_LABELS: Record<string, string> = {
   CHEQUE: 'Chèque',
   TRAITE: 'Traite',
-  AUTRE:  'Autre',
+  AUTRE: 'Autre',
+};
+
+const STATUS_ICONS: Record<string, 'time-outline' | 'checkmark-circle' | 'close-circle' | 'warning'> = {
+  'Déposé': 'time-outline',
+  'Payé': 'checkmark-circle',
+  'Annulé': 'close-circle',
+  'En retard': 'warning',
 };
 
 export function PaymentItemCard({ item }: { item: PaymentItem }) {
   const isIn = item.direction === 'IN';
   const statusLabel = String(getPaymentItemStatusLabel(item.status));
-  const statusStyle = STATUS_COLORS[statusLabel] ?? { bg: '#f1f5f9', color: '#64748b' };
+  const statusStyle = getStatusStyle(statusLabel);
   const account = getPaymentItemAccount(item);
-  const clientName = item.client ? getPaymentItemClientPrimary(item.client) : null;
+  const directionColor = isIn ? brand.credit : brand.danger;
 
   return (
-    <View style={[styles.card, isIn ? styles.cardIn : styles.cardOut]}>
-      {/* Ligne 1 : référence + montant */}
-      <View style={styles.row}>
-        <Text style={styles.ref} numberOfLines={1}>{getPaymentItemReference(item)}</Text>
-        <Text style={[styles.amount, { color: isIn ? '#16a34a' : '#dc2626' }]}>
-          {isIn ? '+' : '-'}{formatCurrency(item.amount, item.currency)}
+    <AppCard accent={statusStyle.color}>
+      {/* Bandeau : référence + montant signé */}
+      <View style={styles.header}>
+        <Text style={styles.reference} numberOfLines={1}>
+          {getPaymentItemReference(item)}
+        </Text>
+        <Text style={[styles.amount, { color: directionColor }]} numberOfLines={1}>
+          {isIn ? '+' : '-'}
+          {formatCurrency(item.amount, item.currency)}
         </Text>
       </View>
-      {/* Ligne 2 : type + direction + date */}
-      <View style={styles.row}>
-        <Text style={styles.meta}>{TYPE_LABELS[item.type] ?? item.type} · {isIn ? '↑ Entrant' : '↓ Sortant'}</Text>
-        <Text style={styles.meta}>{formatDate(getPaymentItemEffectiveDate(item))}</Text>
-      </View>
-      {/* Ligne 3 : client + compte */}
-      {(clientName || account) && (
-        <View style={styles.row}>
-          {clientName ? <Text style={styles.meta} numberOfLines={1}>👤 {clientName}</Text> : null}
-          {account ? <Text style={styles.meta} numberOfLines={1}>🏦 {account.label}</Text> : null}
-        </View>
-      )}
-      {/* Référence paiement */}
-      {item.referencePayment ? (
-        <Text style={styles.refPayment} numberOfLines={1}>🔖 {item.referencePayment}</Text>
+
+      <View style={styles.divider} />
+
+      <DetailRow
+        icon="pricetag-outline"
+        label="Type"
+        value={`${TYPE_LABELS[item.type] ?? item.type} · ${isIn ? 'Entrant' : 'Sortant'}`}
+      />
+      <DetailRow
+        icon="calendar-outline"
+        label="Échéance"
+        value={formatDate(getPaymentItemEffectiveDate(item))}
+      />
+      {item.client ? (
+        <DetailRow icon="person-outline" label="Client" value={getPaymentItemClientPrimary(item.client)} />
       ) : null}
-      {/* Statut */}
-      <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-        <Text style={[styles.statusText, { color: statusStyle.color }]}>{statusLabel}</Text>
-      </View>
-    </View>
+      {account ? <DetailRow icon="business-outline" label="Compte" value={account.label} /> : null}
+      {item.referencePayment ? (
+        <DetailRow icon="bookmark-outline" label="Référence" value={item.referencePayment} />
+      ) : null}
+
+      <StatusPill
+        block
+        label={statusLabel}
+        color={statusStyle.color}
+        backgroundColor={statusStyle.bg}
+        icon={STATUS_ICONS[statusLabel] ?? 'ellipse-outline'}
+      />
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    gap: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
   },
-  cardIn:  { borderLeftWidth: 4, borderLeftColor: '#16a34a' },
-  cardOut: { borderLeftWidth: 4, borderLeftColor: '#dc2626' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  ref: { fontSize: 14, fontWeight: '800', color: '#0f172a', flex: 1 },
-  amount: { fontSize: 15, fontWeight: '800', flexShrink: 0 },
-  meta: { fontSize: 12, color: '#64748b', flex: 1 },
-  refPayment: { fontSize: 12, color: '#0f766e', fontWeight: '600' },
-  statusBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99, marginTop: 4 },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  reference: {
+    flex: 1,
+    fontSize: 15.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: brand.navy900,
+  },
+  amount: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    flexShrink: 0,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: brand.slate100,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
 });

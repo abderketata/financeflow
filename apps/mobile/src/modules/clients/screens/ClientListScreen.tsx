@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
   subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
   addBtn: {
-    backgroundColor: '#0f766e',
+    backgroundColor: '#1D4ED8',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
@@ -430,7 +430,7 @@ const modal = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#0f766e',
+    backgroundColor: '#1D4ED8',
     alignItems: 'center',
     justifyContent: 'center',
   },

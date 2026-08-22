@@ -75,7 +75,7 @@ function TypeSelector({ value, onChange }: { value: string; onChange: (v: 'INDIV
 const ts = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   btn: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: '#e2e8f0', borderWidth: 1, borderColor: 'transparent' },
-  btnSelected: { backgroundColor: '#0f766e', borderColor: '#0f766e' },
+  btnSelected: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
   btnText: { fontWeight: '700', fontSize: 13, color: '#334155' },
   btnTextSelected: { color: '#fff' },
 });
@@ -186,7 +186,7 @@ export function ClientFormScreen({ navigation, route }: NativeStackScreenProps<M
                 <Text style={styles.switchHint}>Un client inactif reste visible mais n'est plus opérationnel.</Text>
               </View>
               <Controller name="isActive" control={control} render={({ field }) => (
-                <Switch value={field.value} onValueChange={field.onChange} trackColor={{ false: '#e2e8f0', true: '#0f766e' }} thumbColor="#fff" />
+                <Switch value={field.value} onValueChange={field.onChange} trackColor={{ false: '#e2e8f0', true: '#1D4ED8' }} thumbColor="#fff" />
               )} />
             </View>
           </Section>
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f1f5f9', alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0' },
   cancelBtnText: { fontWeight: '700', color: '#475569', fontSize: 15 },
-  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#0f766e', alignItems: 'center' },
+  submitBtn: { flex: 2, paddingVertical: 14, borderRadius: 14, backgroundColor: '#1D4ED8', alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { fontWeight: '800', color: '#fff', fontSize: 15 },
 });
