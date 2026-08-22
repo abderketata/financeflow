@@ -2,6 +2,7 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useQueryClient } from '@tanstack/react-query';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { DashboardScreen } from '@/modules/dashboard/screens/DashboardScreen';
@@ -14,6 +15,7 @@ import { TransactionFormScreen } from '@/modules/transactions/screens/Transactio
 import { AlertListScreen } from '@/modules/alerts/screens/AlertListScreen';
 import { ProfileScreen } from '@/modules/profile/screens/ProfileScreen';
 import { SettingsScreen } from '@/modules/settings/screens/SettingsScreen';
+import { stackRefreshQueries, tabRefreshQueries } from '@/app/businessNavigation';
 import { MobileStackParamList } from '@/navigation/types';
 import { brand, shadow } from '@/theme/brand';
 
@@ -58,8 +60,16 @@ const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inacti
 };
 
 function MainTabs() {
+  const queryClient = useQueryClient();
+
   return (
     <Tab.Navigator
+      // Chaque clic sur un onglet repart du réseau : voir `tabRefreshQueries`.
+      screenListeners={({ route }) => ({
+        tabPress: () => {
+          tabRefreshQueries[route.name]?.forEach((queryKey) => queryClient.resetQueries({ queryKey }));
+        },
+      })}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: styles.tabBar,
@@ -99,8 +109,17 @@ function MainTabs() {
 }
 
 export function AppNavigator() {
+  const queryClient = useQueryClient();
+
   return (
     <Stack.Navigator
+      // Les écrans empilés ne passent pas par la barre d'onglets : leur
+      // rafraîchissement se déclenche à la prise de focus.
+      screenListeners={({ route }) => ({
+        focus: () => {
+          stackRefreshQueries[route.name]?.forEach((queryKey) => queryClient.resetQueries({ queryKey }));
+        },
+      })}
       screenOptions={({ navigation }) => ({
         ...getStackHeaderOptions(),
         headerLeft: () =>
