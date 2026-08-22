@@ -71,26 +71,26 @@ function MainTabs() {
         },
       })}
     >
+      {/* L'ordre de déclaration des `Tab.Screen` fixe l'ordre d'affichage :
+          Accueil, Paiements, Alertes, Clients. */}
       <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ title: 'Accueil' }} />
-      <Tab.Screen
-        name="ClientList"
-        component={ClientListScreen as React.ComponentType<any>}
-        options={{ title: 'Clients' }}
-      />
       <Tab.Screen
         name="PaymentItemList"
         component={PaymentItemListScreen as React.ComponentType<any>}
         options={{ title: 'Paiements' }}
       />
-      {/* « Opérations » retiré de la barre : l'écran reste accessible via la pile
-          (route `TransactionList`), mais n'occupe plus un onglet. */}
       <Tab.Screen
         name="AlertList"
         component={AlertListScreen as React.ComponentType<any>}
         options={{ title: 'Alertes' }}
       />
-      {/* « Profil » retiré de la barre : l'écran des paramètres reste accessible
-          via la pile (route `Settings`), mais n'occupe plus un onglet. */}
+      <Tab.Screen
+        name="ClientList"
+        component={ClientListScreen as React.ComponentType<any>}
+        options={{ title: 'Clients' }}
+      />
+      {/* « Opérations » et « Profil » sont retirés de la barre : leurs écrans
+          restent accessibles via la pile (routes `TransactionList` et `Settings`). */}
     </Tab.Navigator>
   );
 }
