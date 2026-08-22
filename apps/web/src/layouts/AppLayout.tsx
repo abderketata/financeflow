@@ -9,6 +9,7 @@ import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
+import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded';
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
@@ -45,6 +46,7 @@ import { BrandLogo } from '@/components/ui/BrandLogo';
 import { GlobalSearch } from '@/components/ui/GlobalSearch';
 import { AlertPaymentDetailsDialog } from '@/modules/alerts/components/AlertPaymentDetailsDialog';
 import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import { ProfileDialog } from '@/modules/profile/components/ProfileDialog';
 import { getPrimaryAlertPaymentItem } from '@/modules/alerts/utils/alertPresentation';
 import { getPaymentItemClientPrimary, getPaymentItemCurrency, getPaymentItemDirectionLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { Alert } from '@/types/domain';
@@ -97,6 +99,7 @@ export function AppLayout() {
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [userAnchor, setUserAnchor] = useState<null | HTMLElement>(null);
   const [notifDetailsAlert, setNotifDetailsAlert] = useState<Alert | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const { logout, user } = useAuth();
   const { data: alerts = [] } = useAlerts();
   const updateAlert = useUpdateAlert();
@@ -680,6 +683,10 @@ export function AppLayout() {
               <ListItemIcon><SettingsRoundedIcon fontSize="small" /></ListItemIcon>
               <ListItemText primaryTypographyProps={{ fontSize: '0.88rem' }}>Paramètres</ListItemText>
             </MenuItem>
+            <MenuItem onClick={() => { setUserAnchor(null); setProfileOpen(true); }}>
+              <ListItemIcon><ManageAccountsRoundedIcon fontSize="small" /></ListItemIcon>
+              <ListItemText primaryTypographyProps={{ fontSize: '0.88rem' }}>Mon compte</ListItemText>
+            </MenuItem>
             <Divider />
             <MenuItem onClick={() => { setUserAnchor(null); logout(); navigate('/login'); }} sx={{ color: 'error.main' }}>
               <ListItemIcon><LogoutRoundedIcon fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
@@ -738,6 +745,9 @@ export function AppLayout() {
         alert={notifDetailsAlert}
         onClose={() => setNotifDetailsAlert(null)}
       />
+
+      {/* ── Mon compte : nom d'utilisateur, email et mot de passe ── */}
+      <ProfileDialog open={profileOpen} onClose={() => setProfileOpen(false)} />
     </Box>
   );
 }

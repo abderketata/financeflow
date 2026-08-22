@@ -2,12 +2,14 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/api/auth';
 import { subscribeToAuthSessionInvalidation } from '@/services/api/authSession';
+import { setStoredUser } from '@/services/api/authStorage';
 
 interface AuthContextValue {
   user: any;
   isAuthenticated: boolean;
   isBootstrapping: boolean;
   login: (identifier: string, password: string) => Promise<void>;
+  updateUser: (changes: Record<string, unknown>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -40,6 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async login(identifier, password) {
       const response = await authService.login({ identifier, password });
       setUser(response.user);
+    },
+    async updateUser(changes) {
+      const next = { ...(user ?? {}), ...changes };
+      await setStoredUser(next);
+      setUser(next);
     },
     async logout() {
       await authService.logout();

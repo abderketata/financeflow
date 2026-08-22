@@ -19,6 +19,10 @@ export const getStoredUser = <T = AuthUser>() => {
   }
 };
 
+export const setStoredUser = (user: unknown) => {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+};
+
 export const setStoredSession = (token: string, user: unknown) => {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));

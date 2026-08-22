@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { DashboardScreen } from '@/modules/dashboard/screens/DashboardScreen';
 import { ClientListScreen } from '@/modules/clients/screens/ClientListScreen';
@@ -12,8 +12,10 @@ import { PaymentItemFormScreen } from '@/modules/payment-items/screens/PaymentIt
 import { TransactionListScreen } from '@/modules/transactions/screens/TransactionListScreen';
 import { TransactionFormScreen } from '@/modules/transactions/screens/TransactionFormScreen';
 import { AlertListScreen } from '@/modules/alerts/screens/AlertListScreen';
+import { ProfileModal } from '@/modules/profile/components/ProfileModal';
 import { SettingsScreen } from '@/modules/settings/screens/SettingsScreen';
 import { MobileStackParamList } from '@/navigation/types';
+import { useAuth } from '@/providers/AuthProvider';
 import { brand, shadow } from '@/theme/brand';
 
 const Tab = createBottomTabNavigator();
@@ -37,6 +39,31 @@ function HeaderBack({ onPress }: { onPress: () => void }) {
 }
 
 /**
+ * Bouton à l'extrême droite de l'en-tête : ouvre « Mon compte » (nom
+ * d'utilisateur, modification de l'email et du mot de passe).
+ */
+function HeaderProfile() {
+  const { user } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const initial = String(user?.username || '?').trim().charAt(0).toUpperCase();
+
+  return (
+    <>
+      <Pressable
+        onPress={() => setProfileOpen(true)}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel="Mon compte"
+        style={({ pressed }) => [styles.profileButton, pressed && styles.profileButtonPressed]}
+      >
+        <Text style={styles.profileInitial}>{initial || '?'}</Text>
+      </Pressable>
+      <ProfileModal visible={profileOpen} onClose={() => setProfileOpen(false)} />
+    </>
+  );
+}
+
+/**
  * En-tête blanc, ombre masquée, titre centré — commun à toutes les vues empilées.
  * Fonction et non constante : `styles` est déclaré plus bas dans le module.
  */
@@ -46,6 +73,7 @@ const getStackHeaderOptions = () => ({
   headerTitleAlign: 'center' as const,
   headerTitle: () => <HeaderLogo />,
   headerTintColor: brand.blue600,
+  headerRight: () => <HeaderProfile />,
 });
 
 const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
@@ -104,7 +132,7 @@ export function AppNavigator() {
           navigation.canGoBack() ? <HeaderBack onPress={() => navigation.goBack()} /> : null,
       })}
     >
-      <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="Tabs" component={MainTabs} />
       <Stack.Screen name="ClientList" component={ClientListScreen} />
       <Stack.Screen name="ClientForm" component={ClientFormScreen} />
       <Stack.Screen name="PaymentItemList" component={PaymentItemListScreen} />
@@ -124,6 +152,22 @@ const styles = StyleSheet.create({
   headerTitle: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  profileButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brand.blue600,
+  },
+  profileButtonPressed: {
+    backgroundColor: brand.blue700,
+  },
+  profileInitial: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: brand.white,
   },
   tabBar: {
     backgroundColor: brand.white,

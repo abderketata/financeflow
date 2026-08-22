@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { banksQueryOptions } from '@/modules/banks/hooks/useBanks';
 import { subscribeToAuthSessionInvalidation } from '@/services/api/authSession';
+import { setStoredUser } from '@/services/api/authStorage';
 import { authService } from '@/services/api/auth';
 import { AuthUser } from '@/types/domain';
 
@@ -9,6 +10,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login: (identifier: string, password: string) => Promise<void>;
+  updateUser: (changes: Partial<AuthUser>) => void;
   logout: () => void;
 }
 
@@ -37,6 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await authService.login({ identifier, password });
       await queryClient.ensureQueryData(banksQueryOptions);
       setUser(response.user);
+    },
+    updateUser(changes: Partial<AuthUser>) {
+      setUser((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const next = { ...current, ...changes };
+        setStoredUser(next);
+        return next;
+      });
     },
     logout() {
       authService.logout();

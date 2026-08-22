@@ -91,6 +91,10 @@ export const getStoredUser = async <T = unknown>() => {
   }
 };
 
+export const setStoredUser = async (user: unknown) => {
+  await setItem(USER_KEY, JSON.stringify(user));
+};
+
 export const setStoredSession = async (token: string, user: unknown) => {
   await Promise.all([
     setItem(TOKEN_KEY, token),
