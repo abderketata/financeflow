@@ -23,18 +23,28 @@ interface AlertCardProps {
 export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps) {
   const paymentItem = getPrimaryAlertPaymentItem(item);
   const paymentStatus = paymentItem ? String(getPaymentItemStatusLabel(paymentItem.status)) : null;
+  const paymentStatusStyle = paymentStatus ? getStatusStyle(paymentStatus) : null;
 
   return (
     <AppCard accent={item.isRead ? brand.slate200 : brand.violet}>
-      <View style={styles.header}>
-        <Text style={[styles.title, !item.isRead && styles.titleUnread]} numberOfLines={2}>
-          {item.title}
-        </Text>
+      <Text style={[styles.title, !item.isRead && styles.titleUnread]} numberOfLines={2}>
+        {item.title}
+      </Text>
+
+      {/* Étiquettes : lu / non lu puis statut du paiement lié — même ordre que la ligne web. */}
+      <View style={styles.pills}>
         <StatusPill
           label={item.isRead ? 'Lu' : 'Non lu'}
           color={item.isRead ? brand.credit : brand.warning}
           backgroundColor={item.isRead ? brand.creditBg : brand.warningBg}
         />
+        {paymentStatus && paymentStatusStyle ? (
+          <StatusPill
+            label={paymentStatus}
+            color={paymentStatusStyle.color}
+            backgroundColor={paymentStatusStyle.bg}
+          />
+        ) : null}
       </View>
 
       <Text style={styles.message}>{item.message}</Text>
@@ -44,14 +54,6 @@ export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps)
       <DetailRow icon="calendar-outline" label="Échéance" value={formatDate(getAlertScheduledAt(item))} />
       <DetailRow icon="paper-plane-outline" label="Envoi" value={formatDate(getAlertSentAt(item))} />
       <DetailRow icon="business-outline" label="Associé à" value={getAlertAssociatedLabel(item)} />
-      {paymentStatus ? (
-        <DetailRow
-          icon="card-outline"
-          label="Statut paiement"
-          value={paymentStatus}
-          valueColor={getStatusStyle(paymentStatus).color}
-        />
-      ) : null}
 
       {onToggleRead || onViewPayment ? (
         <View style={styles.actions}>
@@ -80,14 +82,13 @@ export function AlertCard({ item, onToggleRead, onViewPayment }: AlertCardProps)
 }
 
 const styles = StyleSheet.create({
-  header: {
+  pills: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   title: {
-    flex: 1,
     fontSize: 15,
     fontWeight: '600',
     color: brand.slate600,

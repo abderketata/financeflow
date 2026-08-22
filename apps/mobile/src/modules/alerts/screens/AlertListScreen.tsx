@@ -1,5 +1,13 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useState, useMemo } from 'react';
+// AlertListScreen — parité métier avec la page web `/alerts`.
+//
+// Règles reprises (`apps/web/src/modules/alerts/pages/AlertsPage.tsx`) :
+//   - filtres Toutes / Non lues / Lues avec compteurs ;
+//   - tri « Plus urgentes » (échéance la plus proche) ou « Plus récentes »
+//     (envoi le plus récent), les non lues restant toujours en tête ;
+//   - « Tout marquer comme lu » visible uniquement s'il reste des non lues.
+import { Ionicons } from '@expo/vector-icons';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AlertCard } from '@/components/cards/AlertCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -7,56 +15,33 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { AlertPaymentDetailsModal } from '@/modules/alerts/components/AlertPaymentDetailsModal';
-import { useAlerts, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
-import { AlertItem, PaymentItem } from '@/types';
+import { useAlerts, useMarkAllAlertsRead, useUpdateAlert } from '@/modules/alerts/hooks/useAlerts';
+import {
+  getAlertScheduledAt,
+  getAlertSentAt,
+  getAlertTimestamp,
+} from '@/modules/alerts/utils/alertPresentation';
+import { AlertItem } from '@/types';
+import { brand, radius, spacing } from '@/theme/brand';
 
 type AlertFilter = 'all' | 'unread' | 'read';
 type AlertSort = 'recent' | 'urgent';
 
-
-const SORT_LABELS: Record<AlertSort, string> = {
+const SORT_OPTIONS: AlertSort[] = ['urgent', 'recent'];
+const SORT_LABELS: Record<string, string> = {
   urgent: 'Plus urgentes',
   recent: 'Plus récentes',
 };
 
-const getAlertPaymentItems = (alert: AlertItem) => {
-  if (Array.isArray(alert.paymentItems)) {
-    return alert.paymentItems.filter(Boolean);
-  }
-
-  if (alert.paymentItems?.data) {
-    return alert.paymentItems.data.filter(Boolean);
-  }
-
-  return alert.paymentItem ? [alert.paymentItem] : [];
-};
-
-const getPrimaryAlertPaymentItem = (alert: AlertItem): PaymentItem | null => getAlertPaymentItems(alert)[0] ?? null;
-
-const getAlertScheduledAt = (alert: AlertItem) => {
-  const paymentItem = getPrimaryAlertPaymentItem(alert);
-  return alert.scheduledAt || alert.triggerDate || paymentItem?.dueDate || paymentItem?.paymentDate || paymentItem?.createdAt || null;
-};
-
-const getAlertSentAt = (alert: AlertItem) => alert.sentAt || alert.createdAt || alert.updatedAt || null;
-
-const getAlertTimestamp = (value?: string | null, fallback = Number.POSITIVE_INFINITY) => {
-  if (!value) {
-    return fallback;
-  }
-
-  const timestamp = new Date(value).getTime();
-  return Number.isFinite(timestamp) ? timestamp : fallback;
-};
-
 export function AlertListScreen() {
-  const { data = [], isLoading, isError, refetch } = useAlerts();
+  const { data = [], isLoading, isError, isFetching, refetch } = useAlerts();
   const updateMutation = useUpdateAlert();
+  const markAllReadMutation = useMarkAllAlertsRead();
   const [filter, setFilter] = useState<AlertFilter>('all');
   const [sort, setSort] = useState<AlertSort>('urgent');
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
 
-  const unreadCount = useMemo(() => data.filter((a) => !a.isRead).length, [data]);
+  const unreadCount = useMemo(() => data.filter((alert) => !alert.isRead).length, [data]);
   const readCount = Math.max(data.length - unreadCount, 0);
 
   const filteredAlerts = useMemo(() => {
@@ -67,6 +52,7 @@ export function AlertListScreen() {
     });
 
     return filtered.sort((left, right) => {
+      // Les non lues remontent toujours, quel que soit le tri choisi.
       if (left.isRead !== right.isRead) {
         return Number(left.isRead) - Number(right.isRead);
       }
@@ -85,56 +71,64 @@ export function AlertListScreen() {
     });
   }, [data, filter, sort]);
 
-  const markAllRead = () => {
-    data.filter((a) => !a.isRead).forEach((a) => {
-      updateMutation.mutate({ id: a.id, payload: { isRead: true } });
-    });
+  // Chips pilotées par la valeur, pas par le libellé : les compteurs peuvent
+  // changer sans casser la sélection courante.
+  const FILTER_OPTIONS: AlertFilter[] = ['all', 'unread', 'read'];
+  const filterLabels: Record<string, string> = {
+    all: `Toutes (${data.length})`,
+    unread: `Non lues (${unreadCount})`,
+    read: `Lues (${readCount})`,
   };
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <LoadingState message="Chargement des alertes..." />;
   if (isError) return <ErrorState onRetry={() => refetch()} />;
-
-  const filterOptions = [
-    'Toutes',
-    `Non lues (${unreadCount})`,
-    `Lues (${readCount})`,
-  ];
-  const filterValue =
-    filter === 'unread' ? `Non lues (${unreadCount})` :
-    filter === 'read'   ? `Lues (${readCount})` : 'Toutes';
 
   return (
     <Screen>
+      {/* ── En-tête ── */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Alertes</Text>
-          <Text style={styles.subtitle}>{data.length} alerte(s)</Text>
+        <View style={styles.headerText}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Alertes</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countBadgeText}>{data.length}</Text>
+            </View>
+          </View>
+          <Text style={styles.subtitle} numberOfLines={2}>
+            Notifications liées aux échéances et événements importants
+          </Text>
         </View>
-        {unreadCount > 0 && (
-          <Pressable style={styles.markAllBtn} onPress={markAllRead}>
-            <Text style={styles.markAllBtnText}>✓ Tout lire</Text>
+        {unreadCount > 0 ? (
+          <Pressable
+            style={[styles.markAllBtn, markAllReadMutation.isPending && styles.markAllBtnBusy]}
+            disabled={markAllReadMutation.isPending}
+            onPress={() => markAllReadMutation.mutate(data)}
+          >
+            <Ionicons name="checkmark-done" size={15} color={brand.blue700} />
+            <Text style={styles.markAllBtnText}>
+              {markAllReadMutation.isPending ? 'En cours…' : 'Tout lire'}
+            </Text>
           </Pressable>
-        )}
+        ) : null}
       </View>
 
+      {/* ── Filtres et tri ── */}
       <View style={styles.filterWrap}>
         <FilterChips
-          options={filterOptions}
-          value={filterValue}
-          onChange={(label) => {
-            if (label.startsWith('Non lues')) setFilter('unread');
-            else if (label.startsWith('Lues')) setFilter('read');
-            else setFilter('all');
-          }}
+          options={FILTER_OPTIONS}
+          value={filter}
+          onChange={(value) => setFilter((value as AlertFilter) || 'all')}
+          labelMap={filterLabels}
         />
         <FilterChips
-          options={['urgent', 'recent']}
+          options={SORT_OPTIONS}
           value={sort}
           onChange={(value) => setSort((value as AlertSort) || 'urgent')}
           labelMap={SORT_LABELS}
         />
       </View>
 
+      {/* ── Liste ── */}
       <FlatList
         data={filteredAlerts}
         keyExtractor={(item) => String(item.id)}
@@ -145,10 +139,18 @@ export function AlertListScreen() {
             onViewPayment={() => setSelectedAlert(item)}
           />
         )}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={brand.blue600} />}
         ListEmptyComponent={
           <EmptyState
             title="Aucune alerte"
-            message={filter === 'unread' ? 'Toutes vos alertes ont été lues.' : filter === 'read' ? 'Aucune alerte lue à afficher.' : 'Aucune alerte à afficher.'}
+            message={
+              filter === 'unread'
+                ? 'Toutes vos alertes ont été lues.'
+                : filter === 'read'
+                  ? 'Aucune alerte lue à afficher.'
+                  : 'Aucune alerte à afficher.'
+            }
+            icon="notifications-outline"
           />
         }
         contentContainerStyle={styles.list}
@@ -165,15 +167,72 @@ export function AlertListScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
-  subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  markAllBtn: { backgroundColor: '#eff6ff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  markAllBtnText: { color: '#2563eb', fontWeight: '700', fontSize: 13 },
-  filterWrap: { paddingHorizontal: 16 },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: brand.navy900,
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: brand.violetBg,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: brand.violet,
+  },
+  subtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 16,
+    color: brand.slate500,
+  },
+  markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: brand.blue50,
+    borderWidth: 1,
+    borderColor: brand.blue100,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radius.md,
+  },
+  markAllBtnBusy: {
+    opacity: 0.6,
+  },
+  markAllBtnText: {
+    color: brand.blue700,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  filterWrap: {
+    paddingHorizontal: 16,
+  },
+  list: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 24,
+  },
 });
-
-
-
-
