@@ -1,7 +1,19 @@
 import { createCrudService } from '@/services/api/crud';
 import { api } from '@/services/api/client';
-import { PaginatedResult, PaymentItem, StrapiCollectionResponse, StrapiPaginationMeta } from '@/types';
+import { PaginatedResult, PaymentItem, StrapiCollectionResponse, StrapiPaginationMeta, StrapiUploadFile } from '@/types';
 import { unwrapCollection } from '@/utils/strapi';
+
+/**
+ * Fichier choisi sur l'appareil, avant envoi à `/upload`.
+ * `file` n'est renseigné qu'en build web, où FormData exige un vrai `File`.
+ */
+export interface PaymentItemAttachmentFile {
+  uri: string;
+  name: string;
+  mime?: string;
+  size?: number;
+  file?: unknown;
+}
 
 const rawService = createCrudService<PaymentItem>('/payment-items');
 
@@ -47,6 +59,11 @@ const normalizeStrapiValue = (value: any): any => {
   }
 
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeStrapiValue(entry)]));
+};
+
+const normalizeUploadedFiles = (value: unknown): StrapiUploadFile[] => {
+  const normalized = normalizeStrapiValue(value);
+  return Array.isArray(normalized) ? (normalized as StrapiUploadFile[]) : [];
 };
 
 const PM_TO_BACKEND: Record<string, string> = {
@@ -164,6 +181,18 @@ export const paymentItemService = {
     const item = await rawService.get(id, params);
     return item ? normalizePaymentItemFromBackend(item) : null;
   },
+  /** Détail complet avec pièces jointes — identique au web (formulaire d'édition). */
+  async getWithAttachments(id: number) {
+    const item = await rawService.get(id, {
+      populate: {
+        attachments: '*',
+        client: '*',
+        account: '*',
+        bankAccount: '*',
+      },
+    });
+    return item ? normalizePaymentItemFromBackend(item) : null;
+  },
   async create(payload: Partial<PaymentItem>) {
     const item = await rawService.create(normalizeToBackend(payload));
     return item ? normalizePaymentItemFromBackend(item) : null;
@@ -171,6 +200,47 @@ export const paymentItemService = {
   async update(id: number, payload: Partial<PaymentItem>) {
     const item = await rawService.update(id, normalizeToBackend(payload));
     return item ? normalizePaymentItemFromBackend(item) : null;
+  },
+  /**
+   * Envoie les fichiers choisis vers la médiathèque Strapi et renvoie les
+   * fichiers créés (leurs `id` sont ensuite reliés au paiement).
+   */
+  async uploadAttachments(files: PaymentItemAttachmentFile[]) {
+    if (!files.length) {
+      return [];
+    }
+
+    const formData = new FormData();
+
+    files.forEach((file) => {
+      if (file.file) {
+        // Build web : react-native-web attend un vrai objet `File`.
+        formData.append('files', file.file as any);
+        return;
+      }
+
+      formData.append('files', {
+        uri: file.uri,
+        name: file.name,
+        type: file.mime || 'application/octet-stream',
+      } as any);
+    });
+
+    const { data } = await api.post('/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    return normalizeUploadedFiles(data);
+  },
+  /** Supprime des fichiers déjà envoyés — utilisé pour nettoyer un enregistrement échoué. */
+  async removeUploadedFiles(fileIds: number[]) {
+    if (!fileIds.length) {
+      return;
+    }
+
+    await Promise.all(fileIds.map((fileId) => api.delete(`/upload/files/${fileId}`)));
   },
   remove: rawService.remove,
   async listActive(params?: Record<string, unknown>) {

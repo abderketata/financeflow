@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { brand, radius, spacing } from '@/theme/brand';
 
@@ -16,6 +16,13 @@ interface AppTextFieldProps {
   /** Icône à gauche du champ ; par défaut aucune. */
   icon?: keyof typeof Ionicons.glyphMap;
   editable?: boolean;
+  onBlur?: () => void;
+  /** Ligne d'aide sous le champ, masquée dès qu'une erreur s'affiche. */
+  helperText?: string;
+  /** Couleur de la ligne d'aide — sert aux repères d'échéance (retard, imminence). */
+  helperTextColor?: string;
+  /** Contenu affiché à droite dans la coque : compteur, unité, pastille… */
+  trailing?: ReactNode;
 }
 
 /**
@@ -29,6 +36,10 @@ export function AppTextField({
   icon,
   secureTextEntry,
   editable = true,
+  onBlur,
+  helperText,
+  helperTextColor,
+  trailing,
   ...props
 }: AppTextFieldProps) {
   const [focused, setFocused] = useState(false);
@@ -58,8 +69,12 @@ export function AppTextField({
           selectionColor={brand.blue600}
           textAlignVertical={multiline ? 'top' : 'auto'}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
         />
+        {trailing}
         {secureTextEntry ? (
           <Pressable
             onPress={() => setRevealed((previous) => !previous)}
@@ -76,6 +91,11 @@ export function AppTextField({
         ) : null}
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!error && helperText ? (
+        <Text style={[styles.helper, helperTextColor ? { color: helperTextColor, fontWeight: '600' } : null]}>
+          {helperText}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -139,5 +159,11 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600',
     color: brand.danger,
+  },
+  helper: {
+    marginTop: 5,
+    marginLeft: 3,
+    fontSize: 11.5,
+    color: brand.slate500,
   },
 });

@@ -86,6 +86,19 @@ export const usePaymentItemDetails = (id?: number | null, enabled = true) =>
     queryFn: () => paymentItemService.get(Number(id), { populate: '*' }),
   });
 
+/**
+ * Détail complet avec pièces jointes — sert de source au formulaire d'édition.
+ * Le web fait la même requête (`getWithAttachments`) avant d'ouvrir le formulaire :
+ * la liste ne renvoie pas les fichiers liés.
+ */
+export const usePaymentItemWithAttachments = (id?: number | null, enabled = true) =>
+  useQuery<PaymentItem | null>({
+    queryKey: [...QUERY_KEY, 'detail-with-attachments', id],
+    enabled: Boolean(id) && enabled,
+    staleTime: 30_000,
+    queryFn: () => paymentItemService.getWithAttachments(Number(id)),
+  });
+
 export const useCreatePaymentItem = () => {
   const qc = useQueryClient();
   return useMutation({

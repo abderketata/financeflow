@@ -1,17 +1,31 @@
 import { z } from 'zod';
 
+/**
+ * Le web s'appuie sur un sélecteur de date natif (`input type="date"`) qui garantit
+ * la forme AAAA-MM-JJ. La saisie mobile étant libre, la même garantie est portée
+ * par le schéma : sans elle, Strapi rejette l'enregistrement en 400.
+ */
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 export const paymentItemSchema = z.object({
   type: z.enum(['CHEQUE', 'TRAITE', 'AUTRE']),
   direction: z.enum(['IN', 'OUT']),
   amount: z.coerce.number({ required_error: 'Le montant est requis' }).positive('Le montant doit être supérieur à 0'),
   currency: z.string().trim().min(1, 'La devise est requise'),
   status: z.enum(['Déposé', 'Payé', 'Annulé', 'En retard']),
-  issueDate: z.string().optional(),
-  dueDate: z.string().trim().min(1, "L'échéance est requise"),
+  issueDate: z
+    .string()
+    .optional()
+    .refine((v) => !v || ISO_DATE_PATTERN.test(v), { message: 'Date invalide (AAAA-MM-JJ)' }),
+  dueDate: z
+    .string()
+    .trim()
+    .min(1, "L'échéance est requise")
+    .refine((v) => ISO_DATE_PATTERN.test(v), { message: 'Date invalide (AAAA-MM-JJ)' }),
   drawer: z.string().optional(),
   drawee: z.string().optional(),
   alertEnabled: z.boolean().default(true),
-  alertDaysBefore: z.coerce.number().min(0).optional(),
+  alertDaysBefore: z.coerce.number().min(0, 'Valeur invalide').optional(),
   paymentMethod: z.enum(['ESPECES', 'VIREMENT', 'CARTE']).optional().nullable(),
   notes: z.string().optional(),
   referencePayment: z
