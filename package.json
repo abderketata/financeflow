@@ -9,6 +9,7 @@
     "install:web": "npm --prefix apps/web install",
     "dev:mobile": "npm --prefix apps/mobile run start",
     "android": "npm --prefix apps/mobile run android",
+    "build:apk": "npm --prefix apps/mobile run build:apk:local",
     "typecheck:mobile": "npm --prefix apps/mobile run typecheck",
     "install:mobile": "npm --prefix apps/mobile install",
     "install:all": "npm run install:web && npm run install:mobile"

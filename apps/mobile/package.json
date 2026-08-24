@@ -8,6 +8,9 @@
     "typecheck": "tsc --noEmit",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview",
     "build:aab": "npx eas-cli@latest build --platform android --profile production",
+    "build:apk:local": "node scripts/build-apk.js",
+    "build:apk:local:debug": "node scripts/build-apk.js --debug",
+    "build:aab:local": "node scripts/build-apk.js --aab",
     "ios": "expo run:ios"
   },
   "dependencies": {
