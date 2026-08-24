@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  Alert as NativeAlert,
   Modal,
   Pressable,
   ScrollView,
@@ -14,6 +13,7 @@ import { useAlertPaymentItems } from '@/modules/alerts/hooks/useAlerts';
 import { useUpdatePaymentItem } from '@/modules/payment-items/hooks/usePaymentItems';
 import { AlertItem, PaymentItem, RelationCollection } from '@/types';
 import { formatAmountInWords, formatCurrency, formatDate } from '@/utils/format';
+import { confirmAction, notify } from '@/utils/confirm';
 import { getAlertScheduledAt, getAlertSentAt } from '@/modules/alerts/utils/alertPresentation';
 import {
   getPaymentItemClientPrimary,
@@ -218,14 +218,18 @@ function PaymentItemDetailsCard({
         <View style={styles.actionRow}>
           <Pressable
             style={[styles.actionButton, styles.cancelButton, loading && styles.actionButtonDisabled]}
-            onPress={() => onStatusAction(item, 'Annulé')}
+            onPress={() => {
+              void onStatusAction(item, 'Annulé');
+            }}
             disabled={loading}
           >
             <Text style={styles.cancelButtonText}>Annulé</Text>
           </Pressable>
           <Pressable
             style={[styles.actionButton, styles.payButton, loading && styles.actionButtonDisabled]}
-            onPress={() => onStatusAction(item, 'Payé')}
+            onPress={() => {
+              void onStatusAction(item, 'Payé');
+            }}
             disabled={loading}
           >
             <Text style={styles.payButtonText}>Payé</Text>
@@ -279,29 +283,27 @@ export function AlertPaymentDetailsModal({ visible, alert, onClose }: AlertPayme
       });
 
       syncCaches((updatedItem ?? { ...item, status }) as PaymentItem);
-      NativeAlert.alert('Succès', `Le paiement ${getPaymentItemReference(item)} est maintenant “${status}”.`);
+      notify('Succès', `Le paiement ${getPaymentItemReference(item)} est maintenant “${status}”.`);
     } catch (mutationError) {
-      NativeAlert.alert('Erreur', getMutationErrorMessage(mutationError));
+      notify('Erreur', getMutationErrorMessage(mutationError));
     } finally {
       setPendingAction(null);
     }
   };
 
-  const requestStatusChange = (item: PaymentItem, status: TargetStatus) => {
-    NativeAlert.alert(
-      `Marquer ${getPaymentItemReference(item)} comme ${status} ?`,
-      `Le statut du payment-item lié à cette alerte sera mis à jour vers “${status}”.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: status,
-          style: status === 'Annulé' ? 'destructive' : 'default',
-          onPress: () => {
-            void handleStatusChange(item, status);
-          },
-        },
-      ],
-    );
+  const requestStatusChange = async (item: PaymentItem, status: TargetStatus) => {
+    const confirmed = await confirmAction({
+      title: `Marquer ${getPaymentItemReference(item)} comme ${status} ?`,
+      message: `Le statut du payment-item lié à cette alerte sera mis à jour vers “${status}”.`,
+      confirmLabel: status,
+      destructive: status === 'Annulé',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    await handleStatusChange(item, status);
   };
 
   const pendingItemId = updatePaymentItemMutation.isPending ? pendingAction?.item.id : null;
