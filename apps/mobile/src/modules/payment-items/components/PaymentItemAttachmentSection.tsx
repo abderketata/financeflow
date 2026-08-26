@@ -6,8 +6,20 @@
 // au paiement ont lieu à l'enregistrement du formulaire.
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useMemo, useState } from 'react';
-import { Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { PaymentItemAttachmentFile } from '@/modules/payment-items/services/paymentItem.service';
 import {
   buildPaymentItemAttachmentUrl,
@@ -17,6 +29,13 @@ import {
 import { StrapiUploadFile } from '@/types';
 import { brand, radius, spacing } from '@/theme/brand';
 import { notify } from '@/utils/confirm';
+import {
+  buildCapturedImageName,
+  compressImageForUpload,
+  IMAGE_MAX_DIMENSION,
+  IMAGE_TARGET_BYTES,
+  isCompressibleImage,
+} from '@/utils/imageCompression';
 
 export interface PaymentItemAttachmentDraft {
   keptAttachmentIds: number[];
@@ -52,6 +71,9 @@ export function PaymentItemAttachmentSection({
   const [keptAttachments, setKeptAttachments] = useState(existingAttachments);
   const [newFiles, setNewFiles] = useState<PaymentItemAttachmentFile[]>([]);
   const [viewerAttachment, setViewerAttachment] = useState<StrapiUploadFile | null>(null);
+  // Compression : une photo de 4 Mo demande un instant, les boutons se figent
+  // le temps du traitement pour éviter deux captures concurrentes.
+  const [isProcessing, setIsProcessing] = useState(false);
   const [viewerScale, setViewerScale] = useState(1);
   const [viewerRotation, setViewerRotation] = useState(0);
   const initialAttachmentIds = useMemo(
@@ -105,6 +127,119 @@ export function PaymentItemAttachmentSection({
     });
   };
 
+  // L'appareil photo et la galerie n'existent que sur l'appareil : en build web,
+  // le sélecteur de fichiers du navigateur couvre déjà les deux usages.
+  const supportsDeviceCapture = Platform.OS !== 'web';
+
+  /** Compresse ce qui est une image, laisse passer le reste (PDF, etc.). */
+  const toAttachmentFile = async (file: PaymentItemAttachmentFile): Promise<PaymentItemAttachmentFile> => {
+    // Build web : c'est l'objet `File` qui part dans le FormData, la
+    // manipulation locale ne servirait à rien.
+    if (file.file || !isCompressibleImage(file.mime, file.name)) {
+      return file;
+    }
+
+    const compressed = await compressImageForUpload({
+      uri: file.uri,
+      name: file.name,
+      mime: file.mime,
+      size: file.size,
+    });
+
+    return { uri: compressed.uri, name: compressed.name, mime: compressed.mime, size: compressed.size };
+  };
+
+  const addImageAssets = async (assets: ImagePicker.ImagePickerAsset[], namePrefix: string) => {
+    setIsProcessing(true);
+
+    try {
+      const files = await Promise.all(
+        assets.map(async (asset, index) => {
+          const compressed = await compressImageForUpload({
+            uri: asset.uri,
+            // `fileName` n'est renseigné que sur iOS : ailleurs on horodate.
+            name: asset.fileName ?? buildCapturedImageName(index ? `${namePrefix}-${index + 1}` : namePrefix),
+            mime: 'image/jpeg',
+            width: asset.width,
+            height: asset.height,
+            size: asset.fileSize,
+          });
+
+          return {
+            uri: compressed.uri,
+            name: compressed.name,
+            mime: compressed.mime,
+            size: compressed.size,
+          } as PaymentItemAttachmentFile;
+        }),
+      );
+
+      addFiles(files);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCapturePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+      if (!permission.granted) {
+        notify(
+          'Appareil photo',
+          "L'accès à l'appareil photo a été refusé. Autorisez-le dans les réglages du téléphone pour photographier un justificatif.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        exif: false,
+        // La compression fine est faite ensuite : ici on garde de la marge
+        // pour que le redimensionnement n'ait pas à travailler sur du flou.
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      await addImageAssets(result.assets, 'photo');
+    } catch (error) {
+      notify('Appareil photo', "L'appareil photo n'a pas pu être ouvert.");
+    }
+  };
+
+  const handlePickImages = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        notify(
+          'Galerie',
+          "L'accès aux photos a été refusé. Autorisez-le dans les réglages du téléphone pour joindre une image.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        exif: false,
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets?.length) {
+        return;
+      }
+
+      await addImageAssets(result.assets, 'image');
+    } catch (error) {
+      notify('Galerie', "La galerie n'a pas pu être ouverte.");
+    }
+  };
+
   const handlePickFiles = async () => {
     try {
       // `multiple` n'est honoré qu'en build web ; sur mobile l'utilisateur
@@ -135,15 +270,23 @@ export function PaymentItemAttachmentSection({
         return;
       }
 
-      addFiles([
-        {
-          uri: result.uri,
-          name: result.name,
-          mime: result.mimeType,
-          size: result.size,
-          file: result.file,
-        },
-      ]);
+      setIsProcessing(true);
+
+      try {
+        // Une image piochée dans les fichiers pèse souvent plusieurs Mo :
+        // elle passe par la même compression que les captures.
+        addFiles([
+          await toAttachmentFile({
+            uri: result.uri,
+            name: result.name,
+            mime: result.mimeType,
+            size: result.size,
+            file: result.file,
+          }),
+        ]);
+      } finally {
+        setIsProcessing(false);
+      }
     } catch (error) {
       notify('Pièces jointes', "Le sélecteur de fichiers n'a pas pu être ouvert.");
     }
@@ -179,6 +322,7 @@ export function PaymentItemAttachmentSection({
   };
 
   const hasPendingChanges = keptAttachments.length !== existingAttachments.length || newFiles.length > 0;
+  const isBusy = Boolean(loading) || isProcessing;
 
   return (
     <View style={styles.section}>
@@ -190,19 +334,58 @@ export function PaymentItemAttachmentSection({
               ? 'Consultez, ajoutez ou retirez les pièces jointes du paiement.'
               : 'Ajoutez des fichiers à joindre à ce nouveau paiement.'}
           </Text>
+          {supportsDeviceCapture ? (
+            <Text style={styles.sectionHint}>
+              Les photos sont réduites automatiquement (max {IMAGE_MAX_DIMENSION} px, ~{Math.round(IMAGE_TARGET_BYTES / 1024)} Ko)
+              tout en restant lisibles.
+            </Text>
+          ) : null}
         </View>
       </View>
 
-      <Pressable
-        style={[styles.addButton, loading && styles.addButtonDisabled]}
-        onPress={handlePickFiles}
-        disabled={loading}
-        accessibilityRole="button"
-        accessibilityLabel="Ajouter des fichiers"
-      >
-        <Ionicons name="cloud-upload-outline" size={17} color={brand.blue600} />
-        <Text style={styles.addButtonText}>Ajouter des fichiers</Text>
-      </Pressable>
+      <View style={styles.actionsRow}>
+        {supportsDeviceCapture ? (
+          <>
+            <Pressable
+              style={[styles.addButton, styles.addButtonFlex, isBusy && styles.addButtonDisabled]}
+              onPress={handleCapturePhoto}
+              disabled={isBusy}
+              accessibilityRole="button"
+              accessibilityLabel="Photographier un justificatif"
+            >
+              <Ionicons name="camera-outline" size={17} color={brand.blue600} />
+              <Text style={styles.addButtonText}>Photo</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.addButton, styles.addButtonFlex, isBusy && styles.addButtonDisabled]}
+              onPress={handlePickImages}
+              disabled={isBusy}
+              accessibilityRole="button"
+              accessibilityLabel="Choisir une image dans la galerie"
+            >
+              <Ionicons name="images-outline" size={17} color={brand.blue600} />
+              <Text style={styles.addButtonText}>Galerie</Text>
+            </Pressable>
+          </>
+        ) : null}
+        <Pressable
+          style={[styles.addButton, styles.addButtonFlex, isBusy && styles.addButtonDisabled]}
+          onPress={handlePickFiles}
+          disabled={isBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Ajouter des fichiers"
+        >
+          <Ionicons name="document-attach-outline" size={17} color={brand.blue600} />
+          <Text style={styles.addButtonText}>{supportsDeviceCapture ? 'Fichier' : 'Ajouter des fichiers'}</Text>
+        </Pressable>
+      </View>
+
+      {isProcessing ? (
+        <View style={styles.processingRow}>
+          <ActivityIndicator size="small" color={brand.blue600} />
+          <Text style={styles.processingText}>Compression de l'image…</Text>
+        </View>
+      ) : null}
 
       {!keptAttachments.length && !newFiles.length ? (
         <Text style={styles.emptyText}>Aucune pièce jointe sélectionnée.</Text>
@@ -404,6 +587,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: brand.slate500,
   },
+  sectionHint: {
+    marginTop: 4,
+    fontSize: 11.5,
+    color: brand.slate400,
+    lineHeight: 16,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -414,6 +608,22 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: brand.white,
     paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  addButtonFlex: {
+    flexGrow: 1,
+    flexBasis: 96,
+  },
+  processingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  processingText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: brand.slate600,
   },
   addButtonDisabled: {
     opacity: 0.6,

@@ -1,3 +1,29 @@
+/**
+ * Retire les déclarations de champs de classe purement typées avant que les
+ * plugins de champs de classe ne les voient.
+ *
+ * TypeScript n'émet rien pour `subscribe!: Subscribable['subscribe']` : c'est
+ * une simple annotation de type. `@babel/plugin-transform-class-properties`, lui,
+ * en fait une vraie affectation `this.subscribe = void 0` dans le constructeur.
+ * Sur une sous-classe, ce champ masque alors la méthode héritée du prototype.
+ *
+ * Le visiteur porte sur `Class` et non sur `ClassProperty` : Babel visite le
+ * parent avant l'enfant, si bien qu'un visiteur `ClassProperty` passerait APRÈS
+ * la transformation de la classe entière et n'aurait plus rien à retirer.
+ */
+const stripTypeOnlyClassFields = () => ({
+  name: 'strip-type-only-class-fields',
+  visitor: {
+    Class(path) {
+      path.get('body.body').forEach((member) => {
+        if (member.isClassProperty() && !member.node.value && !member.node.decorators?.length) {
+          member.remove();
+        }
+      });
+    },
+  },
+});
+
 module.exports = function (api) {
   api.cache(true);
   return {
@@ -41,6 +67,14 @@ module.exports = function (api) {
       {
         test: /node_modules[\\/]@tanstack[\\/]/,
         plugins: [
+          // DOIT rester en premier : les plugins qui suivent transformeraient les
+          // déclarations purement typées en affectations. `InfiniteQueryObserver`
+          // redéclare ainsi `subscribe`, `getCurrentResult` et `fetch` pour en
+          // affiner le type ; transformées, ces trois déclarations masquaient les
+          // méthodes héritées de `QueryObserver` et le premier rendu d'un écran
+          // utilisant `useInfiniteQuery` (Chèques / Traites) plantait sur
+          // « observer.getCurrentResult is not a function ».
+          stripTypeOnlyClassFields,
           ['@babel/plugin-transform-private-methods', { loose: true }],
           ['@babel/plugin-transform-private-property-in-object', { loose: true }],
           ['@babel/plugin-transform-class-properties', { loose: true }]

@@ -23,6 +23,13 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Flux Financier utilise l'appareil photo pour photographier un chèque, une traite ou un justificatif de paiement.",
+          "photosPermission": "Flux Financier accède à vos photos pour joindre un justificatif à un paiement."
+        }
       ]
     ],
     "extra": {
