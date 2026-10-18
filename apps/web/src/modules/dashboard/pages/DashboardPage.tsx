@@ -6,7 +6,7 @@ import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsAct
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
-import { addWeeks, endOfWeek, format, isSameWeek, startOfWeek, startOfYear } from 'date-fns';
+import { addMonths, addWeeks, endOfWeek, format, isSameWeek, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Box,
@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { useDashboard, useMonthlyWindow } from '@/modules/dashboard/hooks/useDashboard';
+import { MONTHLY_WINDOW_MONTHS_BEFORE } from '@/modules/dashboard/services/dashboard.service';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/components/MonthlyCreditDebitComparisonChart';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
@@ -46,9 +47,13 @@ export default function DashboardPage() {
   const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
   const { data, isLoading, isError, refetch } = useDashboard(selectedWeekStart);
   const defaultCurrency = useDefaultCurrency();
-  // Chaque graphique mensuel a sa propre fenêtre de 12 mois, Janv → Déc de l'année en cours au départ.
-  const operationsWindow = useMonthlyWindow(startOfYear(currentDate));
-  const comparisonWindow = useMonthlyWindow(startOfYear(currentDate));
+  // Chaque graphique mensuel a sa propre fenêtre de 12 mois : 4 mois avant le mois en cours, celui-ci et 7 après au départ.
+  const initialMonthlyWindowStart = useMemo(
+    () => addMonths(startOfMonth(currentDate), -MONTHLY_WINDOW_MONTHS_BEFORE),
+    [currentDate],
+  );
+  const operationsWindow = useMonthlyWindow(initialMonthlyWindowStart);
+  const comparisonWindow = useMonthlyWindow(initialMonthlyWindowStart);
 
   const firstNavigableWeek = useMemo(() => startOfWeek(startOfYear(currentDate), { weekStartsOn: 1 }), [currentDate]);
   const lastNavigableWeek = useMemo(() => startOfWeek(new Date(currentDate.getFullYear(), 11, 31), { weekStartsOn: 1 }), [currentDate]);

@@ -128,6 +128,11 @@ const DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE = 250;
 export const MONTHLY_WINDOW_LENGTH = 12;
 /** Pas de décalage des boutons « − 4 mois » / « + 4 mois ». */
 export const MONTHLY_WINDOW_SHIFT = 4;
+/**
+ * Mois affichés avant le mois en cours à l'ouverture : 4 avant + mois en cours
+ * + 7 après = {@link MONTHLY_WINDOW_LENGTH}.
+ */
+export const MONTHLY_WINDOW_MONTHS_BEFORE = 4;
 
 export interface DashboardDataset {
   year: number;

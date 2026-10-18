@@ -16,6 +16,7 @@ import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOper
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
 import { PaymentItemDetailsModal } from '@/modules/payment-items/components/PaymentItemDetailsModal';
 import { useDashboard, useMonthlyWindow } from '@/modules/dashboard/hooks/useDashboard';
+import { MONTHLY_WINDOW_MONTHS_BEFORE } from '@/modules/dashboard/services/dashboard.service';
 import { getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { initNotifications } from '@/services/notifications/expoNotifications';
@@ -87,9 +88,13 @@ export function DashboardScreen() {
 
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(selectedWeekStart);
   const { data: settings } = useSettings();
-  // Chaque graphique mensuel a sa propre fenêtre de 12 mois, Janv → Déc de l'année en cours au départ.
-  const operationsWindow = useMonthlyWindow(new Date(today.getFullYear(), 0, 1));
-  const comparisonWindow = useMonthlyWindow(new Date(today.getFullYear(), 0, 1));
+  // Chaque graphique mensuel a sa propre fenêtre de 12 mois : 4 mois avant le mois en cours, celui-ci et 7 après au départ.
+  const initialMonthlyWindowStart = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth() - MONTHLY_WINDOW_MONTHS_BEFORE, 1),
+    [today],
+  );
+  const operationsWindow = useMonthlyWindow(initialMonthlyWindowStart);
+  const comparisonWindow = useMonthlyWindow(initialMonthlyWindowStart);
 
   // Bornes de navigation : l'année civile en cours, comme sur le web.
   const firstNavigableWeek = useMemo(() => startOfWeek(new Date(today.getFullYear(), 0, 1)), [today]);
