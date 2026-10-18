@@ -276,7 +276,7 @@ export const dashboardService = {
       overdueCount: overdue.length,
       unreadAlertsCount: dataset.unreadAlertsCount,
       weeklyChart,
-      upcomingPaymentItems: dueThisWeek.slice(0, 5)
+      upcomingPaymentItems: dueThisWeek
     };
   }
 };

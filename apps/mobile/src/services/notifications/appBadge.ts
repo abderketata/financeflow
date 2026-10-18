@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { areNotificationsSupported } from '@/services/notifications/expoNotifications';
@@ -20,9 +21,51 @@ import { areNotificationsSupported } from '@/services/notifications/expoNotifica
 const UNREAD_SUMMARY_ID = 'financeflow-unread-alerts';
 const UNREAD_SUMMARY_TYPE = 'unread-alerts-summary';
 const BADGE_CHANNEL_ID = 'financeflow-unread';
+const BADGE_STATE_KEY = 'financeflow_badge_state';
+
+/**
+ * Heure du rappel quotidien : à partir de 8h, la première mise à jour de la
+ * journée republie la pastille même si le nombre n'a pas changé — elle
+ * réapparaît donc chaque matin, y compris si la notification a été balayée.
+ */
+export const MORNING_REFRESH_HOUR = 8;
 
 let channelReady: Promise<unknown> | null = null;
-let lastPublishedCount: number | null = null;
+
+/**
+ * Dernier nombre publié et jour du dernier rappel de 8h. Conservé sur
+ * l'appareil et non en mémoire : la tâche d'arrière-plan s'exécute souvent
+ * dans un nouveau contexte JS, qui sans cela republierait toutes les
+ * 15 minutes une notification que l'utilisateur vient de balayer.
+ */
+type BadgeState = { count: number | null; morningDay: string | null };
+
+let badgeState: BadgeState | null = null;
+
+const loadBadgeState = async (): Promise<BadgeState> => {
+  if (badgeState) {
+    return badgeState;
+  }
+
+  try {
+    const raw = await SecureStore.getItemAsync(BADGE_STATE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Partial<BadgeState>) : {};
+    badgeState = { count: parsed.count ?? null, morningDay: parsed.morningDay ?? null };
+  } catch {
+    badgeState = { count: null, morningDay: null };
+  }
+
+  return badgeState;
+};
+
+const saveBadgeState = async (next: BadgeState) => {
+  badgeState = next;
+  await SecureStore.setItemAsync(BADGE_STATE_KEY, JSON.stringify(next)).catch(() => undefined);
+};
+
+/** Jour local au format AAAA-MM-JJ. */
+const toDayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 /** Canal silencieux (sans son ni bandeau) mais autorisé à marquer l'icône. */
 const ensureBadgeChannel = () => {
@@ -84,9 +127,14 @@ export async function setAppBadgeCount(count: number) {
   }
 
   const safeCount = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  const now = new Date();
+  const today = toDayKey(now);
+  const state = await loadBadgeState();
+  const morningRefreshDue = now.getHours() >= MORNING_REFRESH_HOUR && state.morningDay !== today;
 
-  // Republier la même valeur referait apparaître la notification déjà balayée.
-  if (safeCount === lastPublishedCount) {
+  // Republier la même valeur referait apparaître la notification déjà balayée
+  // — ce qu'on ne veut qu'une fois par jour, au rappel de 8h.
+  if (safeCount === state.count && !morningRefreshDue) {
     return true;
   }
 
@@ -97,7 +145,10 @@ export async function setAppBadgeCount(count: number) {
         : await Notifications.setBadgeCountAsync(safeCount);
 
     if (applied) {
-      lastPublishedCount = safeCount;
+      await saveBadgeState({
+        count: safeCount,
+        morningDay: morningRefreshDue ? today : state.morningDay,
+      });
     }
 
     return applied;

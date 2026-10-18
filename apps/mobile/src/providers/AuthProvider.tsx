@@ -4,6 +4,7 @@ import { authService } from '@/services/api/auth';
 import { subscribeToAuthSessionInvalidation } from '@/services/api/authSession';
 import { setStoredUser } from '@/services/api/authStorage';
 import { clearAppBadgeCount } from '@/services/notifications/appBadge';
+import { unregisterAlertsBadgeTask } from '@/services/notifications/alertsBadgeTask';
 
 interface AuthContextValue {
   user: any;
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authService.logout();
       queryClient.clear();
       // Plus de session : la pastille de l'icône ne doit plus annoncer d'alertes.
+      await unregisterAlertsBadgeTask();
       await clearAppBadgeCount();
       setUser(null);
     }

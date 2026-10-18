@@ -31,6 +31,9 @@ const MONTHS = [
 ];
 const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
+/** Nombre d'échéances affichées avant le bouton « Voir les autres », comme sur le web. */
+const DUE_ITEMS_PREVIEW_COUNT = 5;
+
 const startOfWeek = (date: Date) => {
   const result = new Date(date);
   const day = result.getDay();
@@ -85,6 +88,8 @@ export function DashboardScreen() {
   const currentWeekStart = useMemo(() => startOfWeek(today), [today]);
   const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
   const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
+  // Semaine dont la liste d'échéances est dépliée : changer de semaine replie automatiquement.
+  const [expandedDueWeek, setExpandedDueWeek] = useState<number | null>(null);
 
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(selectedWeekStart);
   const { data: settings } = useSettings();
@@ -136,6 +141,11 @@ export function DashboardScreen() {
   }
 
   const currency = settings?.defaultCurrency ?? settings?.currency ?? 'TND';
+
+  const dueItems = data.upcomingPaymentItems;
+  const showAllDueItems = expandedDueWeek === selectedWeekStart.getTime();
+  const hiddenDueItemsCount = Math.max(dueItems.length - DUE_ITEMS_PREVIEW_COUNT, 0);
+  const visibleDueItems = showAllDueItems ? dueItems : dueItems.slice(0, DUE_ITEMS_PREVIEW_COUNT);
 
   const refreshAll = () => {
     refetch();
@@ -243,10 +253,10 @@ export function DashboardScreen() {
         <AppCard>
           <SectionTitle
             title="Échéances de la semaine"
-            subtitle={`${weekLabel} • ${data.upcomingPaymentItems.length} élément${data.upcomingPaymentItems.length !== 1 ? 's' : ''}`}
+            subtitle={`${weekLabel} • ${dueItems.length} élément${dueItems.length !== 1 ? 's' : ''}`}
           />
-          {data.upcomingPaymentItems.length ? (
-            data.upcomingPaymentItems.map((item, index) => {
+          {dueItems.length ? (
+            visibleDueItems.map((item, index) => {
               const isIn = item.direction === 'IN';
               const amountColor = isIn ? brand.credit : brand.danger;
               const status = String(getPaymentItemStatusLabel(item.status));
@@ -300,6 +310,21 @@ export function DashboardScreen() {
               message="Pas d'échéances prévues cette semaine"
               icon="calendar-outline"
             />
+          )}
+          {hiddenDueItemsCount > 0 && (
+            <Pressable
+              onPress={() => setExpandedDueWeek(showAllDueItems ? null : selectedWeekStart.getTime())}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showAllDueItems }}
+              style={({ pressed }) => [styles.dueToggle, pressed && styles.dueTogglePressed]}
+            >
+              <Text style={styles.dueToggleText}>
+                {showAllDueItems
+                  ? 'Réduire'
+                  : `Voir ${hiddenDueItemsCount === 1 ? "l'autre échéance" : `les ${hiddenDueItemsCount} autres échéances`}`}
+              </Text>
+              <Ionicons name={showAllDueItems ? 'chevron-up' : 'chevron-down'} size={15} color={brand.blue600} />
+            </Pressable>
           )}
         </AppCard>
 
@@ -468,5 +493,23 @@ const styles = StyleSheet.create({
   },
   dueDetailsButtonPressed: {
     backgroundColor: brand.blue100,
+  },
+  dueToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    borderTopWidth: 1,
+    borderTopColor: brand.slate100,
+  },
+  dueTogglePressed: {
+    opacity: 0.6,
+  },
+  dueToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: brand.blue600,
   },
 });

@@ -20,19 +20,59 @@ if (areNotificationsSupported) {
   });
 }
 
+let permissionRequest: Promise<boolean> | null = null;
+
+/** Lecture seule : n'affiche jamais la boîte de dialogue. */
+export async function hasNotificationPermission() {
+  if (!areNotificationsSupported) {
+    return false;
+  }
+
+  try {
+    return (await Notifications.getPermissionsAsync()).granted;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Demande l'autorisation d'afficher des notifications (Android 13+, iOS).
+ * Plusieurs écrans l'appellent au démarrage : la demande en cours est partagée
+ * pour n'afficher qu'une seule boîte de dialogue.
+ */
+export function ensureNotificationPermission() {
+  if (!areNotificationsSupported) {
+    return Promise.resolve(false);
+  }
+
+  if (!permissionRequest) {
+    permissionRequest = (async () => {
+      const permissions = await Notifications.getPermissionsAsync();
+      if (permissions.granted) {
+        return true;
+      }
+
+      const result = await Notifications.requestPermissionsAsync();
+      return result.granted;
+    })()
+      .catch(() => false)
+      .finally(() => {
+        permissionRequest = null;
+      });
+  }
+
+  return permissionRequest;
+}
+
 /** Request permissions and create notification channel */
 export async function initNotifications() {
   if (!areNotificationsSupported) {
     return null;
   }
 
-  const permissions = await Notifications.getPermissionsAsync();
-  if (!permissions.granted) {
-    const result = await Notifications.requestPermissionsAsync();
-    if (!result.granted) {
-      console.warn('[FinanceFlow] Notification permissions denied');
-      return null;
-    }
+  if (!(await ensureNotificationPermission())) {
+    console.warn('[FinanceFlow] Notification permissions denied');
+    return null;
   }
 
   if (Platform.OS === 'android') {

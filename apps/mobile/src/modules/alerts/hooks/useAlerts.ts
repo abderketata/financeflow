@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { AlertItem } from '@/types';
-import { alertService } from '@/modules/alerts/services/alert.service';
+import { ALERTS_PAGE_SIZE, alertService, countUnreadAlerts } from '@/modules/alerts/services/alert.service';
 import { setAppBadgeCount } from '@/services/notifications/appBadge';
+import { registerAlertsBadgeTask } from '@/services/notifications/alertsBadgeTask';
+import { ensureNotificationPermission, hasNotificationPermission } from '@/services/notifications/expoNotifications';
 
 const queryKey = ['mobile-alerts'];
 
@@ -18,12 +20,6 @@ const alertPopulate = {
   paymentItems: { populate: '*' },
 } as const;
 
-/**
- * Sans `pagination`, Strapi renvoie 25 alertes au maximum et les compteurs
- * « Toutes / Non lues / Lues » mentent dès que le seuil est franchi.
- */
-const ALERTS_PAGE_SIZE = 100;
-
 export const useAlerts = () =>
   useQuery({
     queryKey,
@@ -35,8 +31,7 @@ export const useAlerts = () =>
       }),
   });
 
-/** Nombre d'alertes non lues — source unique de la pastille et de l'onglet. */
-export const countUnreadAlerts = (alerts: AlertItem[] = []) => alerts.filter((alert) => !alert.isRead).length;
+export { countUnreadAlerts };
 
 /**
  * Tient à jour le nombre d'alertes non lues et le reporte sur l'icône de
@@ -46,24 +41,46 @@ export const countUnreadAlerts = (alerts: AlertItem[] = []) => alerts.filter((al
  *
  * Le retour au premier plan relance la requête : une alerte arrivée pendant
  * que l'application dormait doit se voir sur l'icône dès la réouverture.
+ * Application fermée, c'est la tâche d'arrière-plan enregistrée ici
+ * (`alertsBadgeTask`) qui prend le relais.
  */
 export const useUnreadAlertsBadge = () => {
-  const { data: alerts = [], refetch } = useAlerts();
+  const { data: alerts, refetch } = useAlerts();
   const unreadCount = countUnreadAlerts(alerts);
+  // Sans autorisation, Android refuse la notification qui porte la pastille.
+  const [notificationsAllowed, setNotificationsAllowed] = useState(false);
 
-  const unreadCountRef = useRef(unreadCount);
-  unreadCountRef.current = unreadCount;
+  const unreadCountRef = useRef<number | null>(null);
+  unreadCountRef.current = alerts ? unreadCount : null;
 
   useEffect(() => {
-    void setAppBadgeCount(unreadCount);
-  }, [unreadCount]);
+    // Au premier lancement, les alertes arrivent souvent avant la réponse à la
+    // boîte « Autoriser les notifications » : la pastille est donc (re)posée
+    // dès que l'autorisation tombe, pas seulement quand le nombre change.
+    void ensureNotificationPermission().then(setNotificationsAllowed);
+    void registerAlertsBadgeTask();
+  }, []);
+
+  useEffect(() => {
+    // Tant que la liste n'est pas chargée, `0` effacerait une pastille juste.
+    if (alerts && notificationsAllowed) {
+      void setAppBadgeCount(unreadCount);
+    }
+  }, [alerts, notificationsAllowed, unreadCount]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         // Nouvel essai si la pastille n'avait pas pu être posée (permission
-        // accordée entre-temps) ; sans effet si elle est déjà à jour.
-        void setAppBadgeCount(unreadCountRef.current);
+        // accordée depuis les réglages) ; sans effet si elle est déjà à jour.
+        // Simple lecture : redemander ici reposerait la question à chaque
+        // retour dans l'application après un refus.
+        void hasNotificationPermission().then((allowed) => {
+          setNotificationsAllowed(allowed);
+          if (allowed && unreadCountRef.current !== null) {
+            void setAppBadgeCount(unreadCountRef.current);
+          }
+        });
         void refetch();
       }
     });

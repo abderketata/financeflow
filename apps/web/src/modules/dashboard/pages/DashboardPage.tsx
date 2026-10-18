@@ -6,10 +6,13 @@ import NotificationsActiveRoundedIcon from '@mui/icons-material/NotificationsAct
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import { addMonths, addWeeks, endOfWeek, format, isSameWeek, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Divider,
@@ -40,11 +43,16 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { PaymentItem } from '@/types/domain';
 import { brandColors, iconBox, numericFont } from '@/app/theme';
 
+/** Nombre d'échéances affichées avant le bouton « Voir les autres ». */
+const DUE_ITEMS_PREVIEW_COUNT = 5;
+
 export default function DashboardPage() {
   const currentDate = useMemo(() => new Date(), []);
   const currentWeekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
   const [selectedWeekStart, setSelectedWeekStart] = useState(currentWeekStart);
   const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
+  // Semaine dont la liste d'échéances est dépliée : changer de semaine replie automatiquement.
+  const [expandedDueWeek, setExpandedDueWeek] = useState<number | null>(null);
   const { data, isLoading, isError, refetch } = useDashboard(selectedWeekStart);
   const defaultCurrency = useDefaultCurrency();
   // Chaque graphique mensuel a sa propre fenêtre de 12 mois : 4 mois avant le mois en cours, celui-ci et 7 après au départ.
@@ -90,6 +98,11 @@ export default function DashboardPage() {
 
   if (isLoading) return <LoadingState message="Chargement du tableau de bord..." />;
   if (isError || !data) return <ErrorState onRetry={() => refetch()} message="Impossible de charger le dashboard." />;
+
+  const dueItems = data.upcomingPaymentItems;
+  const showAllDueItems = expandedDueWeek === selectedWeekStart.getTime();
+  const hiddenDueItemsCount = Math.max(dueItems.length - DUE_ITEMS_PREVIEW_COUNT, 0);
+  const visibleDueItems = showAllDueItems ? dueItems : dueItems.slice(0, DUE_ITEMS_PREVIEW_COUNT);
 
   return (
     <>
@@ -177,7 +190,7 @@ export default function DashboardPage() {
                       Échéances de la semaine
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      {selectedWeekLabel} • {data.upcomingPaymentItems.length} élément{data.upcomingPaymentItems.length !== 1 ? 's' : ''}
+                      {selectedWeekLabel} • {dueItems.length} élément{dueItems.length !== 1 ? 's' : ''}
                     </Typography>
                   </Box>
                 </Stack>
@@ -185,85 +198,103 @@ export default function DashboardPage() {
               </Stack>
               <Divider sx={{ mb: 1.5, borderColor: alpha(brandColors.slate[200], 0.6) }} />
 
-              {data.upcomingPaymentItems.length ? (
-                <Stack spacing={0} divider={<Divider />}>
-                  {data.upcomingPaymentItems.map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        py: 1.5,
-                        px: 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.5,
-                        transition: 'all 0.2s ease',
-                        borderRadius: '8px',
-                        '&:hover': { backgroundColor: alpha(brandColors.info, 0.03), transform: 'translateX(2px)' },
-                      }}
-                    >
+              {dueItems.length ? (
+                <>
+                  <Stack spacing={0} divider={<Divider />}>
+                    {visibleDueItems.map((item) => (
                       <Box
+                        key={item.id}
                         sx={{
-                          width: 4,
-                          height: 38,
-                          borderRadius: 2,
-                          flexShrink: 0,
-                          background:
-                            item.direction === 'IN'
-                              ? `linear-gradient(180deg, ${brandColors.credit}, ${alpha(brandColors.credit, 0.25)})`
-                              : `linear-gradient(180deg, ${brandColors.debit}, ${alpha(brandColors.debit, 0.25)})`,
-                        }}
-                      />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.2 }}>
-                          <Typography
-                            sx={{ fontWeight: 600, fontSize: '0.85rem', color: 'text.primary' }}
-                            noWrap
-                          >
-                            {item.reference}
-                          </Typography>
-                          <StatusChip status={item.status} />
-                        </Stack>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <AccessTimeRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                            {formatDate(item.dueDate)} • {item.type}
-                          </Typography>
-                        </Stack>
-                      </Box>
-                      <Typography
-                        sx={{
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          fontFamily: numericFont,
-                          color: item.direction === 'IN' ? brandColors.credit : brandColors.debit,
-                          flexShrink: 0,
+                          py: 1.5,
+                          px: 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          transition: 'all 0.2s ease',
+                          borderRadius: '8px',
+                          '&:hover': { backgroundColor: alpha(brandColors.info, 0.03), transform: 'translateX(2px)' },
                         }}
                       >
-                        {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount, defaultCurrency)}
-                      </Typography>
-                      <Tooltip title="Voir les détails de l’opération" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => setDetailsPaymentItem(item)}
+                        <Box
                           sx={{
+                            width: 4,
+                            height: 38,
+                            borderRadius: 2,
                             flexShrink: 0,
-                            width: 30,
-                            height: 30,
-                            color: brandColors.blue[600],
-                            border: `1px solid ${alpha(brandColors.blue[600], 0.2)}`,
-                            backgroundColor: alpha(brandColors.blue[600], 0.04),
-                            '&:hover': {
-                              borderColor: alpha(brandColors.blue[600], 0.35),
-                              backgroundColor: alpha(brandColors.blue[600], 0.1),
-                            },
+                            background:
+                              item.direction === 'IN'
+                                ? `linear-gradient(180deg, ${brandColors.credit}, ${alpha(brandColors.credit, 0.25)})`
+                                : `linear-gradient(180deg, ${brandColors.debit}, ${alpha(brandColors.debit, 0.25)})`,
+                          }}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.2 }}>
+                            <Typography
+                              sx={{ fontWeight: 600, fontSize: '0.85rem', color: 'text.primary' }}
+                              noWrap
+                            >
+                              {item.reference}
+                            </Typography>
+                            <StatusChip status={item.status} />
+                          </Stack>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <AccessTimeRoundedIcon sx={{ fontSize: 13, color: 'text.secondary' }} />
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {formatDate(item.dueDate)} • {item.type}
+                            </Typography>
+                          </Stack>
+                        </Box>
+                        <Typography
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            fontFamily: numericFont,
+                            color: item.direction === 'IN' ? brandColors.credit : brandColors.debit,
+                            flexShrink: 0,
                           }}
                         >
-                          <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  ))}
-                </Stack>
+                          {item.direction === 'IN' ? '+' : '-'}{formatCurrency(item.amount, defaultCurrency)}
+                        </Typography>
+                        <Tooltip title="Voir les détails de l’opération" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() => setDetailsPaymentItem(item)}
+                            sx={{
+                              flexShrink: 0,
+                              width: 30,
+                              height: 30,
+                              color: brandColors.blue[600],
+                              border: `1px solid ${alpha(brandColors.blue[600], 0.2)}`,
+                              backgroundColor: alpha(brandColors.blue[600], 0.04),
+                              '&:hover': {
+                                borderColor: alpha(brandColors.blue[600], 0.35),
+                                backgroundColor: alpha(brandColors.blue[600], 0.1),
+                              },
+                            }}
+                          >
+                            <VisibilityRoundedIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ))}
+                  </Stack>
+                  {hiddenDueItemsCount > 0 && (
+                    <>
+                      <Divider sx={{ mt: 0.5, borderColor: alpha(brandColors.slate[200], 0.6) }} />
+                      <Button
+                        fullWidth
+                        size="small"
+                        onClick={() => setExpandedDueWeek(showAllDueItems ? null : selectedWeekStart.getTime())}
+                        endIcon={showAllDueItems ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
+                        sx={{ mt: 1, fontWeight: 600, color: brandColors.blue[600] }}
+                      >
+                        {showAllDueItems
+                          ? 'Réduire'
+                          : `Voir ${hiddenDueItemsCount === 1 ? "l'autre échéance" : `les ${hiddenDueItemsCount} autres échéances`}`}
+                      </Button>
+                    </>
+                  )}
+                </>
               ) : (
                 <EmptyState
                   title="Aucune échéance"

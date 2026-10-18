@@ -6,6 +6,15 @@ import { unwrapCollection, unwrapSingle } from '@/utils/strapi';
 
 const alertCrudService = createCrudService<AlertItem>('/alerts');
 
+/**
+ * Sans `pagination`, Strapi renvoie 25 alertes au maximum et les compteurs
+ * « Toutes / Non lues / Lues » mentent dès que le seuil est franchi.
+ */
+export const ALERTS_PAGE_SIZE = 100;
+
+/** Nombre d'alertes non lues — source unique de la pastille et de l'onglet. */
+export const countUnreadAlerts = (alerts: AlertItem[] = []) => alerts.filter((alert) => !alert.isRead).length;
+
 const normalizeRelationCollection = (value?: RelationCollection<PaymentItem>): PaymentItem[] => {
   if (!value) {
 	return [];
@@ -75,6 +84,22 @@ export const alertService = {
 	});
 
 	return getPaginationTotal(data.meta);
+  },
+  /**
+   * Même fenêtre et même règle que la liste de l'écran « Alertes » (une alerte
+   * sans `isRead` compte comme non lue), réduite au seul champ utile : la
+   * pastille posée en arrière-plan doit afficher le même nombre que l'onglet.
+   * `countUnread` filtre côté serveur sur `isRead = false` et ignorerait les
+   * alertes dont le champ est vide.
+   */
+  async countUnreadInList() {
+	const alerts = await alertCrudService.list({
+	  fields: ['isRead'],
+	  pagination: { page: 1, pageSize: ALERTS_PAGE_SIZE },
+	  sort: ['id:desc'],
+	});
+
+	return countUnreadAlerts(alerts);
   },
   async getPaymentItems(alertId: number): Promise<PaymentItem[]> {
 	const alert = await alertCrudService.get(alertId, {
