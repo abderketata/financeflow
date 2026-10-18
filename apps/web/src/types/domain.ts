@@ -177,7 +177,6 @@ export interface DashboardSummary {
   overdueCount: number;
   unreadAlertsCount: number;
   weeklyChart: ChartPoint[];
-  monthlyChart: ChartPoint[];
   upcomingPaymentItems: PaymentItem[];
 }
 

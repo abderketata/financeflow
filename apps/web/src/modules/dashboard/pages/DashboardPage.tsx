@@ -27,10 +27,11 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatusChip } from '@/components/ui/StatusChip';
-import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
+import { useDashboard, useMonthlyWindow } from '@/modules/dashboard/hooks/useDashboard';
 import { useDefaultCurrency } from '@/modules/settings/hooks/useDefaultCurrency';
 import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/components/MonthlyCreditDebitComparisonChart';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
+import { MonthWindowNavigator } from '@/modules/dashboard/components/MonthWindowNavigator';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
 import { PaymentItemDetailsDialog } from '@/modules/payment-items/components/PaymentItemDetailsDialog';
@@ -45,6 +46,9 @@ export default function DashboardPage() {
   const [detailsPaymentItem, setDetailsPaymentItem] = useState<Partial<PaymentItem> | null>(null);
   const { data, isLoading, isError, refetch } = useDashboard(selectedWeekStart);
   const defaultCurrency = useDefaultCurrency();
+  // Chaque graphique mensuel a sa propre fenêtre de 12 mois, Janv → Déc de l'année en cours au départ.
+  const operationsWindow = useMonthlyWindow(startOfYear(currentDate));
+  const comparisonWindow = useMonthlyWindow(startOfYear(currentDate));
 
   const firstNavigableWeek = useMemo(() => startOfWeek(startOfYear(currentDate), { weekStartsOn: 1 }), [currentDate]);
   const lastNavigableWeek = useMemo(() => startOfWeek(new Date(currentDate.getFullYear(), 11, 31), { weekStartsOn: 1 }), [currentDate]);
@@ -73,6 +77,10 @@ export default function DashboardPage() {
       disableNext={!canGoNext}
       isCurrentWeek={isCurrentWeek}
     />
+  );
+
+  const renderMonthWindowNavigator = (monthWindow: ReturnType<typeof useMonthlyWindow>) => (
+    <MonthWindowNavigator label={monthWindow.label} onPrevious={monthWindow.showPrevious} onNext={monthWindow.showNext} />
   );
 
   if (isLoading) return <LoadingState message="Chargement du tableau de bord..." />;
@@ -264,12 +272,24 @@ export default function DashboardPage() {
 
         {/* Monthly chart */}
         <Grid item xs={12}>
-          <MonthlyOperationsChart data={data.monthlyChart} currency={defaultCurrency} />
+          <MonthlyOperationsChart
+            data={operationsWindow.data ?? []}
+            currency={defaultCurrency}
+            headerAction={renderMonthWindowNavigator(operationsWindow)}
+            loading={operationsWindow.isPending || operationsWindow.isPlaceholderData}
+            onRetry={operationsWindow.isError ? () => operationsWindow.refetch() : undefined}
+          />
         </Grid>
 
         {/* Monthly credit / debit comparison chart */}
         <Grid item xs={12}>
-          <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={defaultCurrency} />
+          <MonthlyCreditDebitComparisonChart
+            data={comparisonWindow.data ?? []}
+            currency={defaultCurrency}
+            headerAction={renderMonthWindowNavigator(comparisonWindow)}
+            loading={comparisonWindow.isPending || comparisonWindow.isPlaceholderData}
+            onRetry={comparisonWindow.isError ? () => comparisonWindow.refetch() : undefined}
+          />
         </Grid>
       </Grid>
 

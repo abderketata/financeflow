@@ -1,6 +1,6 @@
 import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import { Box, Card, CardContent, Divider, Stack, Typography, alpha } from '@mui/material';
-import { useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import {
   Bar,
   CartesianGrid,
@@ -15,6 +15,7 @@ import {
 import { ChartPoint } from '@/types/domain';
 import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
+import { ChartStatusOverlay } from '@/modules/dashboard/components/MonthWindowNavigator';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
   if (!active || !payload?.length) return null;
@@ -52,9 +53,16 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
 export function MonthlyCreditDebitComparisonChart({
   data,
   currency = 'TND',
+  headerAction,
+  loading = false,
+  onRetry,
 }: {
   data: ChartPoint[];
   currency?: string;
+  headerAction?: ReactNode;
+  loading?: boolean;
+  /** Fourni uniquement quand le chargement a échoué : affiche le message de relance. */
+  onRetry?: () => void;
 }) {
   const totalCredits = data.reduce((sum, point) => sum + Number(point.credit ?? 0), 0);
   const totalDebits = data.reduce((sum, point) => sum + Number(point.debit ?? 0), 0);
@@ -75,71 +83,76 @@ export function MonthlyCreditDebitComparisonChart({
                 Comparatif mensuel crédits / débits
               </Typography>
               <Typography variant="caption" sx={{ color: brandColors.slate[400] }}>
-                Deux courbes distinctes pour comparer les flux mois par mois sur l&apos;année
+                Deux courbes distinctes pour comparer les flux mois par mois sur la période affichée
               </Typography>
             </Box>
           </Stack>
+          {headerAction}
+        </Stack>
 
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: brandColors.credit }} />
-              <Typography variant="caption" sx={{ color: brandColors.slate[500] }}>
-                Crédits (colonnes) {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(totalCredits)}
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: brandColors.debit }} />
-              <Typography variant="caption" sx={{ color: brandColors.slate[500] }}>
-                Débits (ligne) {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(totalDebits)}
-              </Typography>
-            </Stack>
+        {/* Totaux de la fenêtre affichée */}
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: brandColors.credit }} />
+            <Typography variant="caption" sx={{ color: brandColors.slate[500] }}>
+              Crédits (colonnes) {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(totalCredits)}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: brandColors.debit }} />
+            <Typography variant="caption" sx={{ color: brandColors.slate[500] }}>
+              Débits (ligne) {new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(totalDebits)}
+            </Typography>
           </Stack>
         </Stack>
         <Divider sx={{ mb: 2.5, borderColor: alpha(brandColors.slate[200], 0.6) }} />
 
-        <ResponsiveContainer width="100%" height={340}>
-          <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={brandColors.slate[200]} vertical={false} />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 12, fill: brandColors.slate[400], fontWeight: 500 }}
-              axisLine={{ stroke: brandColors.slate[200] }}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: brandColors.slate[400], fontWeight: 500 }}
-              axisLine={false}
-              tickLine={false}
-              width={60}
-              domain={[yScale.min, yScale.max]}
-              ticks={yScale.ticks}
-              allowDataOverflow={false}
-              tickFormatter={formatCompactAmount}
-            />
-            <Tooltip content={<CustomTooltip currency={currency} />} />
-            <Legend
-              wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 14, color: brandColors.slate[600] }}
-              iconType="circle"
-              iconSize={8}
-            />
-            <Bar
-              dataKey="credit"
-              name="Crédits"
-              fill={alpha(brandColors.credit, 0.8)}
-              radius={[6, 6, 0, 0]}
-              maxBarSize={28}
-            />
-            <Line
-              type="monotone"
-              dataKey="debit"
-              name="Débits"
-              stroke={brandColors.debit}
-              strokeWidth={3}
-              dot={{ r: 3, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
-              activeDot={{ r: 5, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <Box sx={{ position: 'relative' }}>
+          <ResponsiveContainer width="100%" height={340}>
+            <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={brandColors.slate[200]} vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 12, fill: brandColors.slate[400], fontWeight: 500 }}
+                axisLine={{ stroke: brandColors.slate[200] }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: brandColors.slate[400], fontWeight: 500 }}
+                axisLine={false}
+                tickLine={false}
+                width={60}
+                domain={[yScale.min, yScale.max]}
+                ticks={yScale.ticks}
+                allowDataOverflow={false}
+                tickFormatter={formatCompactAmount}
+              />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
+              <Legend
+                wrapperStyle={{ fontSize: 13, fontWeight: 600, paddingTop: 14, color: brandColors.slate[600] }}
+                iconType="circle"
+                iconSize={8}
+              />
+              <Bar
+                dataKey="credit"
+                name="Crédits"
+                fill={alpha(brandColors.credit, 0.8)}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={28}
+              />
+              <Line
+                type="monotone"
+                dataKey="debit"
+                name="Débits"
+                stroke={brandColors.debit}
+                strokeWidth={3}
+                dot={{ r: 3, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 5, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <ChartStatusOverlay loading={loading} onRetry={onRetry} />
+        </Box>
       </CardContent>
     </Card>
   );

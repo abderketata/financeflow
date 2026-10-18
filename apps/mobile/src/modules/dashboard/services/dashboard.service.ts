@@ -23,6 +23,10 @@ const isBeforeNative = (left: Date, right: Date) => left.getTime() < right.getTi
 const isWithinIntervalNative = (date: Date, interval: { start: Date; end: Date }) => date.getTime() >= interval.start.getTime() && date.getTime() <= interval.end.getTime();
 const isSameDayNative = (left: Date, right: Date) => left.toDateString() === right.toDateString();
 const isSameMonthNative = (left: Date, right: Date) => left.getMonth() === right.getMonth() && left.getFullYear() === right.getFullYear();
+/** Premier jour du mois situé `count` mois après celui de `date` (négatif : avant). */
+const addMonthsNative = (date: Date, count: number) => new Date(date.getFullYear(), date.getMonth() + count, 1);
+const toIsoDateNative = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const parseDashboardDate = (value?: string | null) => {
   if (!value) {
@@ -43,6 +47,11 @@ const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû'
 const MONTH_TOOLTIP_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const DASHBOARD_PAYMENT_ITEM_FIELDS = ['referenceNumber', 'amount', 'direction', 'status', 'type', 'echeance'] as const;
 const DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE = 250;
+
+/** Nombre de mois affichés par les graphiques mensuels. */
+export const MONTHLY_WINDOW_LENGTH = 12;
+/** Pas de décalage des boutons « − 4 mois » / « + 4 mois ». */
+export const MONTHLY_WINDOW_SHIFT = 4;
 
 const sumByType = (items: Transaction[], operationType: 'DEBIT' | 'CREDIT') =>
   items.filter((item) => item.operationType === operationType).reduce((total, item) => total + Number(item.amount || 0), 0);
@@ -135,10 +144,47 @@ export interface DashboardDataset {
   unreadAlertsCount: number;
 }
 
+/** Effets dont l'échéance tombe dans les {@link MONTHLY_WINDOW_LENGTH} mois commençant à `windowStart`. */
+export interface MonthlyWindowDataset {
+  windowStart: Date;
+  paymentItems: PaymentItem[];
+}
+
 const normalizeDashboardPaymentItem = (item: PaymentItem): PaymentItem => ({
   ...item,
   reference: item.reference || item.referenceNumber || '',
 });
+
+/** Effets actifs (`supprimer: false`) dont l'échéance est comprise entre `from` et `to` (AAAA-MM-JJ) inclus. */
+const listDashboardPaymentItems = async (from: string, to: string, options?: { signal?: AbortSignal }) => {
+  const paymentItems = await paymentItemService.listAllActive({
+    fields: [...DASHBOARD_PAYMENT_ITEM_FIELDS],
+    filters: {
+      echeance: {
+        $gte: from,
+        $lte: to,
+      },
+    },
+    sort: ['id:desc'],
+    pagination: {
+      page: 1,
+      pageSize: DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE,
+      withCount: true,
+    },
+  }, options);
+
+  return paymentItems.map(normalizeDashboardPaymentItem);
+};
+
+const toDatedTransactions = (paymentItems: PaymentItem[]): DatedTransaction[] =>
+  mapPaymentItemsToTransactions(paymentItems)
+    .map((item) => ({ item, parsedDate: parseDashboardDate(item.operationDate) }))
+    .filter((entry): entry is DatedTransaction => Boolean(entry.parsedDate));
+
+/** Dernier jour de la fenêtre commençant au mois de `windowStart`. */
+const getMonthlyWindowEnd = (windowStart: Date) => endOfMonthNative(addMonthsNative(windowStart, MONTHLY_WINDOW_LENGTH - 1));
+
+const toMonthYearLabel = (date: Date) => `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
 
 export const dashboardService = {
   async getDataset(year = new Date().getFullYear(), options?: { signal?: AbortSignal }): Promise<DashboardDataset> {
@@ -146,48 +192,60 @@ export const dashboardService = {
     const yearEnd = `${year}-12-31`;
 
     const [paymentItems, unreadAlertsCount] = await Promise.all([
-      paymentItemService.listAllActive({
-        fields: [...DASHBOARD_PAYMENT_ITEM_FIELDS],
-        filters: {
-          echeance: {
-            $gte: yearStart,
-            $lte: yearEnd,
-          },
-        },
-        sort: ['id:desc'],
-        pagination: {
-          page: 1,
-          pageSize: DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE,
-          withCount: true,
-        },
-      }, options),
+      listDashboardPaymentItems(yearStart, yearEnd, options),
       alertService.countUnread(options),
     ]);
 
     return {
       year,
-      paymentItems: paymentItems.map(normalizeDashboardPaymentItem),
+      paymentItems,
       unreadAlertsCount,
     };
   },
+  /**
+   * Effets des graphiques mensuels : la requête est bornée à la fenêtre affichée
+   * (échéance du 1er du premier mois au dernier jour du douzième), qui peut
+   * chevaucher deux années.
+   */
+  async getMonthlyWindow(windowStart: Date, options?: { signal?: AbortSignal }): Promise<MonthlyWindowDataset> {
+    const start = startOfMonthNative(windowStart);
+    const paymentItems = await listDashboardPaymentItems(toIsoDateNative(start), toIsoDateNative(getMonthlyWindowEnd(start)), options);
+
+    return { windowStart: start, paymentItems };
+  },
+  /** Un point par mois de la fenêtre, dans l'ordre chronologique. */
+  buildMonthlyChart(dataset: MonthlyWindowDataset): ChartPoint[] {
+    const now = new Date();
+    const transactions = toDatedTransactions(dataset.paymentItems);
+
+    return Array.from({ length: MONTHLY_WINDOW_LENGTH }, (_, index) => {
+      const monthDate = addMonthsNative(dataset.windowStart, index);
+
+      return buildChartPoint(
+        toChartLabel(MONTH_LABELS[monthDate.getMonth()]),
+        `${MONTH_TOOLTIP_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
+        transactions.filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate)),
+        now,
+      );
+    });
+  },
+  /** Intitulé de la fenêtre, ex. « Mai 2026 – Avr 2027 ». */
+  getMonthlyWindowLabel(windowStart: Date) {
+    return `${toMonthYearLabel(windowStart)} – ${toMonthYearLabel(getMonthlyWindowEnd(windowStart))}`;
+  },
   buildSummary(dataset: DashboardDataset, referenceDate = new Date()): DashboardSummary {
     const now = new Date();
-    const datasetYear = dataset.year;
     const monthStart = startOfMonthNative(now);
     const monthEnd = endOfMonthNative(now);
     const weekStart = startOfWeekNative(referenceDate);
     const weekEnd = endOfWeekNative(referenceDate);
     const paymentItems = dataset.paymentItems;
 
-    const transactions = mapPaymentItemsToTransactions(paymentItems)
-      .map((item) => ({ item, parsedDate: parseDashboardDate(item.operationDate) }))
-      .filter((entry): entry is { item: Transaction; parsedDate: Date } => Boolean(entry.parsedDate));
+    const transactions = toDatedTransactions(paymentItems);
 
     const monthTransactions = transactions
       .filter(({ parsedDate }) => parsedDate >= monthStart && parsedDate <= monthEnd)
       .map(({ item }) => item);
-
-    const yearTransactions = transactions.filter(({ parsedDate }) => parsedDate.getFullYear() === datasetYear);
 
     const dueThisWeek = paymentItems
       .filter((item: PaymentItem) => {
@@ -213,17 +271,6 @@ export const dashboardService = {
       );
     });
 
-    const monthlyChart = Array.from({ length: 12 }, (_, index) => {
-      const monthDate = new Date(datasetYear, index, 1);
-
-      return buildChartPoint(
-        toChartLabel(MONTH_LABELS[index]),
-        `${MONTH_TOOLTIP_LABELS[index]} ${datasetYear}`,
-        yearTransactions.filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate)),
-        now,
-      );
-    });
-
     return {
       monthlyCredits: sumByType(monthTransactions, 'CREDIT'),
       monthlyDebits: sumByType(monthTransactions, 'DEBIT'),
@@ -231,7 +278,6 @@ export const dashboardService = {
       overdueCount: overdue.length,
       unreadAlertsCount: dataset.unreadAlertsCount,
       weeklyChart,
-      monthlyChart,
       upcomingPaymentItems: dueThisWeek.slice(0, 5)
     };
   }

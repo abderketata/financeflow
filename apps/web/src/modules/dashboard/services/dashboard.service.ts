@@ -1,4 +1,4 @@
-import { endOfMonth, endOfWeek, endOfYear, format, isBefore, isSameDay, isSameMonth, isValid, isWithinInterval, parseISO, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
+import { addMonths, endOfMonth, endOfWeek, endOfYear, format, isBefore, isSameDay, isSameMonth, isValid, isWithinInterval, parseISO, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ChartPoint, DashboardSummary, PaymentItem, Transaction } from '@/types/domain';
 import { alertService } from '@/modules/alerts/services/alert.service';
@@ -124,10 +124,21 @@ const DASHBOARD_PAYMENT_ITEM_FIELDS = [
 
 const DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE = 250;
 
+/** Nombre de mois affichés par les graphiques mensuels. */
+export const MONTHLY_WINDOW_LENGTH = 12;
+/** Pas de décalage des boutons « − 4 mois » / « + 4 mois ». */
+export const MONTHLY_WINDOW_SHIFT = 4;
+
 export interface DashboardDataset {
   year: number;
   paymentItems: PaymentItem[];
   unreadAlertsCount: number;
+}
+
+/** Effets dont l'échéance tombe dans les {@link MONTHLY_WINDOW_LENGTH} mois commençant à `windowStart`. */
+export interface MonthlyWindowDataset {
+  windowStart: Date;
+  paymentItems: PaymentItem[];
 }
 
 const normalizeDashboardPaymentItem = (item: PaymentItem): PaymentItem => ({
@@ -135,54 +146,96 @@ const normalizeDashboardPaymentItem = (item: PaymentItem): PaymentItem => ({
   reference: item.reference || item.referenceNumber || '',
 });
 
+/** Effets actifs (`supprimer: false`) dont l'échéance est comprise entre `from` et `to` inclus. */
+const listDashboardPaymentItems = async (from: Date, to: Date, options?: { signal?: AbortSignal }) => {
+  const paymentItems = await paymentItemService.listAllActive({
+    fields: [...DASHBOARD_PAYMENT_ITEM_FIELDS],
+    filters: {
+      echeance: {
+        $gte: format(from, 'yyyy-MM-dd'),
+        $lte: format(to, 'yyyy-MM-dd'),
+      },
+    },
+    sort: ['id:desc'],
+    pagination: {
+      page: 1,
+      pageSize: DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE,
+      withCount: true,
+    },
+  }, options);
+
+  return paymentItems.map(normalizeDashboardPaymentItem);
+};
+
+const toDatedTransactions = (paymentItems: PaymentItem[]): DatedTransaction[] =>
+  mapPaymentItemsToTransactions(paymentItems)
+    .map((item) => ({ item, parsedDate: parseDashboardDate(item.operationDate) }))
+    .filter((entry): entry is DatedTransaction => Boolean(entry.parsedDate));
+
+const getMonthlyWindowEnd = (windowStart: Date) => endOfMonth(addMonths(startOfMonth(windowStart), MONTHLY_WINDOW_LENGTH - 1));
+
+const toMonthYearLabel = (date: Date) => `${toChartLabel(format(date, 'MMM', { locale: fr }))} ${format(date, 'yyyy')}`;
+
 export const dashboardService = {
   async getDataset(year = new Date().getFullYear(), options?: { signal?: AbortSignal }): Promise<DashboardDataset> {
     const currentYearStart = startOfYear(new Date(year, 0, 1));
     const currentYearEnd = endOfYear(currentYearStart);
 
     const [paymentItems, unreadAlertsCount] = await Promise.all([
-      paymentItemService.listAllActive({
-        fields: [...DASHBOARD_PAYMENT_ITEM_FIELDS],
-        filters: {
-          echeance: {
-            $gte: format(currentYearStart, 'yyyy-MM-dd'),
-            $lte: format(currentYearEnd, 'yyyy-MM-dd'),
-          },
-        },
-        sort: ['id:desc'],
-        pagination: {
-          page: 1,
-          pageSize: DASHBOARD_PAYMENT_ITEMS_PAGE_SIZE,
-          withCount: true,
-        },
-      }, options),
+      listDashboardPaymentItems(currentYearStart, currentYearEnd, options),
       alertService.countUnread(options),
     ]);
 
     return {
       year,
-      paymentItems: paymentItems.map(normalizeDashboardPaymentItem),
+      paymentItems,
       unreadAlertsCount,
     };
   },
+  /**
+   * Effets des graphiques mensuels : la requête est bornée à la fenêtre affichée
+   * (échéance du 1er du premier mois au dernier jour du douzième), qui peut
+   * chevaucher deux années.
+   */
+  async getMonthlyWindow(windowStart: Date, options?: { signal?: AbortSignal }): Promise<MonthlyWindowDataset> {
+    const start = startOfMonth(windowStart);
+    const paymentItems = await listDashboardPaymentItems(start, getMonthlyWindowEnd(start), options);
+
+    return { windowStart: start, paymentItems };
+  },
+  /** Un point par mois de la fenêtre, dans l'ordre chronologique. */
+  buildMonthlyChart(dataset: MonthlyWindowDataset): ChartPoint[] {
+    const now = new Date();
+    const transactions = toDatedTransactions(dataset.paymentItems);
+
+    return Array.from({ length: MONTHLY_WINDOW_LENGTH }, (_, index) => {
+      const monthDate = addMonths(dataset.windowStart, index);
+
+      return buildChartPoint(
+        toChartLabel(format(monthDate, 'MMM', { locale: fr })),
+        toChartLabel(format(monthDate, 'MMMM yyyy', { locale: fr })),
+        transactions.filter(({ parsedDate }) => isSameMonth(parsedDate, monthDate)),
+        now,
+      );
+    });
+  },
+  /** Intitulé de la fenêtre, ex. « Mai 2026 – Avr 2027 ». */
+  getMonthlyWindowLabel(windowStart: Date) {
+    return `${toMonthYearLabel(startOfMonth(windowStart))} – ${toMonthYearLabel(getMonthlyWindowEnd(windowStart))}`;
+  },
   buildSummary(dataset: DashboardDataset, selectedWeekDate = new Date()): DashboardSummary {
     const now = new Date();
-    const datasetYear = dataset.year;
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     const weekStart = startOfWeek(selectedWeekDate, { weekStartsOn: 1 });
     const weekEnd = endOfWeek(selectedWeekDate, { weekStartsOn: 1 });
     const paymentItems = dataset.paymentItems;
 
-    const transactions = mapPaymentItemsToTransactions(paymentItems)
-      .map((item) => ({ item, parsedDate: parseDashboardDate(item.operationDate) }))
-      .filter((entry): entry is { item: Transaction; parsedDate: Date } => Boolean(entry.parsedDate));
+    const transactions = toDatedTransactions(paymentItems);
 
     const monthTransactions = transactions
       .filter(({ parsedDate }) => parsedDate >= monthStart && parsedDate <= monthEnd)
       .map(({ item }) => item);
-
-    const yearTransactions = transactions.filter(({ parsedDate }) => parsedDate.getFullYear() === datasetYear);
 
     const dueThisWeek = paymentItems
       .filter((item: PaymentItem) => {
@@ -208,17 +261,6 @@ export const dashboardService = {
       );
     });
 
-    const monthlyChart = Array.from({ length: 12 }, (_, index) => {
-      const monthDate = new Date(datasetYear, index, 1);
-
-      return buildChartPoint(
-        toChartLabel(format(monthDate, 'MMM', { locale: fr })),
-        toChartLabel(format(monthDate, 'MMMM yyyy', { locale: fr })),
-        yearTransactions.filter(({ parsedDate }) => isSameMonth(parsedDate, monthDate)),
-        now,
-      );
-    });
-
     return {
       monthlyCredits: sumByType(monthTransactions, 'CREDIT'),
       monthlyDebits: sumByType(monthTransactions, 'DEBIT'),
@@ -226,9 +268,7 @@ export const dashboardService = {
       overdueCount: overdue.length,
       unreadAlertsCount: dataset.unreadAlertsCount,
       weeklyChart,
-      monthlyChart,
       upcomingPaymentItems: dueThisWeek.slice(0, 5)
     };
   }
 };
-

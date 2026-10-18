@@ -108,7 +108,7 @@ export function MonthlyCreditDebitComparisonChart({
     <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.title}>📉 Comparatif mensuel crédits / débits</Text>
-        <Text style={styles.subtitle}>Deux courbes distinctes pour comparer les flux mois par mois sur l'année</Text>
+        <Text style={styles.subtitle}>Deux courbes distinctes pour comparer les flux mois par mois sur la période affichée</Text>
       </View>
 
       <View style={styles.legendRow}>

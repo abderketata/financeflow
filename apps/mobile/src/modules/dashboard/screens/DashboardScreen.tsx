@@ -11,10 +11,11 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { StatusPill } from '@/components/ui/StatusPill';
 import { MonthlyCreditDebitComparisonChart } from '@/modules/dashboard/components/MonthlyCreditDebitComparisonChart';
 import { MonthlyOperationsChart } from '@/modules/dashboard/components/MonthlyOperationsChart';
+import { MonthlyChartFrame, MonthWindowNavigator } from '@/modules/dashboard/components/MonthWindowNavigator';
 import { WeeklyOperationsChart } from '@/modules/dashboard/components/WeeklyOperationsChart';
 import { WeekNavigator } from '@/modules/dashboard/components/WeekNavigator';
 import { PaymentItemDetailsModal } from '@/modules/payment-items/components/PaymentItemDetailsModal';
-import { useDashboard } from '@/modules/dashboard/hooks/useDashboard';
+import { useDashboard, useMonthlyWindow } from '@/modules/dashboard/hooks/useDashboard';
 import { getPaymentItemStatusLabel } from '@/modules/payment-items/utils/paymentItemPresentation';
 import { useSettings } from '@/modules/settings/hooks/useSettings';
 import { initNotifications } from '@/services/notifications/expoNotifications';
@@ -86,6 +87,9 @@ export function DashboardScreen() {
 
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(selectedWeekStart);
   const { data: settings } = useSettings();
+  // Chaque graphique mensuel a sa propre fenêtre de 12 mois, Janv → Déc de l'année en cours au départ.
+  const operationsWindow = useMonthlyWindow(new Date(today.getFullYear(), 0, 1));
+  const comparisonWindow = useMonthlyWindow(new Date(today.getFullYear(), 0, 1));
 
   // Bornes de navigation : l'année civile en cours, comme sur le web.
   const firstNavigableWeek = useMemo(() => startOfWeek(new Date(today.getFullYear(), 0, 1)), [today]);
@@ -127,6 +131,27 @@ export function DashboardScreen() {
   }
 
   const currency = settings?.defaultCurrency ?? settings?.currency ?? 'TND';
+
+  const refreshAll = () => {
+    refetch();
+    operationsWindow.refetch();
+    comparisonWindow.refetch();
+  };
+
+  const renderMonthlyChart = (
+    monthWindow: ReturnType<typeof useMonthlyWindow>,
+    Chart: typeof MonthlyOperationsChart | typeof MonthlyCreditDebitComparisonChart,
+  ) => (
+    <>
+      <MonthWindowNavigator label={monthWindow.label} onPrevious={monthWindow.showPrevious} onNext={monthWindow.showNext} />
+      <MonthlyChartFrame
+        loading={monthWindow.isPending || monthWindow.isPlaceholderData}
+        onRetry={monthWindow.isError ? () => monthWindow.refetch() : undefined}
+      >
+        <Chart data={monthWindow.data ?? []} currency={currency} />
+      </MonthlyChartFrame>
+    </>
+  );
 
   const kpis: KpiDefinition[] = [
     {
@@ -177,7 +202,7 @@ export function DashboardScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={brand.blue600} />
+          <RefreshControl refreshing={isFetching} onRefresh={refreshAll} tintColor={brand.blue600} />
         }
       >
         <Text style={styles.title}>Tableau de bord</Text>
@@ -279,13 +304,13 @@ export function DashboardScreen() {
             title="Vue mensuelle"
             subtitle="Attendu (trait plein) et réellement réglé (pointillés) — l'écart reste à encaisser"
           />
-          <MonthlyOperationsChart data={data.monthlyChart} currency={currency} />
+          {renderMonthlyChart(operationsWindow, MonthlyOperationsChart)}
         </AppCard>
 
-        {/* ── Comparatif annuel ── */}
+        {/* ── Comparatif mensuel ── */}
         <AppCard>
-          <SectionTitle title="Comparatif annuel" subtitle="Crédits en barres, débits en courbe" />
-          <MonthlyCreditDebitComparisonChart data={data.monthlyChart} currency={currency} />
+          <SectionTitle title="Comparatif mensuel" subtitle="Crédits en barres, débits en courbe" />
+          {renderMonthlyChart(comparisonWindow, MonthlyCreditDebitComparisonChart)}
         </AppCard>
       </ScrollView>
 
