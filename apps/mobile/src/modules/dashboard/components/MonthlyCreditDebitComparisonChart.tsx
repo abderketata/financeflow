@@ -4,6 +4,7 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { ChartPoint } from '@/types';
 import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { formatCurrency } from '@/utils/format';
+import { CURRENT_MONTH_TAG_SPACE, CurrentMonthBand, currentMonthStyles } from '@/modules/dashboard/components/CurrentMonthHighlight';
 
 const CREDIT_COLOR = '#16a34a';
 const DEBIT_COLOR = '#dc2626';
@@ -12,8 +13,9 @@ const SLATE_500 = '#64748b';
 const SLATE_400 = '#94a3b8';
 const SLATE_200 = '#e2e8f0';
 const SURFACE = '#ffffff';
-const CHART_HEIGHT = 220;
-const CHART_PADDING = { top: 16, right: 12, bottom: 28, left: 12 };
+const CHART_HEIGHT = 226;
+// `top` laisse la place à l'étiquette « Mois en cours » au-dessus de la zone de tracé.
+const CHART_PADDING = { top: CURRENT_MONTH_TAG_SPACE, right: 12, bottom: 28, left: 12 };
 const GRID_SEGMENTS = 4;
 
 type SeriesPoint = {
@@ -96,6 +98,8 @@ export function MonthlyCreditDebitComparisonChart({
 
   const creditBars = useMemo(() => getBarPoints(data, chartWidth, maxValue), [data, chartWidth, maxValue]);
   const debitPoints = useMemo(() => getSeriesPoints(data, 'debit', chartWidth, maxValue), [data, chartWidth, maxValue]);
+  const currentIndex = data.findIndex((point) => point.isCurrentMonth);
+  const step = data.length > 0 ? (chartWidth - CHART_PADDING.left - CHART_PADDING.right) / data.length : 0;
 
   const onChartLayout = (event: LayoutChangeEvent) => {
     const width = event.nativeEvent.layout.width;
@@ -142,11 +146,22 @@ export function MonthlyCreditDebitComparisonChart({
               );
             })}
 
-            {creditBars.map((bar) => (
+            {currentIndex >= 0 ? (
+              <CurrentMonthBand
+                centerX={CHART_PADDING.left + currentIndex * step + step / 2}
+                bandWidth={step}
+                plotLeft={CHART_PADDING.left}
+                plotRight={chartWidth - CHART_PADDING.right}
+                plotTop={CHART_PADDING.top}
+                plotBottom={CHART_HEIGHT - CHART_PADDING.bottom}
+              />
+            ) : null}
+
+            {creditBars.map((bar, index) => (
               <Path
                 key={`credit-bar-${bar.label}`}
                 d={`M ${bar.x} ${bar.y + bar.height} L ${bar.x} ${bar.y} L ${bar.x + bar.width} ${bar.y} L ${bar.x + bar.width} ${bar.y + bar.height}`}
-                fill={alphaToHex(CREDIT_COLOR, 0.8)}
+                fill={index === currentIndex ? CREDIT_COLOR : alphaToHex(CREDIT_COLOR, 0.8)}
                 stroke={alphaToHex(CREDIT_COLOR, 0.95)}
                 strokeWidth={1}
               />
@@ -155,8 +170,16 @@ export function MonthlyCreditDebitComparisonChart({
               <Path d={toSvgPath(debitPoints)} fill="none" stroke={DEBIT_COLOR} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
             ) : null}
 
-            {debitPoints.map((point) => (
-              <Circle key={`debit-${point.label}`} cx={point.x} cy={point.y} r={4} fill={DEBIT_COLOR} stroke={SURFACE} strokeWidth={2} />
+            {debitPoints.map((point, index) => (
+              <Circle
+                key={`debit-${point.label}`}
+                cx={point.x}
+                cy={point.y}
+                r={index === currentIndex ? 6 : 4}
+                fill={DEBIT_COLOR}
+                stroke={SURFACE}
+                strokeWidth={2}
+              />
             ))}
           </Svg>
         )}
@@ -164,7 +187,7 @@ export function MonthlyCreditDebitComparisonChart({
 
       <View style={styles.axisLabelsRow}>
         {data.map((point) => (
-          <Text key={point.label} style={styles.axisLabel}>
+          <Text key={point.label} style={[styles.axisLabel, point.isCurrentMonth && currentMonthStyles.axisLabel]}>
             {point.label}
           </Text>
         ))}

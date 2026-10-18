@@ -4,7 +4,9 @@ import { ReactNode, useMemo } from 'react';
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
+  Customized,
   Legend,
   Line,
   ResponsiveContainer,
@@ -16,11 +18,19 @@ import { ChartPoint } from '@/types/domain';
 import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 import { ChartStatusOverlay } from '@/modules/dashboard/components/MonthWindowNavigator';
+import {
+  CurrentMonthBand,
+  CurrentMonthChip,
+  MONTHLY_CHART_TOP_MARGIN,
+  MonthAxisTick,
+  renderMonthlyDot,
+} from '@/modules/dashboard/components/CurrentMonthHighlight';
 
 const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
   if (!active || !payload?.length) return null;
 
   const tooltipLabel = payload[0]?.payload?.tooltipLabel ?? label;
+  const isCurrentMonth = Boolean(payload[0]?.payload?.isCurrentMonth);
 
   return (
     <Box
@@ -32,9 +42,12 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
         boxShadow: '0 4px 12px rgba(15,23,42,0.08)',
       }}
     >
-      <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.82rem', color: brandColors.slate[800], mb: 0.8 }}>
-        {tooltipLabel}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.8 }}>
+        <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.82rem', color: brandColors.slate[800] }}>
+          {tooltipLabel}
+        </Typography>
+        {isCurrentMonth ? <CurrentMonthChip /> : null}
+      </Stack>
       {payload.map((entry: any) => (
         <Stack key={entry.name} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.3 }}>
           <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: entry.color }} />
@@ -69,6 +82,7 @@ export function MonthlyCreditDebitComparisonChart({
   // Crédits (colonnes) ET débits (ligne) partagent le même axe : les deux séries
   // doivent entrer dans le calcul de l'échelle.
   const yScale = useMemo(() => buildChartAmountScale(data, ['credit', 'debit']), [data]);
+  const currentMonthLabel = data.find((point) => point.isCurrentMonth)?.label;
 
   return (
     <Card>
@@ -109,11 +123,12 @@ export function MonthlyCreditDebitComparisonChart({
 
         <Box sx={{ position: 'relative' }}>
           <ResponsiveContainer width="100%" height={340}>
-            <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <ComposedChart data={data} margin={{ top: MONTHLY_CHART_TOP_MARGIN, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={brandColors.slate[200]} vertical={false} />
+              <Customized component={<CurrentMonthBand monthLabel={currentMonthLabel} />} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 12, fill: brandColors.slate[400], fontWeight: 500 }}
+                tick={<MonthAxisTick monthLabel={currentMonthLabel} />}
                 axisLine={{ stroke: brandColors.slate[200] }}
                 tickLine={false}
               />
@@ -139,14 +154,19 @@ export function MonthlyCreditDebitComparisonChart({
                 fill={alpha(brandColors.credit, 0.8)}
                 radius={[6, 6, 0, 0]}
                 maxBarSize={28}
-              />
+              >
+                {/* Colonne du mois en cours : pleine opacité. */}
+                {data.map((point) => (
+                  <Cell key={point.label} fill={point.isCurrentMonth ? brandColors.credit : alpha(brandColors.credit, 0.8)} />
+                ))}
+              </Bar>
               <Line
                 type="monotone"
                 dataKey="debit"
                 name="Débits"
                 stroke={brandColors.debit}
                 strokeWidth={3}
-                dot={{ r: 3, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
+                dot={renderMonthlyDot(brandColors.debit)}
                 activeDot={{ r: 5, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
               />
             </ComposedChart>

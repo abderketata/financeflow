@@ -4,9 +4,11 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { ChartPoint } from '@/types';
 import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brand, spacing } from '@/theme/brand';
+import { CURRENT_MONTH_TAG_SPACE, CurrentMonthBand, currentMonthStyles } from '@/modules/dashboard/components/CurrentMonthHighlight';
 
-const CHART_HEIGHT = 200;
-const PADDING = { top: 16, right: 10, bottom: 26, left: 10 };
+const CHART_HEIGHT = 206;
+// `top` laisse la place à l'étiquette « Mois en cours » au-dessus de la zone de tracé.
+const PADDING = { top: CURRENT_MONTH_TAG_SPACE, right: 10, bottom: 26, left: 10 };
 const GRID_SEGMENTS = 4;
 
 type SeriesKey = 'credit' | 'debit' | 'creditPaid' | 'debitPaid';
@@ -56,6 +58,8 @@ export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: Chart
   }, [data, width, scale.max]);
 
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
+  const currentIndex = data.findIndex((point) => point.isCurrentMonth);
+  const currentPoint = series && currentIndex >= 0 ? series.credit.points[currentIndex] : undefined;
 
   return (
     <View onLayout={onLayout}>
@@ -76,6 +80,17 @@ export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: Chart
               />
             );
           })}
+
+          {currentPoint ? (
+            <CurrentMonthBand
+              centerX={currentPoint.x}
+              bandWidth={(width - PADDING.left - PADDING.right) / Math.max(data.length - 1, 1)}
+              plotLeft={PADDING.left}
+              plotRight={width - PADDING.right}
+              plotTop={PADDING.top}
+              plotBottom={CHART_HEIGHT - PADDING.bottom}
+            />
+          ) : null}
 
           {/* Attendu : trait plein */}
           <Path d={series.credit.path} fill="none" stroke={brand.credit} strokeWidth={2.5} strokeLinejoin="round" />
@@ -99,12 +114,12 @@ export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: Chart
             strokeLinejoin="round"
           />
 
-          {/* Points sur l'attendu, pour repérer les mois */}
+          {/* Points sur l'attendu, pour repérer les mois (plus gros sur le mois en cours) */}
           {series.credit.points.map((point, index) => (
-            <Circle key={`c-${index}`} cx={point.x} cy={point.y} r={2.5} fill={brand.credit} />
+            <Circle key={`c-${index}`} cx={point.x} cy={point.y} r={index === currentIndex ? 4.5 : 2.5} fill={brand.credit} />
           ))}
           {series.debit.points.map((point, index) => (
-            <Circle key={`d-${index}`} cx={point.x} cy={point.y} r={2.5} fill={brand.danger} />
+            <Circle key={`d-${index}`} cx={point.x} cy={point.y} r={index === currentIndex ? 4.5 : 2.5} fill={brand.danger} />
           ))}
         </Svg>
       ) : (
@@ -113,7 +128,11 @@ export function MonthlyOperationsChart({ data, currency = 'TND' }: { data: Chart
 
       <View style={styles.axis}>
         {data.map((point) => (
-          <Text key={point.label} style={styles.axisLabel} numberOfLines={1}>
+          <Text
+            key={point.label}
+            style={[styles.axisLabel, point.isCurrentMonth && currentMonthStyles.axisLabel]}
+            numberOfLines={1}
+          >
             {point.label}
           </Text>
         ))}

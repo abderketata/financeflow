@@ -226,12 +226,15 @@ export const dashboardService = {
     return Array.from({ length: MONTHLY_WINDOW_LENGTH }, (_, index) => {
       const monthDate = addMonthsNative(dataset.windowStart, index);
 
-      return buildChartPoint(
-        toChartLabel(MONTH_LABELS[monthDate.getMonth()]),
-        `${MONTH_TOOLTIP_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
-        transactions.filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate)),
-        now,
-      );
+      return {
+        ...buildChartPoint(
+          toChartLabel(MONTH_LABELS[monthDate.getMonth()]),
+          `${MONTH_TOOLTIP_LABELS[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
+          transactions.filter(({ parsedDate }) => isSameMonthNative(parsedDate, monthDate)),
+          now,
+        ),
+        isCurrentMonth: isSameMonthNative(monthDate, now),
+      };
     });
   },
   /** Intitulé de la fenêtre, ex. « Mai 2026 – Avr 2027 ». */

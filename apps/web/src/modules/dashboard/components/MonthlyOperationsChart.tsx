@@ -5,6 +5,7 @@ import {
   Area,
   CartesianGrid,
   ComposedChart,
+  Customized,
   Legend,
   Line,
   ResponsiveContainer,
@@ -16,6 +17,13 @@ import { ChartPoint } from '@/types/domain';
 import { buildChartAmountScale, formatCompactAmount } from '@/utils/chartScale';
 import { brandColors, headingFont, iconBox, numericFont } from '@/app/theme';
 import { ChartStatusOverlay } from '@/modules/dashboard/components/MonthWindowNavigator';
+import {
+  CurrentMonthBand,
+  CurrentMonthChip,
+  MONTHLY_CHART_TOP_MARGIN,
+  MonthAxisTick,
+  renderMonthlyDot,
+} from '@/modules/dashboard/components/CurrentMonthHighlight';
 
 const formatTooltipAmount = (value: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Number(value ?? 0));
@@ -123,9 +131,12 @@ const CustomTooltip = ({ active, payload, label, currency = 'TND' }: any) => {
         boxShadow: '0 4px 12px rgba(15,23,42,0.08)',
       }}
     >
-      <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.82rem', color: brandColors.slate[800], mb: 1 }}>
-        {tooltipLabel}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        <Typography sx={{ fontFamily: headingFont, fontWeight: 700, fontSize: '0.82rem', color: brandColors.slate[800] }}>
+          {tooltipLabel}
+        </Typography>
+        {point.isCurrentMonth ? <CurrentMonthChip /> : null}
+      </Stack>
 
       {!hasCredit && !hasDebit ? (
         <Typography sx={{ fontSize: '0.75rem', color: brandColors.slate[400] }}>Aucune opération</Typography>
@@ -157,6 +168,7 @@ export function MonthlyOperationsChart({
   // Échelle Y calculée sur les totaux attendus : les séries « réalisé » leur sont
   // toujours inférieures ou égales, elles restent donc dans le cadre.
   const yScale = useMemo(() => buildChartAmountScale(data, ['credit', 'debit']), [data]);
+  const currentMonthLabel = data.find((point) => point.isCurrentMonth)?.label;
 
   return (
     <Card>
@@ -181,7 +193,7 @@ export function MonthlyOperationsChart({
 
         <Box sx={{ position: 'relative' }}>
           <ResponsiveContainer width="100%" height={340}>
-            <ComposedChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <ComposedChart data={data} margin={{ top: MONTHLY_CHART_TOP_MARGIN, right: 20, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="creditAreaFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={brandColors.credit} stopOpacity={0.12} />
@@ -193,9 +205,10 @@ export function MonthlyOperationsChart({
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={brandColors.slate[200]} vertical={false} />
+              <Customized component={<CurrentMonthBand monthLabel={currentMonthLabel} />} />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 12, fill: brandColors.slate[400], fontWeight: 500 }}
+                tick={<MonthAxisTick monthLabel={currentMonthLabel} />}
                 axisLine={{ stroke: brandColors.slate[200] }}
                 tickLine={false}
               />
@@ -221,7 +234,7 @@ export function MonthlyOperationsChart({
                 strokeWidth={2}
                 fill="url(#creditAreaFill)"
                 legendType="circle"
-                dot={{ r: 3, fill: brandColors.credit, strokeWidth: 2, stroke: '#fff' }}
+                dot={renderMonthlyDot(brandColors.credit)}
                 activeDot={{ r: 5, fill: brandColors.credit, strokeWidth: 2, stroke: '#fff' }}
               />
               <Area
@@ -231,7 +244,7 @@ export function MonthlyOperationsChart({
                 strokeWidth={2}
                 fill="url(#debitAreaFill)"
                 legendType="circle"
-                dot={{ r: 3, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
+                dot={renderMonthlyDot(brandColors.debit)}
                 activeDot={{ r: 5, fill: brandColors.debit, strokeWidth: 2, stroke: '#fff' }}
               />
               <Line
@@ -241,7 +254,7 @@ export function MonthlyOperationsChart({
                 strokeWidth={2}
                 strokeDasharray="5 4"
                 legendType="plainline"
-                dot={{ r: 2.5, fill: '#fff', strokeWidth: 2, stroke: brandColors.credit }}
+                dot={renderMonthlyDot(brandColors.credit, 'hollow', 2.5)}
                 activeDot={{ r: 4.5, fill: '#fff', strokeWidth: 2, stroke: brandColors.credit }}
               />
               <Line
@@ -251,7 +264,7 @@ export function MonthlyOperationsChart({
                 strokeWidth={2}
                 strokeDasharray="5 4"
                 legendType="plainline"
-                dot={{ r: 2.5, fill: '#fff', strokeWidth: 2, stroke: brandColors.debit }}
+                dot={renderMonthlyDot(brandColors.debit, 'hollow', 2.5)}
                 activeDot={{ r: 4.5, fill: '#fff', strokeWidth: 2, stroke: brandColors.debit }}
               />
             </ComposedChart>

@@ -216,12 +216,15 @@ export const dashboardService = {
     return Array.from({ length: MONTHLY_WINDOW_LENGTH }, (_, index) => {
       const monthDate = addMonths(dataset.windowStart, index);
 
-      return buildChartPoint(
-        toChartLabel(format(monthDate, 'MMM', { locale: fr })),
-        toChartLabel(format(monthDate, 'MMMM yyyy', { locale: fr })),
-        transactions.filter(({ parsedDate }) => isSameMonth(parsedDate, monthDate)),
-        now,
-      );
+      return {
+        ...buildChartPoint(
+          toChartLabel(format(monthDate, 'MMM', { locale: fr })),
+          toChartLabel(format(monthDate, 'MMMM yyyy', { locale: fr })),
+          transactions.filter(({ parsedDate }) => isSameMonth(parsedDate, monthDate)),
+          now,
+        ),
+        isCurrentMonth: isSameMonth(monthDate, now),
+      };
     });
   },
   /** Intitulé de la fenêtre, ex. « Mai 2026 – Avr 2027 ». */

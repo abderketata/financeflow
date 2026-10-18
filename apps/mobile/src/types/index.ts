@@ -176,6 +176,8 @@ export interface AppSetting {
 export interface ChartPoint {
   label: string;
   tooltipLabel?: string;
+  /** Graphiques mensuels : vrai pour le mois en cours, mis en évidence à l'affichage. */
+  isCurrentMonth?: boolean;
   /** Attendu (théorique) : payé + déposé + en retard. Les annulés en sont exclus. */
   credit: number;
   debit: number;
