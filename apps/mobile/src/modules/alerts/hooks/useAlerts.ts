@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { AlertItem } from '@/types';
 import { alertService } from '@/modules/alerts/services/alert.service';
@@ -51,6 +51,9 @@ export const useUnreadAlertsBadge = () => {
   const { data: alerts = [], refetch } = useAlerts();
   const unreadCount = countUnreadAlerts(alerts);
 
+  const unreadCountRef = useRef(unreadCount);
+  unreadCountRef.current = unreadCount;
+
   useEffect(() => {
     void setAppBadgeCount(unreadCount);
   }, [unreadCount]);
@@ -58,6 +61,9 @@ export const useUnreadAlertsBadge = () => {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        // Nouvel essai si la pastille n'avait pas pu être posée (permission
+        // accordée entre-temps) ; sans effet si elle est déjà à jour.
+        void setAppBadgeCount(unreadCountRef.current);
         void refetch();
       }
     });

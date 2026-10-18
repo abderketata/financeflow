@@ -22,11 +22,15 @@ export const clientService = {
     return items.map(normalizeClientEntity);
   },
 
-  /** Recherche légère pour autocomplete */
+  /**
+   * Recherche légère pour autocomplete.
+   * N'utiliser que des attributs du schéma Strapi `client` : un champ inconnu
+   * dans `fields` fait répondre 400 (« Invalid parameter ») à toute la requête.
+   */
   async lookup(search = '', pageSize = 50): Promise<Client[]> {
     const trimmed = search.trim();
     const params: Record<string, unknown> = {
-      fields: ['code', 'fullName', 'companyName', 'name'],
+      fields: ['code', 'fullName', 'companyName'],
       pagination: { page: 1, pageSize },
       sort: ['updatedAt:desc'],
     };

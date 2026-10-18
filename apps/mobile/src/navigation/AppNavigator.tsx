@@ -1,7 +1,8 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BrandLogo } from '@/components/ui/BrandLogo';
@@ -18,6 +19,7 @@ import { ProfileScreen } from '@/modules/profile/screens/ProfileScreen';
 import { SettingsScreen } from '@/modules/settings/screens/SettingsScreen';
 import { stackRefreshQueries, tabRefreshQueries } from '@/app/businessNavigation';
 import { MobileStackParamList } from '@/navigation/types';
+import { useOpenFromUnreadSummary } from '@/services/notifications/appBadge';
 import { brand, shadow } from '@/theme/brand';
 
 const Tab = createBottomTabNavigator();
@@ -65,6 +67,9 @@ function MainTabs() {
   // Nombre d'alertes non lues : pastille de l'onglet « Alertes » et pastille
   // de l'icône de l'application (voir `useUnreadAlertsBadge`).
   const unreadAlerts = useUnreadAlertsBadge();
+  const navigation = useNavigation<NativeStackNavigationProp<MobileStackParamList>>();
+  // Toucher la notification « N alertes non lues » ouvre l'onglet Alertes.
+  useOpenFromUnreadSummary(() => navigation.navigate('Tabs', { screen: 'AlertList' } as never));
 
   return (
     <Tab.Navigator

@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import { AppTextField } from '@/components/ui/AppTextField';
+import { DateField, getTodayISODate } from '@/components/ui/DateField';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Screen } from '@/components/ui/Screen';
 import { accountService } from '@/modules/accounts/services/account.service';
@@ -131,9 +132,6 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CARTE: 'Carte',
 };
 
-function getTodayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** Format: XXXX XXXX XXXX — chiffres seuls, 12 au maximum. */
 function formatRefDisplay(clean: string): string {
@@ -155,17 +153,6 @@ function formatAmountDisplay(value: string): string {
 
 function stripSpaces(value: string): string {
   return value.replace(/\s/g, '');
-}
-
-/**
- * Masque de date : la saisie libre remplace le sélecteur natif du web, le
- * masque garantit la forme AAAA-MM-JJ attendue par Strapi.
- */
-function formatDateDisplay(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (digits.length > 6) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
-  if (digits.length > 4) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-  return digits;
 }
 
 /** Repère d'urgence de l'échéance — mêmes seuils que le web. */
@@ -263,7 +250,7 @@ function PaymentItemFormBody({
       amount: current?.amount ?? 0,
       currency: current?.currency ?? defaultCurrency,
       status: (getPaymentItemStatusLabel(current?.status) as any) ?? 'Déposé',
-      issueDate: current?.issueDate ? current.issueDate.slice(0, 10) : isEdit ? '' : getTodayISO(),
+      issueDate: current?.issueDate ? current.issueDate.slice(0, 10) : isEdit ? '' : getTodayISODate(),
       dueDate: current?.dueDate ? current.dueDate.slice(0, 10) : '',
       drawer: current?.drawer ?? '',
       drawee: current?.drawee ?? '',
@@ -438,16 +425,17 @@ function PaymentItemFormBody({
     if (Number(values.amount) > HIGH_AMOUNT_CONFIRMATION_THRESHOLD) {
       const confirmed = await confirmAction({
         title: 'Confirmer un montant élevé',
-        message: [
-          `Ce montant dépasse ${formatCurrency(HIGH_AMOUNT_CONFIRMATION_THRESHOLD, watchedCurrency)}, ce qui est rare.`,
-          formatCurrency(Number(values.amount), watchedCurrency),
-          colloquialAmount ? `Soit ${colloquialAmount.label} — ${colloquialAmount.arabicLabel}` : '',
-          amountInWords,
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
+        message: `Ce montant dépasse ${formatCurrency(HIGH_AMOUNT_CONFIRMATION_THRESHOLD, watchedCurrency)}, ce qui est rare. Vérifiez-le avant d'enregistrer le paiement.`,
+        highlight: {
+          value: formatCurrency(Number(values.amount), watchedCurrency),
+          lines: [
+            colloquialAmount ? `Soit ${colloquialAmount.label} — ${colloquialAmount.arabicLabel}` : '',
+            amountInWords,
+          ],
+        },
         confirmLabel: 'Oui, enregistrer',
-        destructive: true,
+        cancelLabel: 'Corriger',
+        tone: 'warning',
       });
 
       if (!confirmed) {
@@ -650,30 +638,25 @@ function PaymentItemFormBody({
             {errors.status ? <Text style={styles.fieldError}>{errors.status.message}</Text> : null}
 
             <Controller name="issueDate" control={control} render={({ field }) => (
-              <AppTextField
+              <DateField
                 label="Date d'émission"
-                value={field.value ?? ''}
+                value={field.value}
                 icon="calendar-outline"
-                keyboardType="numeric"
-                maxLength={10}
-                placeholder="AAAA-MM-JJ"
                 error={errors.issueDate?.message}
-                onChangeText={(text) => field.onChange(formatDateDisplay(text))}
+                onChange={field.onChange}
               />
             )} />
 
             <Controller name="dueDate" control={control} render={({ field }) => (
-              <AppTextField
+              <DateField
                 label="Échéance *"
-                value={field.value ?? ''}
-                icon="time-outline"
-                keyboardType="numeric"
-                maxLength={10}
-                placeholder="AAAA-MM-JJ"
+                value={field.value}
+                icon={dueDateUrgency.helperText ? 'alert-circle-outline' : 'time-outline'}
                 error={errors.dueDate?.message}
                 helperText={dueDateUrgency.helperText}
                 helperTextColor={dueDateUrgency.color}
-                onChangeText={(text) => field.onChange(formatDateDisplay(text))}
+                clearable={false}
+                onChange={field.onChange}
               />
             )} />
 

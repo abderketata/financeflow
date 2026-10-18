@@ -173,7 +173,7 @@ export function ClientPickerField({ value, onChange, error, label = 'Client *' }
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
 
-  const { data: clients = [], isFetching } = useQuery({
+  const { data: clients = [], isFetching, isError, refetch } = useQuery({
     queryKey: ['clients', 'payment-form-lookup', debouncedSearch],
     enabled: open,
     staleTime: 30_000,
@@ -233,6 +233,13 @@ export function ClientPickerField({ value, onChange, error, label = 'Client *' }
             isFetching ? (
               <View style={styles.state}>
                 <ActivityIndicator size="small" color={brand.blue600} />
+              </View>
+            ) : isError ? (
+              <View style={styles.state}>
+                <Text style={styles.stateText}>Impossible de charger les clients.</Text>
+                <Pressable onPress={() => refetch()} hitSlop={8} accessibilityRole="button">
+                  <Text style={styles.retryText}>Réessayer</Text>
+                </Pressable>
               </View>
             ) : (
               <View style={styles.state}>
@@ -483,5 +490,11 @@ const styles = StyleSheet.create({
   stateText: {
     fontSize: 13,
     color: brand.slate500,
+  },
+  retryText: {
+    marginTop: spacing.sm,
+    fontSize: 13,
+    fontWeight: '700',
+    color: brand.blue600,
   },
 });
