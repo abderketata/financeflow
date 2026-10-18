@@ -73,8 +73,8 @@ export function MonthlyCreditDebitComparisonChart({
   return (
     <Card>
       <CardContent sx={{ p: '24px !important' }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
+        <Stack direction="column" alignItems="flex-start" spacing={1.5} sx={{ mb: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: '100%', minWidth: 0 }}>
             <Box sx={iconBox(brandColors.blue[600], 38)}>
               <InsightsRoundedIcon fontSize="small" />
             </Box>

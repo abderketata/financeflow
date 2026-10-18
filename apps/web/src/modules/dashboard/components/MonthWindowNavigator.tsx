@@ -22,50 +22,60 @@ const shiftButtonSx = {
 /** Décale la fenêtre de 12 mois d'un graphique mensuel de quelques mois vers le passé ou le futur. */
 export function MonthWindowNavigator({ label, onPrevious, onNext }: MonthWindowNavigatorProps) {
   return (
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      spacing={1}
-      alignItems={{ xs: 'stretch', sm: 'center' }}
-      sx={{ width: { xs: '100%', sm: 'auto' } }}
+    // Toujours sur une seule ligne : si la carte est étroite, les boutons perdent leur chevron
+    // et l'intitulé se tronque (container query sur la largeur réellement disponible).
+    <Box
+      sx={{
+        width: '100%',
+        containerType: 'inline-size',
+        '@container (max-width: 400px)': {
+          '& .MuiButton-startIcon, & .MuiButton-endIcon': { display: 'none' },
+        },
+      }}
     >
-      <Typography
-        sx={{
-          px: 1.25,
-          py: 0.85,
-          borderRadius: '10px',
-          border: `1px solid ${alpha(brandColors.blue[500], 0.12)}`,
-          backgroundColor: alpha(brandColors.blue[500], 0.05),
-          color: brandColors.slate[700],
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          whiteSpace: 'nowrap',
-          textAlign: 'center',
-        }}
-      >
-        {label}
-      </Typography>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography
+          sx={{
+            px: 1.25,
+            py: 0.85,
+            borderRadius: '10px',
+            border: `1px solid ${alpha(brandColors.blue[500], 0.12)}`,
+            backgroundColor: alpha(brandColors.blue[500], 0.05),
+            color: brandColors.slate[700],
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {label}
+        </Typography>
 
-      <Stack direction="row" spacing={0.75} justifyContent={{ xs: 'space-between', sm: 'flex-start' }}>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<NavigateBeforeRoundedIcon fontSize="small" />}
-          onClick={onPrevious}
-          sx={shiftButtonSx}
-        >
-          − {MONTHLY_WINDOW_SHIFT} mois
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          endIcon={<NavigateNextRoundedIcon fontSize="small" />}
-          onClick={onNext}
-          sx={shiftButtonSx}
-        >
-          + {MONTHLY_WINDOW_SHIFT} mois
-        </Button>
+        <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<NavigateBeforeRoundedIcon fontSize="small" />}
+            onClick={onPrevious}
+            sx={shiftButtonSx}
+          >
+            − {MONTHLY_WINDOW_SHIFT} mois
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            endIcon={<NavigateNextRoundedIcon fontSize="small" />}
+            onClick={onNext}
+            sx={shiftButtonSx}
+          >
+            + {MONTHLY_WINDOW_SHIFT} mois
+          </Button>
+        </Stack>
       </Stack>
-    </Stack>
+    </Box>
   );
 }
 

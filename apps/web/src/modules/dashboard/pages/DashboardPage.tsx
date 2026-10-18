@@ -162,8 +162,8 @@ export default function DashboardPage() {
         <Grid item xs={12} lg={5}>
           <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: '22px 24px !important' }}>
-              <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
-                <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Stack direction="column" alignItems="flex-start" spacing={1.5} sx={{ mb: 2 }}>
+                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: '100%', minWidth: 0 }}>
                   <Box sx={iconBox(brandColors.info, 38)}>
                     <ReceiptLongRoundedIcon fontSize="small" />
                   </Box>
