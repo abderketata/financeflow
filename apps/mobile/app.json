@@ -6,14 +6,29 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
       "backgroundColor": "#0f172a"
+    },
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#1D4ED8"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "android": {
-      "package": "com.financeflow.app"
+      "package": "com.financeflow.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundImage": "./assets/adaptive-icon-background.png",
+        "backgroundColor": "#2563EB"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
@@ -28,7 +43,8 @@
         "expo-image-picker",
         {
           "cameraPermission": "Flux Financier utilise l'appareil photo pour photographier un chèque, une traite ou un justificatif de paiement.",
-          "photosPermission": "Flux Financier accède à vos photos pour joindre un justificatif à un paiement."
+          "photosPermission": "Flux Financier accède à vos photos pour joindre un justificatif à un paiement.",
+          "microphonePermission": false
         }
       ]
     ],

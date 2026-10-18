@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { authService } from '@/services/api/auth';
 import { subscribeToAuthSessionInvalidation } from '@/services/api/authSession';
 import { setStoredUser } from '@/services/api/authStorage';
+import { clearAppBadgeCount } from '@/services/notifications/appBadge';
 
 interface AuthContextValue {
   user: any;
@@ -51,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async logout() {
       await authService.logout();
       queryClient.clear();
+      // Plus de session : la pastille de l'icône ne doit plus annoncer d'alertes.
+      await clearAppBadgeCount();
       setUser(null);
     }
   }), [isBootstrapping, queryClient, user]);

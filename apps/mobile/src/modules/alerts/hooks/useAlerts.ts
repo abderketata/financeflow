@@ -1,6 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { AlertItem } from '@/types';
 import { alertService } from '@/modules/alerts/services/alert.service';
+import { setAppBadgeCount } from '@/services/notifications/appBadge';
 
 const queryKey = ['mobile-alerts'];
 
@@ -31,6 +34,39 @@ export const useAlerts = () =>
         sort: ['id:desc'],
       }),
   });
+
+/** Nombre d'alertes non lues — source unique de la pastille et de l'onglet. */
+export const countUnreadAlerts = (alerts: AlertItem[] = []) => alerts.filter((alert) => !alert.isRead).length;
+
+/**
+ * Tient à jour le nombre d'alertes non lues et le reporte sur l'icône de
+ * l'application. Monté une fois pour toute la session (voir `AppNavigator`) :
+ * la requête est partagée avec l'écran « Alertes » via le cache React Query,
+ * donc aucun appel réseau supplémentaire n'est déclenché.
+ *
+ * Le retour au premier plan relance la requête : une alerte arrivée pendant
+ * que l'application dormait doit se voir sur l'icône dès la réouverture.
+ */
+export const useUnreadAlertsBadge = () => {
+  const { data: alerts = [], refetch } = useAlerts();
+  const unreadCount = countUnreadAlerts(alerts);
+
+  useEffect(() => {
+    void setAppBadgeCount(unreadCount);
+  }, [unreadCount]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refetch();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refetch]);
+
+  return unreadCount;
+};
 
 export const useAlertPaymentItems = (alertId?: number, enabled = true) =>
   useQuery({

@@ -6,6 +6,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-app-icons.js",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview",
     "build:aab": "npx eas-cli@latest build --platform android --profile production",
     "build:apk:local": "node scripts/build-apk.js",
@@ -52,6 +53,7 @@
     "@types/react": "~18.0.27",
     "babel-plugin-module-resolver": "^5.0.2",
     "dotenv": "^16.4.5",
+    "pngjs": "^7.0.0",
     "typescript": "^5.4.5"
   }
 }

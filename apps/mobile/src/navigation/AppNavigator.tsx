@@ -13,6 +13,7 @@ import { PaymentItemFormScreen } from '@/modules/payment-items/screens/PaymentIt
 import { TransactionListScreen } from '@/modules/transactions/screens/TransactionListScreen';
 import { TransactionFormScreen } from '@/modules/transactions/screens/TransactionFormScreen';
 import { AlertListScreen } from '@/modules/alerts/screens/AlertListScreen';
+import { useUnreadAlertsBadge } from '@/modules/alerts/hooks/useAlerts';
 import { ProfileScreen } from '@/modules/profile/screens/ProfileScreen';
 import { SettingsScreen } from '@/modules/settings/screens/SettingsScreen';
 import { stackRefreshQueries, tabRefreshQueries } from '@/app/businessNavigation';
@@ -61,6 +62,9 @@ const TAB_ICONS: Record<string, { active: keyof typeof Ionicons.glyphMap; inacti
 
 function MainTabs() {
   const queryClient = useQueryClient();
+  // Nombre d'alertes non lues : pastille de l'onglet « Alertes » et pastille
+  // de l'icône de l'application (voir `useUnreadAlertsBadge`).
+  const unreadAlerts = useUnreadAlertsBadge();
 
   return (
     <Tab.Navigator
@@ -94,7 +98,12 @@ function MainTabs() {
       <Tab.Screen
         name="AlertList"
         component={AlertListScreen as React.ComponentType<any>}
-        options={{ title: 'Alertes' }}
+        options={{
+          title: 'Alertes',
+          // `undefined` retire la pastille : `0` afficherait un rond vide.
+          tabBarBadge: unreadAlerts > 0 ? (unreadAlerts > 99 ? '99+' : unreadAlerts) : undefined,
+          tabBarBadgeStyle: styles.tabBadge,
+        }}
       />
       <Tab.Screen
         name="ClientList"
@@ -164,5 +173,13 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '700',
     marginTop: 1,
+  },
+  tabBadge: {
+    backgroundColor: brand.danger,
+    color: brand.white,
+    fontSize: 10,
+    fontWeight: '800',
+    minWidth: 18,
+    lineHeight: 15,
   },
 });
