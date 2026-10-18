@@ -11,10 +11,19 @@ const alertPopulate = {
   paymentItems: { populate: '*' },
 } as const;
 
+// Sans `pagination`, Strapi renvoie 25 alertes au maximum : la pastille et les compteurs
+// « Toutes / Non lues / Lues » plafonnent alors à 25. Même règle que l'app mobile.
+const ALERTS_PAGE_SIZE = 100;
+
 export const useAlerts = () =>
   useQuery({
     queryKey,
-    queryFn: () => alertService.list({ populate: alertPopulate })
+    queryFn: () =>
+      alertService.list({
+        populate: alertPopulate,
+        pagination: { page: 1, pageSize: ALERTS_PAGE_SIZE },
+        sort: ['id:desc']
+      })
   });
 
 export const useAlertPaymentItems = (alertId?: number, enabled = true) =>
